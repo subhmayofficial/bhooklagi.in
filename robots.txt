@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# Block nothing — single page site
+Sitemap: https://www.bhooklagi.in/sitemap.xml
