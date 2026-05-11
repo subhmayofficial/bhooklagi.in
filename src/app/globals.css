@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  ::selection {
+    @apply bg-brand-orange/25 text-ink;
+  }
+
+  body {
+    @apply bg-gray-50;
+  }
+}
+
+@layer utilities {
+  .text-gradient-brand {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(
+      135deg,
+      #e85d04 0%,
+      #faa307 55%,
+      #ff7a1a 100%
+    );
+  }
+
+  .glass-nav {
+    @apply border-b border-gray-200/80 bg-white/90 backdrop-blur-xl;
+  }
+
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Swiggy-style card shadow */
+  .card-shadow {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+
+  .card-shadow-lg {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Diet indicator square (FSSAI style) */
+  .diet-veg {
+    @apply border-2 border-green-600;
+  }
+  .diet-dot-veg {
+    @apply bg-green-600;
+  }
+  .diet-egg {
+    @apply border-2 border-amber-500;
+  }
+  .diet-dot-egg {
+    @apply bg-amber-500;
+  }
+  .diet-nonveg {
+    @apply border-2 border-red-600;
+  }
+  .diet-dot-nonveg {
+    @apply bg-red-600;
+  }
+}

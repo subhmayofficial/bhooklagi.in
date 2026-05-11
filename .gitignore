@@ -1,0 +1,24 @@
+# deps
+node_modules
+.pnp
+.pnp.js
+
+# next
+.next/
+out/
+
+# env
+.env*.local
+
+# debug
+npm-debug.log*
+
+# OS
+.DS_Store
+
+# vercel
+.vercel
+
+# local / tooling
+.claude/
+*.tsbuildinfo
