@@ -1,9 +1,13 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { Bebas_Neue, Playfair_Display, Inter } from "next/font/google";
 import "./globals.css";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { ScrollProgress } from "@/components/layout/ScrollProgress";
 import { CartRehydrate } from "@/components/providers/CartRehydrate";
+import { AuthRehydrate } from "@/components/providers/AuthRehydrate";
+import { OtpLoginModal } from "@/components/auth/OtpLoginModal";
+import { MSG91_SCRIPT_SRC } from "@/lib/msg91/widget";
 
 const bebas = Bebas_Neue({
   weight: "400",
@@ -80,11 +84,14 @@ export default function RootLayout({
         className={`${inter.className} ${bebas.variable} ${playfair.variable} min-h-dvh bg-gray-50 text-ink antialiased`}
       >
         <CartRehydrate />
+        <AuthRehydrate />
         <ScrollProgress />
         <div className="pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-8">
           {children}
         </div>
         <BottomNav />
+        <OtpLoginModal />
+        <Script src={MSG91_SCRIPT_SRC} strategy="afterInteractive" />
       </body>
     </html>
   );

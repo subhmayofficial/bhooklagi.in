@@ -4,8 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, useScroll, useMotionValueEvent } from "framer-motion";
 import { useState, useEffect } from "react";
-import { ShoppingBag, MapPin } from "lucide-react";
+import { ShoppingBag, MapPin, User, LogOut } from "lucide-react";
 import { useCartStore, cartTotals } from "@/stores/cart-store";
+import { useAuthStore } from "@/stores/auth-store";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
@@ -23,6 +24,11 @@ export function SiteHeader() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const { qty } = cartTotals(lines);
+
+  const user = useAuthStore((s) => s.user);
+  const status = useAuthStore((s) => s.status);
+  const logout = useAuthStore((s) => s.logout);
+  const openLoginModal = useAuthStore((s) => s.openLoginModal);
 
   return (
     <motion.header
@@ -67,19 +73,46 @@ export function SiteHeader() {
           ))}
         </nav>
 
-        {/* Cart pill */}
-        <Link
-          href="/cart"
-          className="relative flex items-center gap-2 rounded-full bg-brand-orange px-4 py-2 text-[13px] font-bold text-white shadow-md transition-all hover:bg-brand-orange-dark active:scale-[0.97]"
-        >
-          <ShoppingBag className="h-4 w-4" strokeWidth={2.5} />
-          <span className="hidden sm:inline">Bag</span>
-          {mounted && qty > 0 && (
-            <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-ink px-1 text-[11px] font-bold text-brand-gold shadow">
-              {qty > 9 ? "9+" : qty}
-            </span>
+        <div className="flex items-center gap-2">
+          {/* Auth */}
+          {mounted && status === "authenticated" && user ? (
+            <button
+              type="button"
+              onClick={() => void logout()}
+              className="hidden items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-[12px] font-semibold text-gray-600 hover:text-gray-900 sm:flex"
+              title="Log out"
+            >
+              <User className="h-3.5 w-3.5" />
+              {user.name || `+91 ${user.phone.slice(-10)}`}
+              <LogOut className="h-3.5 w-3.5" />
+            </button>
+          ) : (
+            mounted && status === "guest" && (
+              <button
+                type="button"
+                onClick={openLoginModal}
+                className="hidden items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-[12px] font-semibold text-gray-600 hover:text-gray-900 sm:flex"
+              >
+                <User className="h-3.5 w-3.5" />
+                Log in
+              </button>
+            )
           )}
-        </Link>
+
+          {/* Cart pill */}
+          <Link
+            href="/cart"
+            className="relative flex items-center gap-2 rounded-full bg-brand-orange px-4 py-2 text-[13px] font-bold text-white shadow-md transition-all hover:bg-brand-orange-dark active:scale-[0.97]"
+          >
+            <ShoppingBag className="h-4 w-4" strokeWidth={2.5} />
+            <span className="hidden sm:inline">Bag</span>
+            {mounted && qty > 0 && (
+              <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-ink px-1 text-[11px] font-bold text-brand-gold shadow">
+                {qty > 9 ? "9+" : qty}
+              </span>
+            )}
+          </Link>
+        </div>
       </div>
     </motion.header>
   );

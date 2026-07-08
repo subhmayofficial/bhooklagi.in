@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ChevronLeft, MapPin, Phone, User, Landmark, CreditCard, Bike } from "lucide-react";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { useCartStore, cartTotals } from "@/stores/cart-store";
+import { useAuthStore } from "@/stores/auth-store";
 import { formatInr } from "@/data/menu";
 import { generateTestOrderId, saveTestOrder } from "@/lib/test-order";
 
@@ -22,6 +23,8 @@ export default function CheckoutPage() {
   const gst         = Math.round(subtotal * 0.05);
   const grand       = subtotal + deliveryFee + gst;
 
+  const authUser = useAuthStore((s) => s.user);
+
   const [name,     setName]     = useState("");
   const [phone,    setPhone]    = useState("");
   const [address,  setAddress]  = useState("");
@@ -29,6 +32,12 @@ export default function CheckoutPage() {
   const [payment,  setPayment]  = useState<PaymentMode>("cod");
   const [placing,  setPlacing]  = useState(false);
   const [errors,   setErrors]   = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!authUser) return;
+    setName((prev) => prev || authUser.name || "");
+    setPhone((prev) => prev || authUser.phone.slice(-10));
+  }, [authUser]);
 
   if (lines.length === 0) {
     return (
