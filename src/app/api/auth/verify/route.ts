@@ -28,19 +28,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "OTP verification is not configured." }, { status: 500 });
   }
 
+  let msgRes: Response;
   let msgData: { type?: string; message?: string } | null = null;
   try {
-    const msgRes = await fetch("https://control.msg91.com/api/v5/widget/verifyAccessToken", {
+    msgRes = await fetch("https://api.msg91.com/api/v5/widget/verifyAccessToken", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ authkey, "access-token": accessToken }),
+      headers: { authkey, "content-type": "application/json" },
+      body: JSON.stringify({ "access-token": accessToken }),
     });
     msgData = await msgRes.json();
   } catch {
     return NextResponse.json({ error: "Could not reach OTP provider." }, { status: 502 });
   }
 
-  if (msgData?.type !== "success") {
+  if (!msgRes.ok || msgData?.type === "error") {
     return NextResponse.json(
       { error: msgData?.message || "OTP verification failed." },
       { status: 401 },
