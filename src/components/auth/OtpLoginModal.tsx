@@ -23,7 +23,6 @@ export function OtpLoginModal() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(""));
-  const [reqId, setReqId] = useState<string | undefined>(undefined);
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(false);
@@ -35,7 +34,6 @@ export function OtpLoginModal() {
   function reset() {
     setStep("phone");
     setOtp(Array(OTP_LENGTH).fill(""));
-    setReqId(undefined);
     setError("");
     setSending(false);
     setVerifying(false);
@@ -93,9 +91,8 @@ export function OtpLoginModal() {
     setSending(true);
     window.sendOtp(
       `91${phone}`,
-      (data: Msg91WidgetResponse) => {
+      () => {
         setSending(false);
-        setReqId(typeof data?.message === "string" ? data.message : undefined);
         setStep("otp");
         setCooldown(RESEND_COOLDOWN);
         setTimeout(() => otpRefs.current[0]?.focus(), 50);
@@ -121,7 +118,6 @@ export function OtpLoginModal() {
         setResending(false);
         setError(err?.message || "Could not resend OTP.");
       },
-      reqId,
     );
   }
 
@@ -152,7 +148,6 @@ export function OtpLoginModal() {
         setVerifying(false);
         setError(err?.message || "Incorrect OTP. Try again.");
       },
-      reqId,
     );
   }
 
