@@ -6,10 +6,11 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { ChevronLeft, MapPin, Phone, User, Landmark, CreditCard, Bike } from "lucide-react";
 import { SiteHeader } from "@/components/layout/SiteHeader";
-import { useCartStore, cartTotals } from "@/stores/cart-store";
+import { useCartStore } from "@/stores/cart-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { formatInr } from "@/data/menu";
-import { generateTestOrderId, saveTestOrder } from "@/lib/test-order";
+import { computeOrderTotals } from "@/lib/pricing";
+import { saveTestOrder } from "@/lib/test-order";
 
 type PaymentMode = "cod" | "online_bypassed";
 
@@ -17,11 +18,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const lines     = useCartStore((s) => s.lines);
   const clear     = useCartStore((s) => s.clear);
-  const { subtotal } = cartTotals(lines);
-
-  const deliveryFee = subtotal >= 299 ? 0 : 49;
-  const gst         = Math.round(subtotal * 0.05);
-  const grand       = subtotal + deliveryFee + gst;
+  const { subtotal, deliveryFee, gst, grandTotal: grand } = computeOrderTotals(lines);
 
   const authUser = useAuthStore((s) => s.user);
 
@@ -65,25 +62,46 @@ export default function CheckoutPage() {
     return e;
   }
 
-  function placeOrder() {
+  async function placeOrder() {
     const e = validate();
     if (Object.keys(e).length > 0) { setErrors(e); return; }
 
     setPlacing(true);
-    const snapshot = {
-      orderId: generateTestOrderId(),
-      placedAtIso: new Date().toISOString(),
-      lines: lines.map((l) => ({ ...l })),
-      delivery: { name: name.trim(), phone: phone.trim(), address: address.trim(), landmark: landmark.trim() || undefined },
-      paymentMode: payment,
-      subtotal,
-      deliveryFee,
-      gst,
-      grand,
-    };
-    saveTestOrder(snapshot);
-    clear();
-    router.push("/order/success");
+    try {
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lines,
+          delivery: {
+            name: name.trim(),
+            phone: phone.trim(),
+            address: address.trim(),
+            landmark: landmark.trim() || undefined,
+          },
+          paymentMode: "cod",
+        }),
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload?.error || "Could not place order.");
+
+      saveTestOrder({
+        orderId: payload.order.orderNumber,
+        placedAtIso: payload.order.createdAt,
+        lines: lines.map((l) => ({ ...l })),
+        delivery: { name: name.trim(), phone: phone.trim(), address: address.trim(), landmark: landmark.trim() || undefined },
+        paymentMode: payment,
+        subtotal: payload.order.subtotal,
+        deliveryFee: payload.order.deliveryFee,
+        gst: payload.order.gst,
+        grand: payload.order.grandTotal,
+      });
+      clear();
+      router.push("/order/success");
+    } catch (err) {
+      setPlacing(false);
+      setErrors((p) => ({ ...p, submit: err instanceof Error ? err.message : "Could not place order." }));
+    }
   }
 
   return (
@@ -290,6 +308,10 @@ export default function CheckoutPage() {
                 <p className="text-[12px] text-gray-500">30 – 45 minutes</p>
               </div>
             </div>
+
+            {errors.submit && (
+              <p className="text-center text-[12px] text-red-500">{errors.submit}</p>
+            )}
 
             {/* Place order */}
             <motion.button

@@ -9,6 +9,7 @@ import { getMsg91Config, waitForMsg91, type Msg91WidgetResponse } from "@/lib/ms
 const PHONE_RE = /^[6-9]\d{9}$/;
 const CAPTCHA_ID = "bl-msg91-captcha";
 const RESEND_COOLDOWN = 30;
+const OTP_LENGTH = 4;
 
 type Step = "phone" | "otp";
 
@@ -21,7 +22,7 @@ export function OtpLoginModal() {
   const [widgetReady, setWidgetReady] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [otp, setOtp] = useState<string[]>(Array(6).fill(""));
+  const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(""));
   const [reqId, setReqId] = useState<string | undefined>(undefined);
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
@@ -33,7 +34,7 @@ export function OtpLoginModal() {
 
   function reset() {
     setStep("phone");
-    setOtp(Array(6).fill(""));
+    setOtp(Array(OTP_LENGTH).fill(""));
     setReqId(undefined);
     setError("");
     setSending(false);
@@ -125,7 +126,7 @@ export function OtpLoginModal() {
   }
 
   function verifyOtp(code: string) {
-    if (code.length !== 6 || !window.verifyOtp) return;
+    if (code.length !== OTP_LENGTH || !window.verifyOtp) return;
     setError("");
     setVerifying(true);
     window.verifyOtp(
@@ -160,9 +161,9 @@ export function OtpLoginModal() {
     const next = [...otp];
     next[index] = digit;
     setOtp(next);
-    if (digit && index < 5) otpRefs.current[index + 1]?.focus();
+    if (digit && index < OTP_LENGTH - 1) otpRefs.current[index + 1]?.focus();
     const joined = next.join("");
-    if (joined.length === 6) verifyOtp(joined);
+    if (joined.length === OTP_LENGTH) verifyOtp(joined);
   }
 
   function handleOtpKeyDown(index: number, e: React.KeyboardEvent<HTMLInputElement>) {
@@ -172,14 +173,14 @@ export function OtpLoginModal() {
   }
 
   function handleOtpPaste(e: React.ClipboardEvent<HTMLInputElement>) {
-    const text = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    const text = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, OTP_LENGTH);
     if (!text) return;
     e.preventDefault();
-    const next = Array(6).fill("");
+    const next = Array(OTP_LENGTH).fill("");
     for (let i = 0; i < text.length; i++) next[i] = text[i];
     setOtp(next);
-    otpRefs.current[Math.min(text.length, 5)]?.focus();
-    if (text.length === 6) verifyOtp(text);
+    otpRefs.current[Math.min(text.length, OTP_LENGTH - 1)]?.focus();
+    if (text.length === OTP_LENGTH) verifyOtp(text);
   }
 
   return (
@@ -207,7 +208,7 @@ export function OtpLoginModal() {
                     type="button"
                     onClick={() => {
                       setStep("phone");
-                      setOtp(Array(6).fill(""));
+                      setOtp(Array(OTP_LENGTH).fill(""));
                       setError("");
                     }}
                     className="rounded-full p-1 text-gray-400 hover:text-gray-700"
@@ -287,7 +288,7 @@ export function OtpLoginModal() {
                   Sent to <span className="font-semibold text-gray-800">+91 {phone}</span>
                 </p>
 
-                <div className="flex justify-between gap-2" onPaste={handleOtpPaste}>
+                <div className="flex justify-center gap-3" onPaste={handleOtpPaste}>
                   {otp.map((digit, i) => (
                     <input
                       key={i}
@@ -300,7 +301,7 @@ export function OtpLoginModal() {
                       value={digit}
                       onChange={(e) => handleOtpChange(i, e.target.value)}
                       onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                      className="h-12 w-11 rounded-xl border border-gray-200 text-center text-[18px] font-bold text-gray-900 focus:border-brand-orange focus:outline-none focus:ring-2 focus:ring-brand-orange/20"
+                      className="h-14 w-14 rounded-xl border border-gray-200 text-center text-[20px] font-bold text-gray-900 focus:border-brand-orange focus:outline-none focus:ring-2 focus:ring-brand-orange/20"
                     />
                   ))}
                 </div>
@@ -319,7 +320,7 @@ export function OtpLoginModal() {
                 <motion.button
                   type="button"
                   onClick={() => verifyOtp(otp.join(""))}
-                  disabled={verifying || otp.join("").length !== 6}
+                  disabled={verifying || otp.join("").length !== OTP_LENGTH}
                   whileTap={{ scale: 0.98 }}
                   className="flex w-full items-center justify-center gap-2 rounded-2xl bg-brand-orange px-5 py-3.5 text-[14px] font-extrabold text-white shadow-[0_8px_24px_rgba(232,93,4,0.35)] transition-all hover:bg-brand-orange-dark disabled:opacity-60"
                 >
