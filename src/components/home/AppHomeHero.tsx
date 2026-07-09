@@ -12,6 +12,8 @@ import {
   Wallet,
   User,
   ShoppingBag,
+  Mic,
+  X,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useCartStore, cartTotals } from "@/stores/cart-store";
@@ -25,7 +27,16 @@ type LastOrder = {
 
 type LastOrderStatus = "idle" | "loading" | "empty" | "ready";
 
-const SEARCH_SUGGESTIONS = ["burgers", "maggi", "rolls", "cold coffee", "fries"];
+const SEARCH_SUGGESTIONS = ["burgers", "maggi", "rolls", "fries", "cheese maggi", "chicken burger", "paneer roll"];
+
+const QUICK_CATS = [
+  { label: "Burgers",    emoji: "🍔", q: "burgers" },
+  { label: "Rolls",      emoji: "🌯", q: "rolls" },
+  { label: "Maggi",      emoji: "🍜", q: "maggi" },
+  { label: "Fries",      emoji: "🍟", q: "fries" },
+  { label: "Sandwiches", emoji: "🥪", q: "sandwiches" },
+  { label: "Beverages",  emoji: "🧃", q: "beverages" },
+];
 
 // Decorative background accents — purely visual, don't affect layout flow.
 const FLOATERS: { emoji: string; className: string; delay: number; duration: number }[] = [
@@ -197,39 +208,102 @@ export function AppHomeHero() {
           {greeting()}{user?.name ? `, ${user.name.split(" ")[0]}` : ""} — bhook lagi? 👋
         </p>
 
-        {/* Search */}
-        <motion.form
-          onSubmit={handleSearch}
-          initial={{ opacity: 0, y: 10 }}
+        {/* ── Enhanced Search ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.08 }}
-          className="relative mt-4"
+          transition={{ duration: 0.45, delay: 0.08 }}
+          className="mt-4 space-y-2.5"
         >
-          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="w-full rounded-2xl border-0 bg-white py-3.5 pl-11 pr-4 text-[14px] text-gray-900 shadow-lg focus:outline-none focus:ring-2 focus:ring-white/60"
-          />
-          {!query && (
-            <div className="pointer-events-none absolute left-11 top-1/2 flex -translate-y-1/2 items-center gap-1 text-[14px] text-gray-400">
-              <span>Search for</span>
-              <AnimatePresence mode="wait">
-                <motion.span
-                  key={suggestionIndex}
-                  initial={{ y: 10, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  exit={{ y: -10, opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="font-semibold text-gray-500"
-                >
-                  &ldquo;{SEARCH_SUGGESTIONS[suggestionIndex]}&rdquo;
-                </motion.span>
+          {/* Search input row */}
+          <form onSubmit={handleSearch} className="relative">
+            {/* Glass container */}
+            <div className="relative flex items-center overflow-hidden rounded-2xl bg-white shadow-[0_8px_32px_rgba(0,0,0,0.18)] ring-2 ring-white/60 transition-shadow focus-within:shadow-[0_8px_40px_rgba(0,0,0,0.28)] focus-within:ring-brand-orange/30">
+              {/* Search icon */}
+              <div className="flex h-full items-center pl-4 pr-2">
+                <Search className="h-[18px] w-[18px] text-gray-400" strokeWidth={2.5} />
+              </div>
+
+              {/* Input */}
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="flex-1 bg-transparent py-4 pr-2 text-[14px] font-medium text-gray-900 placeholder-transparent focus:outline-none"
+              />
+
+              {/* Animated placeholder (when empty) */}
+              {!query && (
+                <div className="pointer-events-none absolute left-[52px] top-1/2 flex -translate-y-1/2 items-center gap-1.5 text-[14px] text-gray-400">
+                  <span className="font-normal">Search for</span>
+                  <AnimatePresence mode="wait">
+                    <motion.span
+                      key={suggestionIndex}
+                      initial={{ y: 8, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      exit={{ y: -8, opacity: 0 }}
+                      transition={{ duration: 0.25 }}
+                      className="font-semibold text-gray-600"
+                    >
+                      &ldquo;{SEARCH_SUGGESTIONS[suggestionIndex]}&rdquo;
+                    </motion.span>
+                  </AnimatePresence>
+                </div>
+              )}
+
+              {/* Clear button (when typing) */}
+              <AnimatePresence>
+                {query && (
+                  <motion.button
+                    initial={{ opacity: 0, scale: 0.7 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.7 }}
+                    transition={{ duration: 0.15 }}
+                    type="button"
+                    onClick={() => setQuery("")}
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="h-4 w-4" strokeWidth={2.5} />
+                  </motion.button>
+                )}
               </AnimatePresence>
+
+              {/* Mic icon */}
+              <div className="pr-1">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-50 text-gray-400">
+                  <Mic className="h-4 w-4" strokeWidth={2} />
+                </span>
+              </div>
+
+              {/* Search CTA */}
+              <button
+                type="submit"
+                className="m-1.5 flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-brand-orange to-brand-gold px-4 py-2.5 text-[13px] font-extrabold text-white shadow-md shadow-brand-orange/30 transition-all active:scale-95 hover:shadow-lg"
+              >
+                <Search className="h-3.5 w-3.5" strokeWidth={3} />
+                Search
+              </button>
             </div>
-          )}
-        </motion.form>
+          </form>
+
+          {/* Quick category pills */}
+          <div className="hide-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5">
+            {QUICK_CATS.map((cat, i) => (
+              <motion.button
+                key={cat.q}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.15 + i * 0.05, duration: 0.3 }}
+                type="button"
+                onClick={() => router.push(`/menu?cat=${cat.q}`)}
+                className="flex flex-shrink-0 items-center gap-1.5 rounded-full bg-white/20 px-3 py-1.5 text-[11px] font-bold text-white backdrop-blur-sm transition-all hover:bg-white/30 active:scale-95"
+              >
+                <span className="text-[13px]">{cat.emoji}</span>
+                {cat.label}
+              </motion.button>
+            ))}
+          </div>
+        </motion.div>
 
         {/* Reorder card — skeleton reserves the space, then crossfades to real
             content, so there's no sudden height jump once data arrives. */}
