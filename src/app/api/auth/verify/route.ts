@@ -4,6 +4,24 @@ import { createSessionCookie } from "@/lib/auth/session";
 
 const PHONE_RE = /^[6-9]\d{9}$/;
 
+type Msg91VerifyResult = { ok: boolean; message?: string; code?: string };
+
+async function verifyWithMsg91(authkey: string, accessToken: string): Promise<Msg91VerifyResult> {
+  const res = await fetch("https://api.msg91.com/api/v5/widget/verifyAccessToken", {
+    method: "POST",
+    headers: { authkey, "content-type": "application/json" },
+    body: JSON.stringify({ "access-token": accessToken }),
+  });
+  const data = (await res.json().catch(() => null)) as
+    | { type?: string; message?: string; code?: string }
+    | null;
+  return {
+    ok: res.ok && data?.type !== "error",
+    message: data?.message,
+    code: data?.code,
+  };
+}
+
 /**
  * Trades a verified MSG91 OTP Widget access-token for our own session cookie.
  * The access-token is minted by MSG91 only after the user actually completed
@@ -23,34 +41,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid phone number." }, { status: 400 });
   }
 
-  // verifyAccessToken lives under /api/v5/widget/ and is authenticated with the
-  // widget's auth token (tokenAuth) — the same credential used to init the widget
-  // and send the OTP. A separate account authkey (MSG91_AUTHKEY) also works, but
-  // only if it's a valid key; we prefer the widget token since it's guaranteed to
-  // match the widget that minted the access token. MSG91_AUTHKEY is an optional
-  // override for anyone who wants to use their account authkey instead.
-  const authkey =
-    process.env.MSG91_AUTHKEY?.trim() || process.env.NEXT_PUBLIC_MSG91_AUTH_TOKEN?.trim();
-  if (!authkey) {
+  // verifyAccessToken (under /api/v5/widget/) needs a valid MSG91 authkey. The
+  // widget's own auth token (tokenAuth) is a valid authkey and is the intended
+  // credential for widget endpoints, so we always have that as a fallback. If a
+  // separate account authkey (MSG91_AUTHKEY) is set we try it first, but if MSG91
+  // rejects it as invalid (code 418) we automatically retry with the widget token
+  // — so a stale/wrong MSG91_AUTHKEY in the deploy env can't break login.
+  const widgetToken = process.env.NEXT_PUBLIC_MSG91_AUTH_TOKEN?.trim();
+  const accountKey = process.env.MSG91_AUTHKEY?.trim();
+  const primaryKey = accountKey || widgetToken;
+  if (!primaryKey) {
     return NextResponse.json({ error: "OTP verification is not configured." }, { status: 500 });
   }
 
-  let msgRes: Response;
-  let msgData: { type?: string; message?: string; code?: string } | null = null;
+  let result: Msg91VerifyResult;
   try {
-    msgRes = await fetch("https://api.msg91.com/api/v5/widget/verifyAccessToken", {
-      method: "POST",
-      headers: { authkey, "content-type": "application/json" },
-      body: JSON.stringify({ "access-token": accessToken }),
-    });
-    msgData = await msgRes.json();
+    result = await verifyWithMsg91(primaryKey, accessToken);
+    // Auto-fallback: the account authkey was rejected, retry with the widget token.
+    if (!result.ok && result.code === "418" && widgetToken && widgetToken !== primaryKey) {
+      result = await verifyWithMsg91(widgetToken, accessToken);
+    }
   } catch {
     return NextResponse.json({ error: "Could not reach OTP provider." }, { status: 502 });
   }
 
-  if (!msgRes.ok || msgData?.type === "error") {
+  if (!result.ok) {
     // Surface the underlying MSG91 code so auth-key vs token issues are diagnosable.
-    const detail = msgData?.code ? `${msgData.message} (code ${msgData.code})` : msgData?.message;
+    const detail = result.code ? `${result.message} (code ${result.code})` : result.message;
     return NextResponse.json(
       { error: detail || "OTP verification failed." },
       { status: 401 },

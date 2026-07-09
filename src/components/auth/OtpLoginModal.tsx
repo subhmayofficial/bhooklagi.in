@@ -128,7 +128,26 @@ export function OtpLoginModal() {
     window.verifyOtp(
       code,
       async (data: Msg91WidgetResponse) => {
-        const accessToken = typeof data?.message === "string" ? data.message : "";
+        // The verified access-token can come back as a plain string or under one
+        // of a few field names depending on widget version — handle them all.
+        const raw = data as unknown;
+        const accessToken =
+          typeof raw === "string"
+            ? raw
+            : typeof data?.message === "string"
+              ? data.message
+              : typeof (data as { accessToken?: unknown })?.accessToken === "string"
+                ? (data as { accessToken: string }).accessToken
+                : typeof (data as { ["access-token"]?: unknown })?.["access-token"] === "string"
+                  ? (data as { ["access-token"]: string })["access-token"]
+                  : "";
+
+        if (!accessToken) {
+          setVerifying(false);
+          setError(`OTP verified but no token returned: ${JSON.stringify(data)}`);
+          return;
+        }
+
         try {
           const res = await fetch("/api/auth/verify", {
             method: "POST",
