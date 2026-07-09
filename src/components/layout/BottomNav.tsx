@@ -22,6 +22,8 @@ export function BottomNav() {
   useEffect(() => setMounted(true), []);
   const { qty } = cartTotals(lines);
 
+  if (pathname === "/") return null;
+
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-[900] md:hidden"

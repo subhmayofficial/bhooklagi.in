@@ -3,6 +3,7 @@ import Script from "next/script";
 import { Bebas_Neue, Playfair_Display, Inter } from "next/font/google";
 import "./globals.css";
 import { BottomNav } from "@/components/layout/BottomNav";
+import { MainContentWrapper } from "@/components/layout/MainContentWrapper";
 import { WhatsAppFloatButton } from "@/components/layout/WhatsAppFloatButton";
 import { ScrollProgress } from "@/components/layout/ScrollProgress";
 import { CartRehydrate } from "@/components/providers/CartRehydrate";
@@ -87,9 +88,7 @@ export default function RootLayout({
         <CartRehydrate />
         <AuthRehydrate />
         <ScrollProgress />
-        <div className="pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-8">
-          {children}
-        </div>
+        <MainContentWrapper>{children}</MainContentWrapper>
         <BottomNav />
         <WhatsAppFloatButton />
         <OtpLoginModal />
