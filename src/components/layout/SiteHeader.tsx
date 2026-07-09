@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, useScroll, useMotionValueEvent } from "framer-motion";
 import { useState, useEffect } from "react";
-import { ShoppingBag, MapPin, User, LogOut } from "lucide-react";
+import { ShoppingBag, MapPin, User } from "lucide-react";
 import { useCartStore, cartTotals } from "@/stores/cart-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { cn } from "@/lib/utils";
@@ -27,7 +27,6 @@ export function SiteHeader() {
 
   const user = useAuthStore((s) => s.user);
   const status = useAuthStore((s) => s.status);
-  const logout = useAuthStore((s) => s.logout);
   const openLoginModal = useAuthStore((s) => s.openLoginModal);
 
   return (
@@ -76,25 +75,23 @@ export function SiteHeader() {
         <div className="flex items-center gap-2">
           {/* Auth */}
           {mounted && status === "authenticated" && user ? (
-            <button
-              type="button"
-              onClick={() => void logout()}
-              className="hidden items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-[12px] font-semibold text-gray-600 hover:text-gray-900 sm:flex"
-              title="Log out"
+            <Link
+              href="/account"
+              className="flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-[12px] font-semibold text-gray-600 hover:text-gray-900"
+              title="My account"
             >
               <User className="h-3.5 w-3.5" />
-              {user.name || `+91 ${user.phone.slice(-10)}`}
-              <LogOut className="h-3.5 w-3.5" />
-            </button>
+              <span className="hidden sm:inline">{user.name || `+91 ${user.phone.slice(-10)}`}</span>
+            </Link>
           ) : (
             mounted && status === "guest" && (
               <button
                 type="button"
                 onClick={openLoginModal}
-                className="hidden items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-[12px] font-semibold text-gray-600 hover:text-gray-900 sm:flex"
+                className="flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-[12px] font-semibold text-gray-600 hover:text-gray-900"
               >
                 <User className="h-3.5 w-3.5" />
-                Log in
+                <span className="hidden sm:inline">Log in</span>
               </button>
             )
           )}

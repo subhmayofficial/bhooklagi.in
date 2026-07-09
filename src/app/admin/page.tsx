@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut, Users } from "lucide-react";
+import Link from "next/link";
+import { LogOut, Users, ShoppingBag } from "lucide-react";
 import { formatInr } from "@/data/menu";
 
 type AdminUser = {
@@ -58,14 +59,23 @@ export default function AdminUsersPage() {
               Users {users ? `(${users.length})` : ""}
             </h1>
           </div>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-[12px] font-semibold text-gray-600 hover:text-gray-900"
-          >
-            <LogOut className="h-3.5 w-3.5" />
-            Log out
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/admin/orders"
+              className="flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-[12px] font-semibold text-gray-600 hover:text-gray-900"
+            >
+              <ShoppingBag className="h-3.5 w-3.5" />
+              Orders
+            </Link>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-[12px] font-semibold text-gray-600 hover:text-gray-900"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Log out
+            </button>
+          </div>
         </div>
 
         {error && <p className="text-[13px] text-red-500">{error}</p>}

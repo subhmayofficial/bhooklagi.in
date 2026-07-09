@@ -2,17 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, UtensilsCrossed, Tag, ShoppingBag } from "lucide-react";
+import { Home, UtensilsCrossed, Receipt, User, ShoppingBag } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useCartStore, cartTotals } from "@/stores/cart-store";
 import { useEffect, useState } from "react";
 
 const links = [
-  { href: "/",       label: "Home",   Icon: Home },
-  { href: "/menu",   label: "Menu",   Icon: UtensilsCrossed },
-  { href: "/offers", label: "Offers", Icon: Tag },
-  { href: "/cart",   label: "Cart",   Icon: ShoppingBag },
+  { href: "/",       label: "Home",    Icon: Home },
+  { href: "/menu",   label: "Menu",    Icon: UtensilsCrossed },
+  { href: "/orders", label: "Orders",  Icon: Receipt },
+  { href: "/account",label: "Account", Icon: User },
+  { href: "/cart",   label: "Cart",    Icon: ShoppingBag },
 ] as const;
 
 export function BottomNav() {

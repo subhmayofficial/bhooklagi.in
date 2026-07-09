@@ -1,0 +1,61 @@
+import { NextResponse } from "next/server";
+import { getSession } from "@/lib/auth/session";
+import { isAdminSession } from "@/lib/auth/admin-session";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ orderNumber: string }> },
+) {
+  const { orderNumber } = await params;
+  const supabase = getSupabaseAdminClient();
+
+  const { data: order, error } = await supabase
+    .from("orders")
+    .select(
+      "id, order_number, customer_id, items, status, payment_mode, payment_status, delivery_name, delivery_phone, delivery_address, delivery_landmark, subtotal, delivery_fee, gst, grand_total, created_at",
+    )
+    .eq("order_number", orderNumber)
+    .maybeSingle();
+
+  if (error) {
+    return NextResponse.json({ error: "Could not fetch order." }, { status: 500 });
+  }
+  if (!order) {
+    return NextResponse.json({ error: "Order not found." }, { status: 404 });
+  }
+
+  // Only the owner (or an admin) may view an order.
+  const session = await getSession();
+  const admin = await isAdminSession();
+  if (!admin && (!session || session.customerId !== order.customer_id)) {
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
+  }
+
+  const { data: events } = await supabase
+    .from("order_events")
+    .select("status, note, created_at")
+    .eq("order_id", order.id)
+    .order("created_at", { ascending: true });
+
+  return NextResponse.json({
+    order: {
+      id: order.id,
+      orderNumber: order.order_number,
+      items: order.items,
+      status: order.status,
+      paymentMode: order.payment_mode,
+      paymentStatus: order.payment_status,
+      deliveryName: order.delivery_name,
+      deliveryPhone: order.delivery_phone,
+      deliveryAddress: order.delivery_address,
+      deliveryLandmark: order.delivery_landmark,
+      subtotal: order.subtotal,
+      deliveryFee: order.delivery_fee,
+      gst: order.gst,
+      grandTotal: order.grand_total,
+      createdAt: order.created_at,
+    },
+    events: events ?? [],
+  });
+}

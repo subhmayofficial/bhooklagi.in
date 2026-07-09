@@ -4,15 +4,15 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ChevronLeft, MapPin, Phone, User, Landmark, CreditCard, Bike } from "lucide-react";
+import { ChevronLeft, MapPin, Phone, User, Landmark, CreditCard, Bike, Lock } from "lucide-react";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { useCartStore } from "@/stores/cart-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { formatInr } from "@/data/menu";
 import { computeOrderTotals } from "@/lib/pricing";
-import { saveTestOrder } from "@/lib/test-order";
 
 type PaymentMode = "cod" | "online_bypassed";
+type SavedAddress = { id: string; label: string | null; address: string; landmark: string | null; isDefault: boolean };
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -20,21 +20,50 @@ export default function CheckoutPage() {
   const clear     = useCartStore((s) => s.clear);
   const { subtotal, deliveryFee, gst, grandTotal: grand } = computeOrderTotals(lines);
 
-  const authUser = useAuthStore((s) => s.user);
+  const authUser       = useAuthStore((s) => s.user);
+  const authStatus     = useAuthStore((s) => s.status);
+  const openLoginModal = useAuthStore((s) => s.openLoginModal);
 
-  const [name,     setName]     = useState("");
-  const [phone,    setPhone]    = useState("");
-  const [address,  setAddress]  = useState("");
-  const [landmark, setLandmark] = useState("");
-  const [payment,  setPayment]  = useState<PaymentMode>("cod");
-  const [placing,  setPlacing]  = useState(false);
-  const [errors,   setErrors]   = useState<Record<string, string>>({});
+  const [name,        setName]        = useState("");
+  const [phone,       setPhone]       = useState("");
+  const [address,     setAddress]     = useState("");
+  const [landmark,    setLandmark]    = useState("");
+  const [saveAddress, setSaveAddress] = useState(true);
+  const [payment,     setPayment]     = useState<PaymentMode>("cod");
+  const [placing,     setPlacing]     = useState(false);
+  const [errors,      setErrors]      = useState<Record<string, string>>({});
+  const [saved,       setSaved]       = useState<SavedAddress[]>([]);
 
   useEffect(() => {
     if (!authUser) return;
     setName((prev) => prev || authUser.name || "");
     setPhone((prev) => prev || authUser.phone.slice(-10));
   }, [authUser]);
+
+  useEffect(() => {
+    if (authStatus !== "authenticated") return;
+    fetch("/api/addresses")
+      .then((r) => r.json())
+      .then((d) => {
+        const list: SavedAddress[] = d.addresses ?? [];
+        setSaved(list);
+        // Prefill with the default/most-recent saved address, if any.
+        const def = list.find((a) => a.isDefault) ?? list[0];
+        if (def) {
+          setAddress((prev) => prev || def.address);
+          setLandmark((prev) => prev || def.landmark || "");
+          setSaveAddress(false); // already saved
+        }
+      })
+      .catch(() => {});
+  }, [authStatus]);
+
+  function applySavedAddress(a: SavedAddress) {
+    setAddress(a.address);
+    setLandmark(a.landmark || "");
+    setSaveAddress(false);
+    setErrors((p) => ({ ...p, address: "" }));
+  }
 
   if (lines.length === 0) {
     return (
@@ -48,6 +77,42 @@ export default function CheckoutPage() {
           >
             Browse menu
           </Link>
+        </main>
+      </>
+    );
+  }
+
+  // Ordering requires login. Prompt the guest to log in before checkout.
+  if (authStatus === "guest") {
+    return (
+      <>
+        <SiteHeader />
+        <main className="mx-auto max-w-lg px-4 pb-28 pt-28 text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-orange/10">
+            <Lock className="h-6 w-6 text-brand-orange" />
+          </div>
+          <h1 className="mt-5 text-[19px] font-bold text-gray-900">Log in to checkout</h1>
+          <p className="mx-auto mt-2 max-w-xs text-[14px] text-gray-500">
+            Verify your mobile number to place the order and track it.
+          </p>
+          <button
+            type="button"
+            onClick={openLoginModal}
+            className="mt-6 inline-flex rounded-full bg-brand-orange px-8 py-3 text-[14px] font-bold text-white shadow-[0_8px_24px_rgba(232,93,4,0.35)] hover:bg-brand-orange-dark"
+          >
+            Log in with OTP
+          </button>
+        </main>
+      </>
+    );
+  }
+
+  if (authStatus === "loading") {
+    return (
+      <>
+        <SiteHeader />
+        <main className="mx-auto max-w-lg px-4 pb-28 pt-28 text-center">
+          <p className="text-[14px] text-gray-400">Loading…</p>
         </main>
       </>
     );
@@ -79,25 +144,20 @@ export default function CheckoutPage() {
             address: address.trim(),
             landmark: landmark.trim() || undefined,
           },
+          saveAddress,
           paymentMode: "cod",
         }),
       });
       const payload = await res.json();
+      if (res.status === 401) {
+        setPlacing(false);
+        openLoginModal();
+        return;
+      }
       if (!res.ok) throw new Error(payload?.error || "Could not place order.");
 
-      saveTestOrder({
-        orderId: payload.order.orderNumber,
-        placedAtIso: payload.order.createdAt,
-        lines: lines.map((l) => ({ ...l })),
-        delivery: { name: name.trim(), phone: phone.trim(), address: address.trim(), landmark: landmark.trim() || undefined },
-        paymentMode: payment,
-        subtotal: payload.order.subtotal,
-        deliveryFee: payload.order.deliveryFee,
-        gst: payload.order.gst,
-        grand: payload.order.grandTotal,
-      });
       clear();
-      router.push("/order/success");
+      router.push(`/orders/${payload.order.orderNumber}`);
     } catch (err) {
       setPlacing(false);
       setErrors((p) => ({ ...p, submit: err instanceof Error ? err.message : "Could not place order." }));
@@ -171,6 +231,31 @@ export default function CheckoutPage() {
                   {errors.phone && <p className="mt-1 text-[12px] text-red-500">{errors.phone}</p>}
                 </div>
 
+                {/* Saved address picker */}
+                {saved.length > 0 && (
+                  <div>
+                    <p className="mb-1.5 text-[12px] font-bold uppercase tracking-wide text-gray-500">
+                      Saved addresses
+                    </p>
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {saved.map((a) => {
+                        const active = address === a.address;
+                        return (
+                          <button
+                            key={a.id}
+                            type="button"
+                            onClick={() => applySavedAddress(a)}
+                            className={`shrink-0 rounded-xl border px-3 py-2 text-left text-[12px] transition-all ${active ? "border-brand-orange bg-brand-orange/[0.04]" : "border-gray-200 hover:border-gray-300"}`}
+                          >
+                            {a.label && <span className="block font-bold text-gray-900">{a.label}</span>}
+                            <span className="block max-w-[180px] truncate text-gray-500">{a.address}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Address */}
                 <div>
                   <label className="mb-1.5 flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-wide text-gray-500">
@@ -201,6 +286,19 @@ export default function CheckoutPage() {
                     className="w-full rounded-xl border border-gray-200 px-4 py-3 text-[14px] text-gray-900 placeholder:text-gray-400 focus:border-brand-orange focus:outline-none focus:ring-2 focus:ring-brand-orange/20 transition-all"
                   />
                 </div>
+
+                {/* Save address */}
+                <label className="flex cursor-pointer items-center gap-2.5 pt-1">
+                  <input
+                    type="checkbox"
+                    checked={saveAddress}
+                    onChange={(e) => setSaveAddress(e.target.checked)}
+                    className="h-4 w-4 accent-brand-orange"
+                  />
+                  <span className="text-[13px] font-medium text-gray-600">
+                    Save this address for next time
+                  </span>
+                </label>
               </div>
             </div>
 

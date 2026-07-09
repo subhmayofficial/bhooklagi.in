@@ -29,10 +29,18 @@ function isValidLines(value: unknown): value is CartLine[] {
 }
 
 export async function POST(req: NextRequest) {
+  // Ordering requires login so every order is tied to a customer.
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "Please log in to place an order." }, { status: 401 });
+  }
+
   const body = await req.json().catch(() => null);
   const lines = body?.lines;
   const delivery = body?.delivery ?? {};
-  const paymentMode = body?.paymentMode === "online" || body?.paymentMode === "wallet" ? body.paymentMode : "cod";
+  // COD-only for now; other modes are rejected until their flows exist.
+  const paymentMode = "cod";
+  const saveAddress = body?.saveAddress === true;
 
   if (!isValidLines(lines)) {
     return NextResponse.json({ error: "Cart is empty or invalid." }, { status: 400 });
@@ -51,14 +59,13 @@ export async function POST(req: NextRequest) {
   }
 
   const totals = computeOrderTotals(lines);
-  const session = await getSession();
   const supabase = getSupabaseAdminClient();
 
   const { data: order, error } = await supabase
     .from("orders")
     .insert({
       order_number: generateOrderNumber(),
-      customer_id: session?.customerId ?? null,
+      customer_id: session.customerId,
       items: lines,
       delivery_name: name,
       delivery_phone: phone,
@@ -75,6 +82,15 @@ export async function POST(req: NextRequest) {
 
   if (error || !order) {
     return NextResponse.json({ error: "Could not place order. Try again." }, { status: 500 });
+  }
+
+  // Seed the status timeline. Best-effort: don't fail the order if this errors.
+  await supabase.from("order_events").insert({ order_id: order.id, status: "placed" });
+
+  if (saveAddress) {
+    await supabase
+      .from("saved_addresses")
+      .insert({ customer_id: session.customerId, address, landmark: landmark || null });
   }
 
   return NextResponse.json({
