@@ -1,22 +1,25 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShoppingBag, ChevronRight } from "lucide-react";
+import { ShoppingBag, ChevronRight, Search, X } from "lucide-react";
 import { categories, menuItems, type MenuCategoryId, formatInr } from "@/data/menu";
 import { useCartStore, cartTotals } from "@/stores/cart-store";
 import { DishCard } from "@/components/menu/DishCard";
 import { cn } from "@/lib/utils";
 
 export function MenuExplorer() {
+  const router = useRouter();
   const params = useSearchParams();
   const catParam = params.get("cat") as MenuCategoryId | null;
+  const qParam = params.get("q") ?? "";
   const validInitial =
     catParam && categories.some((c) => c.id === catParam) ? catParam : "all";
 
   const [active, setActive] = useState<MenuCategoryId | "all">(validInitial);
+  const [query, setQuery] = useState(qParam);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
@@ -25,17 +28,49 @@ export function MenuExplorer() {
       setActive(catParam);
     }
   }, [catParam]);
+  useEffect(() => setQuery(qParam), [qParam]);
 
   const filtered = useMemo(() => {
-    if (active === "all") return menuItems;
-    return menuItems.filter((m) => m.categoryId === active);
-  }, [active]);
+    const byCategory = active === "all" ? menuItems : menuItems.filter((m) => m.categoryId === active);
+    const q = query.trim().toLowerCase();
+    if (!q) return byCategory;
+    return byCategory.filter(
+      (m) => m.name.toLowerCase().includes(q) || m.description.toLowerCase().includes(q),
+    );
+  }, [active, query]);
+
+  function clearSearch() {
+    setQuery("");
+    router.replace("/menu");
+  }
 
   const lines    = useCartStore((s) => s.lines);
   const { qty, subtotal } = cartTotals(lines);
 
   return (
     <>
+      {/* Search */}
+      <div className="relative mb-4">
+        <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search for dishes..."
+          className="w-full rounded-2xl border border-gray-200 bg-white py-3 pl-11 pr-10 text-[14px] text-gray-900 placeholder:text-gray-400 focus:border-brand-orange focus:outline-none focus:ring-2 focus:ring-brand-orange/20"
+        />
+        {query && (
+          <button
+            type="button"
+            onClick={clearSearch}
+            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-gray-400 hover:text-gray-700"
+            aria-label="Clear search"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
       {/* Sticky category filter bar */}
       <div className="hide-scrollbar sticky top-[56px] z-[40] -mx-4 flex gap-2 overflow-x-auto border-b border-gray-200 bg-white px-4 py-2.5 md:mx-0 md:px-0">
         <FilterChip
@@ -75,7 +110,7 @@ export function MenuExplorer() {
           >
             {filtered.length === 0 ? (
               <p className="py-16 text-center text-sm text-gray-400">
-                Nothing here yet — try another category.
+                {query ? `No dishes match "${query}".` : "Nothing here yet — try another category."}
               </p>
             ) : (
               filtered.map((item) => <DishCard key={item.id} item={item} />)
