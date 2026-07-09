@@ -6,11 +6,12 @@ import { motion } from "framer-motion";
 import type { MenuCategoryId } from "@/data/menu";
 
 // Only categories we have real photos for — rest stay on /menu.
-const featured: { id: MenuCategoryId; label: string; image: string }[] = [
+const featured: { id: MenuCategoryId; label: string; image: string; tag?: string }[] = [
   {
     id: "burgers",
     label: "Burgers",
     image: "https://b.zmtcdn.com/data/dish_photos/48b/a59d732bf2d0f51fb4895f46548e548b.png",
+    tag: "🔥 Hot",
   },
   {
     id: "rolls",
@@ -36,6 +37,7 @@ const featured: { id: MenuCategoryId; label: string; image: string }[] = [
     id: "sandwiches",
     label: "Sandwiches",
     image: "https://b.zmtcdn.com/data/dish_photos/505/d869d610f6e0cc28b350c3d7859a7505.png",
+    tag: "New",
   },
 ];
 
@@ -47,7 +49,7 @@ export function HomeCategoryShowcase() {
           What&apos;s on your mind?
         </h2>
 
-        <div className="hide-scrollbar -mx-4 flex gap-4 overflow-x-auto px-4 pb-1 md:mx-0 md:grid md:grid-cols-6 md:px-0">
+        <div className="grid grid-cols-3 gap-x-3 gap-y-6 md:grid-cols-6 md:gap-x-4">
           {featured.map((c, i) => (
             <motion.div
               key={c.id}
@@ -56,10 +58,8 @@ export function HomeCategoryShowcase() {
               viewport={{ once: true }}
               transition={{ delay: i * 0.05, duration: 0.35 }}
             >
-              <Link
-                href={`/menu?cat=${c.id}`}
-                className="group flex w-[92px] flex-shrink-0 flex-col items-center gap-2 md:w-auto"
-              >
+              <Link href={`/menu?cat=${c.id}`} className="group flex flex-col items-center gap-2">
+                {/* Floating wrapper — animation lives here, never on the clipped circle */}
                 <motion.div
                   animate={{ y: [0, -5, 0] }}
                   transition={{
@@ -68,15 +68,25 @@ export function HomeCategoryShowcase() {
                     ease: "easeInOut",
                     delay: i * 0.25,
                   }}
-                  className="relative h-[88px] w-[88px] overflow-hidden rounded-full ring-1 ring-black/[0.04] shadow-md transition-all group-hover:shadow-lg group-hover:ring-brand-orange/30 md:h-[96px] md:w-[96px]"
+                  className="relative"
                 >
-                  <Image
-                    src={c.image}
-                    alt={c.label}
-                    fill
-                    sizes="96px"
-                    className="object-cover transition-transform duration-300 group-hover:scale-110"
-                  />
+                  {c.tag && (
+                    <span className="absolute -right-1 -top-1 z-10 rotate-6 whitespace-nowrap rounded-full bg-ink px-1.5 py-0.5 text-[9px] font-bold text-brand-gold shadow-sm">
+                      {c.tag}
+                    </span>
+                  )}
+                  {/* Static circle — no transform, so the clip never glitches */}
+                  <div className="h-[80px] w-[80px] overflow-hidden rounded-full bg-gray-100 ring-1 ring-black/[0.04] shadow-md transition-shadow group-hover:shadow-lg group-hover:ring-brand-orange/30 sm:h-[88px] sm:w-[88px] md:h-[96px] md:w-[96px]">
+                    <div className="relative h-full w-full">
+                      <Image
+                        src={c.image}
+                        alt={c.label}
+                        fill
+                        sizes="96px"
+                        className="object-cover transition-transform duration-300 group-hover:scale-110"
+                      />
+                    </div>
+                  </div>
                 </motion.div>
                 <span className="text-center text-[12px] font-semibold text-gray-700 group-hover:text-brand-orange">
                   {c.label}

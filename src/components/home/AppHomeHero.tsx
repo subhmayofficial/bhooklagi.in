@@ -3,9 +3,18 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Search, MapPin, ChevronDown, RotateCcw, ChevronRight, Wallet } from "lucide-react";
+import {
+  Search,
+  MapPin,
+  ChevronDown,
+  RotateCcw,
+  ChevronRight,
+  Wallet,
+  User,
+  ShoppingBag,
+} from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
-import { useCartStore } from "@/stores/cart-store";
+import { useCartStore, cartTotals } from "@/stores/cart-store";
 import { menuItems, formatInr } from "@/data/menu";
 
 type LastOrder = {
@@ -18,10 +27,10 @@ const SEARCH_SUGGESTIONS = ["burgers", "maggi", "rolls", "cold coffee", "fries"]
 
 // Decorative background accents — purely visual, don't affect layout flow.
 const FLOATERS: { emoji: string; className: string; delay: number; duration: number }[] = [
-  { emoji: "🍔", className: "left-[6%] top-[18%] text-3xl", delay: 0,   duration: 3.4 },
-  { emoji: "🍟", className: "right-[8%] top-[12%] text-2xl", delay: 0.4, duration: 3.0 },
-  { emoji: "🌯", className: "right-[16%] bottom-[10%] text-2xl", delay: 0.8, duration: 3.8 },
-  { emoji: "🧃", className: "left-[14%] bottom-[16%] text-2xl", delay: 1.2, duration: 3.2 },
+  { emoji: "🍔", className: "left-[6%] top-[14%] text-2xl", delay: 0,   duration: 3.4 },
+  { emoji: "🍟", className: "right-[10%] top-[10%] text-xl", delay: 0.4, duration: 3.0 },
+  { emoji: "🌯", className: "right-[18%] bottom-[8%] text-xl", delay: 0.8, duration: 3.8 },
+  { emoji: "🧃", className: "left-[16%] bottom-[12%] text-xl", delay: 1.2, duration: 3.2 },
 ];
 
 function greeting(): string {
@@ -35,12 +44,18 @@ export function AppHomeHero() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const status = useAuthStore((s) => s.status);
+  const openLoginModal = useAuthStore((s) => s.openLoginModal);
   const addItem = useCartStore((s) => s.addItem);
+  const lines = useCartStore((s) => s.lines);
+  const { qty } = cartTotals(lines);
 
+  const [mounted, setMounted] = useState(false);
   const [query, setQuery] = useState("");
   const [suggestionIndex, setSuggestionIndex] = useState(0);
   const [lastOrder, setLastOrder] = useState<LastOrder | null>(null);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
+
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -77,61 +92,95 @@ export function AppHomeHero() {
     router.push("/cart");
   }
 
+  function handleProfileTap() {
+    if (status === "authenticated") router.push("/account");
+    else openLoginModal();
+  }
+
   return (
-    <section className="relative overflow-hidden bg-gradient-to-br from-brand-orange via-brand-orange-dark to-brand-gold px-4 pb-8 pt-24 md:px-6 md:pt-28">
+    <section
+      className="relative overflow-hidden bg-gradient-to-br from-brand-orange via-brand-orange-dark to-brand-gold px-4 pb-7"
+      style={{ paddingTop: "calc(1rem + env(safe-area-inset-top))" }}
+    >
       {/* Floating food accents */}
       {FLOATERS.map((f, i) => (
         <motion.span
           key={i}
           aria-hidden
-          animate={{ y: [0, -12, 0] }}
+          animate={{ y: [0, -10, 0] }}
           transition={{ duration: f.duration, repeat: Infinity, ease: "easeInOut", delay: f.delay }}
-          className={`pointer-events-none absolute select-none opacity-20 drop-shadow ${f.className}`}
+          className={`pointer-events-none absolute select-none opacity-[0.15] drop-shadow ${f.className}`}
         >
           {f.emoji}
         </motion.span>
       ))}
 
       <div className="relative mx-auto max-w-6xl">
-        {/* Location + wallet */}
-        <div className="mb-4 flex items-center justify-between">
+        {/* App-style top row: location + quick icons (no website nav bar) */}
+        <div className="mb-4 flex items-center justify-between gap-2">
           <button
             type="button"
-            className="flex items-center gap-1.5 rounded-full bg-white/15 px-3.5 py-1.5 text-[12px] font-semibold text-white backdrop-blur-sm"
+            className="flex min-w-0 items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-[12px] font-semibold text-white backdrop-blur-sm"
           >
-            <MapPin className="h-3.5 w-3.5" strokeWidth={2.5} />
-            Deoghar, Jharkhand
-            <ChevronDown className="h-3 w-3 opacity-80" strokeWidth={2.5} />
+            <MapPin className="h-3.5 w-3.5 shrink-0" strokeWidth={2.5} />
+            <span className="truncate">Deoghar, Jharkhand</span>
+            <ChevronDown className="h-3 w-3 shrink-0 opacity-80" strokeWidth={2.5} />
           </button>
 
-          {status === "authenticated" && (
+          <div className="flex shrink-0 items-center gap-2">
+            {mounted && status === "authenticated" && (
+              <button
+                type="button"
+                onClick={() => router.push("/account")}
+                className="flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1.5 text-[11px] font-bold text-white backdrop-blur-sm"
+              >
+                <Wallet className="h-3.5 w-3.5" strokeWidth={2.5} />
+                {formatInr(walletBalance ?? 0)}
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => router.push("/account")}
-              className="flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-[12px] font-bold text-white backdrop-blur-sm"
+              onClick={handleProfileTap}
+              aria-label="Account"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm"
             >
-              <Wallet className="h-3.5 w-3.5" strokeWidth={2.5} />
-              {formatInr(walletBalance ?? 0)}
+              <User className="h-4 w-4" strokeWidth={2.5} />
             </button>
-          )}
+            <button
+              type="button"
+              onClick={() => router.push("/cart")}
+              aria-label="Cart"
+              className="relative flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm"
+            >
+              <ShoppingBag className="h-4 w-4" strokeWidth={2.5} />
+              {mounted && qty > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-ink px-1 text-[9px] font-bold text-brand-gold">
+                  {qty > 9 ? "9+" : qty}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
 
-        {/* Big delivery headline */}
+        {/* Compact delivery + promo badges — visual, not a giant headline */}
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="flex items-center gap-2"
+          className="flex flex-wrap items-center gap-2"
         >
-          <span className="relative flex h-2.5 w-2.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-300 opacity-75" />
-            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-green-400" />
+          <span className="flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-[13px] font-bold text-white backdrop-blur-sm">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-300 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-green-400" />
+            </span>
+            25–35 min
           </span>
-          <h1 className="text-[28px] font-extrabold leading-tight text-white md:text-[34px]">
-            Delivery in 25–35 min
-          </h1>
+          <span className="rotate-[-2deg] rounded-full bg-ink px-3 py-1.5 text-[11px] font-extrabold text-brand-gold shadow-sm">
+            🔥 Flat ₹80 OFF
+          </span>
         </motion.div>
-        <p className="mt-1 text-[14px] font-medium text-white/85">
+        <p className="mt-2 text-[13px] font-medium text-white/85">
           {greeting()}{user?.name ? `, ${user.name.split(" ")[0]}` : ""} — bhook lagi? 👋
         </p>
 
@@ -141,7 +190,7 @@ export function AppHomeHero() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.08 }}
-          className="relative mt-5"
+          className="relative mt-4"
         >
           <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
@@ -167,6 +216,9 @@ export function AppHomeHero() {
               </AnimatePresence>
             </div>
           )}
+          <span className="pointer-events-none absolute -right-1.5 -top-2.5 rotate-6 rounded-full bg-ink px-2 py-0.5 text-[9px] font-extrabold text-brand-gold shadow-sm">
+            ⭐ 4.6 rated
+          </span>
         </motion.form>
 
         {/* Reorder card */}

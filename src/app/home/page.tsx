@@ -1,4 +1,3 @@
-import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { AppHomeHero } from "@/components/home/AppHomeHero";
 import { HomeCategoryShowcase } from "@/components/home/HomeCategoryShowcase";
@@ -11,7 +10,6 @@ import { PromoCta } from "@/components/home/PromoCta";
 export default function AppHomePage() {
   return (
     <>
-      <SiteHeader />
       <AppHomeHero />
       <HomeCategoryShowcase />
       <OffersRail />
