@@ -216,9 +216,6 @@ export function AppHomeHero() {
               </AnimatePresence>
             </div>
           )}
-          <span className="pointer-events-none absolute -right-1.5 -top-2.5 rotate-6 rounded-full bg-ink px-2 py-0.5 text-[9px] font-extrabold text-brand-gold shadow-sm">
-            ⭐ 4.6 rated
-          </span>
         </motion.form>
 
         {/* Reorder card */}

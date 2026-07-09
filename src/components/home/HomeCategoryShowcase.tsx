@@ -17,6 +17,7 @@ const featured: { id: MenuCategoryId; label: string; image: string; tag?: string
     id: "rolls",
     label: "Rolls",
     image: "https://b.zmtcdn.com/data/dish_photos/99a/7c1d6342603039279a6bcc5a6cd0b99a.jpeg",
+    tag: "⭐ 4.8",
   },
   {
     id: "maggi",
@@ -43,7 +44,7 @@ const featured: { id: MenuCategoryId; label: string; image: string; tag?: string
 
 export function HomeCategoryShowcase() {
   return (
-    <section className="bg-white px-4 py-10 md:px-6 md:py-14">
+    <section className="bg-app-texture px-4 py-10 md:px-6 md:py-14">
       <div className="mx-auto max-w-6xl">
         <h2 className="mb-6 text-[18px] font-bold text-gray-900">
           What&apos;s on your mind?
@@ -59,23 +60,12 @@ export function HomeCategoryShowcase() {
               transition={{ delay: i * 0.05, duration: 0.35 }}
             >
               <Link href={`/menu?cat=${c.id}`} className="group flex flex-col items-center gap-2">
-                {/* Floating wrapper — animation lives here, never on the clipped circle */}
-                <motion.div
-                  animate={{ y: [0, -5, 0] }}
-                  transition={{
-                    duration: 2.6,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                    delay: i * 0.25,
-                  }}
-                  className="relative"
-                >
+                <div className="relative">
                   {c.tag && (
                     <span className="absolute -right-1 -top-1 z-10 rotate-6 whitespace-nowrap rounded-full bg-ink px-1.5 py-0.5 text-[9px] font-bold text-brand-gold shadow-sm">
                       {c.tag}
                     </span>
                   )}
-                  {/* Static circle — no transform, so the clip never glitches */}
                   <div className="h-[80px] w-[80px] overflow-hidden rounded-full bg-gray-100 ring-1 ring-black/[0.04] shadow-md transition-shadow group-hover:shadow-lg group-hover:ring-brand-orange/30 sm:h-[88px] sm:w-[88px] md:h-[96px] md:w-[96px]">
                     <div className="relative h-full w-full">
                       <Image
@@ -87,7 +77,7 @@ export function HomeCategoryShowcase() {
                       />
                     </div>
                   </div>
-                </motion.div>
+                </div>
                 <span className="text-center text-[12px] font-semibold text-gray-700 group-hover:text-brand-orange">
                   {c.label}
                 </span>
