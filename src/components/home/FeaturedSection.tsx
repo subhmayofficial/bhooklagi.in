@@ -11,9 +11,9 @@ export function FeaturedSection() {
   const picks = menuItems.filter((m) => m.bestseller).slice(0, 8);
 
   return (
-    <section className="bg-gray-50 px-4 py-10 md:px-6 md:py-14">
+    <section className="bg-app-texture px-4 py-8 md:px-6 md:py-10">
       <div className="mx-auto max-w-6xl">
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-4 flex items-center justify-between">
           <h2 className="text-[18px] font-bold text-gray-900">
             Top picks for you 🔥
           </h2>

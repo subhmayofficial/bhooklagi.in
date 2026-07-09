@@ -44,13 +44,13 @@ const featured: { id: MenuCategoryId; label: string; image: string; tag?: string
 
 export function HomeCategoryShowcase() {
   return (
-    <section className="bg-app-texture px-4 py-10 md:px-6 md:py-14">
+    <section className="bg-app-texture px-4 py-8 md:px-6 md:py-10">
       <div className="mx-auto max-w-6xl">
-        <h2 className="mb-6 text-[18px] font-bold text-gray-900">
+        <h2 className="mb-4 text-[18px] font-bold text-gray-900">
           What&apos;s on your mind?
         </h2>
 
-        <div className="grid grid-cols-3 gap-x-3 gap-y-6 md:grid-cols-6 md:gap-x-4">
+        <div className="grid grid-cols-3 gap-x-3 gap-y-5 md:grid-cols-6 md:gap-x-4">
           {featured.map((c, i) => (
             <motion.div
               key={c.id}

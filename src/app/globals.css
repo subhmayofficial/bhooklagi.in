@@ -35,11 +35,13 @@
     display: none;
   }
 
-  /* Warm textured surface — subtle dot grid instead of flat white */
+  /* Warm textured surface — dot grid + soft tint instead of flat white */
   .bg-app-texture {
-    background-color: #fffdf9;
-    background-image: radial-gradient(circle, rgba(232, 93, 4, 0.07) 1px, transparent 1px);
-    background-size: 22px 22px;
+    background-color: #fdf6ec;
+    background-image:
+      radial-gradient(circle, rgba(232, 93, 4, 0.16) 1.5px, transparent 1.5px),
+      linear-gradient(180deg, rgba(250, 163, 7, 0.08) 0%, rgba(253, 246, 236, 0) 220px);
+    background-size: 20px 20px, 100% 100%;
   }
 
   /* Swiggy-style card shadow */

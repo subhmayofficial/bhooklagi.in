@@ -14,10 +14,10 @@ const cardStyles: Record<string, string> = {
 
 export function OffersRail({ dense }: { dense?: boolean }) {
   return (
-    <section className={cn("bg-white px-4", dense ? "" : "py-10 md:py-14")}>
+    <section className={cn("bg-app-texture px-4", dense ? "" : "py-8 md:py-10")}>
       <div className="mx-auto max-w-6xl">
         {!dense && (
-          <div className="mb-6 flex items-center justify-between">
+          <div className="mb-4 flex items-center justify-between">
             <h2 className="text-[18px] font-bold text-gray-900">
               Deals &amp; offers
             </h2>
@@ -40,17 +40,20 @@ export function OffersRail({ dense }: { dense?: boolean }) {
               viewport={{ once: true, margin: "-20px" }}
               transition={{ delay: i * 0.05 }}
               className={cn(
-                "relative min-w-[240px] flex-shrink-0 overflow-hidden rounded-2xl p-4 shadow-sm ring-1 ring-black/[0.05] md:min-w-0",
+                "relative min-w-[240px] flex-shrink-0 overflow-hidden rounded-2xl p-4 shadow-md ring-1 ring-black/[0.05] md:min-w-0",
                 cardStyles[o.accent] ?? cardStyles.orange,
               )}
             >
-              <span className="inline-block rounded-full bg-black/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em]">
+              <span className="pointer-events-none absolute -bottom-3 -right-2 text-[64px] leading-none opacity-15">
+                {o.icon}
+              </span>
+              <span className="relative inline-block rounded-full bg-black/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em]">
                 {o.badge}
               </span>
-              <h3 className="mt-3 text-[18px] font-extrabold leading-tight">
+              <h3 className="relative mt-3 text-[18px] font-extrabold leading-tight">
                 {o.title}
               </h3>
-              <p className="mt-1 text-[12px] font-medium opacity-85">{o.subtitle}</p>
+              <p className="relative mt-1 text-[12px] font-medium opacity-85">{o.subtitle}</p>
             </motion.article>
           ))}
         </div>

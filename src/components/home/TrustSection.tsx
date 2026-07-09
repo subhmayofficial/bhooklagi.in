@@ -8,9 +8,9 @@ export function TrustSection() {
   ];
 
   return (
-    <section className="bg-app-texture px-4 py-10 md:px-6 md:py-14">
+    <section className="bg-app-texture px-4 py-8 md:px-6 md:py-10">
       <div className="mx-auto max-w-6xl">
-        <h2 className="mb-6 text-[18px] font-bold text-gray-900">Why Bhook Lagi?</h2>
+        <h2 className="mb-4 text-[18px] font-bold text-gray-900">Why Bhook Lagi?</h2>
         <div className="flex flex-wrap gap-3">
           {items.map((t) => (
             <div

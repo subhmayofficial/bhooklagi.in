@@ -4,6 +4,7 @@ export type OfferCard = {
   subtitle: string;
   badge: string;
   accent: "orange" | "gold" | "dark";
+  icon: string;
   href?: string;
 };
 
@@ -14,6 +15,7 @@ export const offers: OfferCard[] = [
     subtitle: "First order on the app — min ₹299",
     badge: "NEW USER",
     accent: "orange",
+    icon: "🎉",
   },
   {
     id: "evening",
@@ -21,6 +23,7 @@ export const offers: OfferCard[] = [
     subtitle: "Free salted fries after 7 PM — min ₹199",
     badge: "7PM — 11PM",
     accent: "gold",
+    icon: "🌆",
   },
   {
     id: "combo",
@@ -28,6 +31,7 @@ export const offers: OfferCard[] = [
     subtitle: "Burger + drink @ ₹199 — limited slots",
     badge: "COMBO",
     accent: "dark",
+    icon: "🍔",
   },
   {
     id: "upi",
@@ -35,5 +39,6 @@ export const offers: OfferCard[] = [
     subtitle: "Extra ₹20 off with selected UPI apps",
     badge: "PAYMENTS",
     accent: "orange",
+    icon: "💳",
   },
 ];

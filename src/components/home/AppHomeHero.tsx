@@ -23,6 +23,8 @@ type LastOrder = {
   createdAt: string;
 };
 
+type LastOrderStatus = "idle" | "loading" | "empty" | "ready";
+
 const SEARCH_SUGGESTIONS = ["burgers", "maggi", "rolls", "cold coffee", "fries"];
 
 // Decorative background accents — purely visual, don't affect layout flow.
@@ -53,16 +55,27 @@ export function AppHomeHero() {
   const [query, setQuery] = useState("");
   const [suggestionIndex, setSuggestionIndex] = useState(0);
   const [lastOrder, setLastOrder] = useState<LastOrder | null>(null);
+  const [lastOrderStatus, setLastOrderStatus] = useState<LastOrderStatus>("idle");
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
 
   useEffect(() => setMounted(true), []);
 
   useEffect(() => {
-    if (status !== "authenticated") return;
+    if (status !== "authenticated") {
+      setLastOrderStatus("idle");
+      return;
+    }
+    // Reserve the reorder slot immediately (skeleton) so it never pops in and
+    // shifts the layout once the real order data arrives.
+    setLastOrderStatus("loading");
     fetch("/api/orders/mine")
       .then((r) => r.json())
-      .then((d) => setLastOrder(d.orders?.[0] ?? null))
-      .catch(() => {});
+      .then((d) => {
+        const o = d.orders?.[0] ?? null;
+        setLastOrder(o);
+        setLastOrderStatus(o ? "ready" : "empty");
+      })
+      .catch(() => setLastOrderStatus("empty"));
     fetch("/api/account")
       .then((r) => r.json())
       .then((d) => setWalletBalance(d.account?.walletBalance ?? null))
@@ -218,34 +231,54 @@ export function AppHomeHero() {
           )}
         </motion.form>
 
-        {/* Reorder card */}
-        {lastOrder && (
-          <motion.button
-            type="button"
-            onClick={reorder}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.16 }}
-            className="mt-4 flex w-full items-center gap-3 rounded-2xl bg-white p-3.5 text-left shadow-lg transition-transform active:scale-[0.99]"
-          >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-orange/10 text-brand-orange">
-              <RotateCcw className="h-4 w-4" strokeWidth={2.5} />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-[13px] font-bold text-gray-900">Reorder your last meal</span>
-              <span className="block truncate text-[12px] text-gray-500">
-                {lastOrder.items.map((i) => `${i.emoji} ${i.name}`).join(", ")}
-              </span>
-            </span>
-            <motion.span
-              animate={{ x: [0, 4, 0] }}
-              transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
-              className="shrink-0 text-gray-300"
+        {/* Reorder card — skeleton reserves the space, then crossfades to real
+            content, so there's no sudden height jump once data arrives. */}
+        <AnimatePresence initial={false}>
+          {(lastOrderStatus === "loading" || lastOrderStatus === "ready") && (
+            <motion.div
+              key="reorder-slot"
+              layout
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.35, ease: "easeOut" }}
+              className="mt-4"
             >
-              <ChevronRight className="h-4 w-4" />
-            </motion.span>
-          </motion.button>
-        )}
+              {lastOrderStatus === "loading" || !lastOrder ? (
+                <div className="flex w-full animate-pulse items-center gap-3 rounded-2xl bg-white/70 p-3.5 shadow-lg">
+                  <span className="h-9 w-9 shrink-0 rounded-xl bg-gray-200" />
+                  <span className="min-w-0 flex-1 space-y-1.5">
+                    <span className="block h-3 w-2/5 rounded bg-gray-200" />
+                    <span className="block h-2.5 w-4/5 rounded bg-gray-100" />
+                  </span>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={reorder}
+                  className="flex w-full items-center gap-3 rounded-2xl bg-white p-3.5 text-left shadow-lg transition-transform active:scale-[0.99]"
+                >
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-orange/10 text-brand-orange">
+                    <RotateCcw className="h-4 w-4" strokeWidth={2.5} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[13px] font-bold text-gray-900">Reorder your last meal</span>
+                    <span className="block truncate text-[12px] text-gray-500">
+                      {lastOrder.items.map((i) => `${i.emoji} ${i.name}`).join(", ")}
+                    </span>
+                  </span>
+                  <motion.span
+                    animate={{ x: [0, 4, 0] }}
+                    transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+                    className="shrink-0 text-gray-300"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </motion.span>
+                </button>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </section>
   );

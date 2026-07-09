@@ -6,9 +6,9 @@ import { startingPrices, formatInr } from "@/data/menu";
 
 export function PriceBands() {
   return (
-    <section className="bg-gray-50 px-4 py-10 md:px-6 md:py-14">
+    <section className="bg-app-texture px-4 py-8 md:px-6 md:py-10">
       <div className="mx-auto max-w-6xl">
-        <h2 className="mb-6 text-[18px] font-bold text-gray-900">
+        <h2 className="mb-4 text-[18px] font-bold text-gray-900">
           Flavour that fits your budget
         </h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">

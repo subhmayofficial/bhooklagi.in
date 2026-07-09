@@ -5,7 +5,7 @@ import { ChevronRight } from "lucide-react";
 
 export function PromoCta() {
   return (
-    <section className="bg-brand-orange px-4 py-10 md:px-6 md:py-16">
+    <section className="bg-brand-orange px-4 py-8 md:px-6 md:py-12">
       <div className="mx-auto max-w-6xl">
         <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
           <div>
