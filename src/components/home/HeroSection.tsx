@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { MapPin, ChevronRight } from "lucide-react";
+import { MapPin, ChevronRight, Phone } from "lucide-react";
+import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
+import { getWhatsAppLink, WHATSAPP_DISPLAY } from "@/lib/whatsapp";
 
 export function HeroSection() {
   return (
@@ -17,16 +19,21 @@ export function HeroSection() {
         <div className="flex flex-col items-start gap-10 md:flex-row md:items-center md:gap-16">
           {/* Left content */}
           <div className="flex-1">
-            {/* Location pill */}
+            {/* Coming soon + location pills */}
             <motion.div
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="mb-5 inline-flex items-center gap-2 rounded-full border border-brand-orange/20 bg-brand-orange/5 px-4 py-1.5"
+              className="mb-5 flex flex-wrap items-center gap-2"
             >
-              <MapPin className="h-3.5 w-3.5 text-brand-orange" strokeWidth={2.5} />
-              <span className="text-[13px] font-semibold text-brand-orange">
-                Delivering in Deoghar, Jharkhand
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-4 py-1.5 text-[13px] font-bold text-amber-700">
+                🚧 Website coming soon
+              </span>
+              <span className="inline-flex items-center gap-2 rounded-full border border-brand-orange/20 bg-brand-orange/5 px-4 py-1.5">
+                <MapPin className="h-3.5 w-3.5 text-brand-orange" strokeWidth={2.5} />
+                <span className="text-[13px] font-semibold text-brand-orange">
+                  Delivering in Deoghar, Jharkhand
+                </span>
               </span>
             </motion.div>
 
@@ -62,20 +69,35 @@ export function HeroSection() {
               transition={{ duration: 0.5, delay: 0.26 }}
               className="mt-8 flex flex-wrap gap-3"
             >
-              <Link
-                href="/menu"
-                className="inline-flex items-center gap-2 rounded-2xl bg-brand-orange px-7 py-3.5 text-[15px] font-bold text-white shadow-[0_6px_24px_rgba(232,93,4,0.4)] transition-all hover:bg-brand-orange-dark hover:shadow-[0_8px_32px_rgba(232,93,4,0.5)] active:scale-[0.98]"
+              <a
+                href={getWhatsAppLink()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-2xl bg-[#25D366] px-7 py-3.5 text-[15px] font-bold text-white shadow-[0_6px_24px_rgba(37,211,102,0.4)] transition-all hover:bg-[#1DA851] hover:shadow-[0_8px_32px_rgba(37,211,102,0.5)] active:scale-[0.98]"
               >
-                Order now
-                <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
-              </Link>
+                <WhatsAppIcon className="h-4 w-4" />
+                Order now on WhatsApp
+              </a>
               <Link
                 href="/offers"
                 className="inline-flex items-center gap-2 rounded-2xl border-2 border-gray-200 bg-white px-7 py-3.5 text-[15px] font-bold text-gray-700 transition-all hover:border-brand-orange/30 hover:text-brand-orange active:scale-[0.98]"
               >
                 View offers
+                <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
               </Link>
             </motion.div>
+
+            {/* Phone */}
+            <motion.a
+              href="tel:+919296834048"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.32 }}
+              className="mt-4 inline-flex items-center gap-1.5 text-[13px] font-semibold text-gray-500 transition-colors hover:text-brand-orange"
+            >
+              <Phone className="h-3.5 w-3.5" strokeWidth={2.5} />
+              Or call us on {WHATSAPP_DISPLAY}
+            </motion.a>
 
             {/* Trust pills */}
             <motion.div

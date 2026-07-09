@@ -3,6 +3,7 @@ import Script from "next/script";
 import { Bebas_Neue, Playfair_Display, Inter } from "next/font/google";
 import "./globals.css";
 import { BottomNav } from "@/components/layout/BottomNav";
+import { WhatsAppFloatButton } from "@/components/layout/WhatsAppFloatButton";
 import { ScrollProgress } from "@/components/layout/ScrollProgress";
 import { CartRehydrate } from "@/components/providers/CartRehydrate";
 import { AuthRehydrate } from "@/components/providers/AuthRehydrate";
@@ -90,6 +91,7 @@ export default function RootLayout({
           {children}
         </div>
         <BottomNav />
+        <WhatsAppFloatButton />
         <OtpLoginModal />
         <Script src={MSG91_SCRIPT_SRC} strategy="afterInteractive" />
       </body>
