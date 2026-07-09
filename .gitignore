@@ -22,3 +22,7 @@ npm-debug.log*
 # local / tooling
 .claude/
 *.tsbuildinfo
+
+# supabase cli cache
+supabase/.temp/
+supabase/supabase/

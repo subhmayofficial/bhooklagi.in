@@ -23,13 +23,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid phone number." }, { status: 400 });
   }
 
-  const authkey = process.env.MSG91_AUTHKEY;
+  // verifyAccessToken lives under /api/v5/widget/ and is authenticated with the
+  // widget's auth token (tokenAuth) — the same credential used to init the widget
+  // and send the OTP. A separate account authkey (MSG91_AUTHKEY) also works, but
+  // only if it's a valid key; we prefer the widget token since it's guaranteed to
+  // match the widget that minted the access token. MSG91_AUTHKEY is an optional
+  // override for anyone who wants to use their account authkey instead.
+  const authkey =
+    process.env.MSG91_AUTHKEY?.trim() || process.env.NEXT_PUBLIC_MSG91_AUTH_TOKEN?.trim();
   if (!authkey) {
     return NextResponse.json({ error: "OTP verification is not configured." }, { status: 500 });
   }
 
   let msgRes: Response;
-  let msgData: { type?: string; message?: string } | null = null;
+  let msgData: { type?: string; message?: string; code?: string } | null = null;
   try {
     msgRes = await fetch("https://api.msg91.com/api/v5/widget/verifyAccessToken", {
       method: "POST",
@@ -42,8 +49,10 @@ export async function POST(req: NextRequest) {
   }
 
   if (!msgRes.ok || msgData?.type === "error") {
+    // Surface the underlying MSG91 code so auth-key vs token issues are diagnosable.
+    const detail = msgData?.code ? `${msgData.message} (code ${msgData.code})` : msgData?.message;
     return NextResponse.json(
-      { error: msgData?.message || "OTP verification failed." },
+      { error: detail || "OTP verification failed." },
       { status: 401 },
     );
   }
