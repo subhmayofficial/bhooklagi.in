@@ -10,6 +10,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
+  { href: "/home",   label: "Home" },
   { href: "/menu",   label: "Menu" },
   { href: "/offers", label: "Offers" },
 ];
@@ -39,7 +40,7 @@ export function SiteHeader() {
       <div className="mx-auto flex h-full max-w-6xl items-center justify-between px-4 md:px-6">
         {/* Logo + location */}
         <div className="flex items-center gap-3">
-          <Link href="/" className="flex items-center gap-2.5">
+          <Link href="/home" className="flex items-center gap-2.5">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-orange text-base shadow-sm">
               🍔
             </span>

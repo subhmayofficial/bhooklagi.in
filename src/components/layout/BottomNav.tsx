@@ -9,7 +9,7 @@ import { useCartStore, cartTotals } from "@/stores/cart-store";
 import { useEffect, useState } from "react";
 
 const links = [
-  { href: "/",       label: "Home",    Icon: Home },
+  { href: "/home",   label: "Home",    Icon: Home },
   { href: "/menu",   label: "Menu",    Icon: UtensilsCrossed },
   { href: "/orders", label: "Orders",  Icon: Receipt },
   { href: "/account",label: "Account", Icon: User },
@@ -33,7 +33,7 @@ export function BottomNav() {
       <div className="border-t border-gray-200 bg-white px-2 pb-2 pt-1 shadow-[0_-4px_16px_rgba(0,0,0,0.06)]">
         <div className="mx-auto flex max-w-lg items-center justify-between gap-1">
           {links.map(({ href, label, Icon }) => {
-            const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+            const active = href === "/home" ? pathname === "/home" || pathname === "/" : pathname.startsWith(href);
             return (
               <Link
                 key={href}
