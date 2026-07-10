@@ -116,16 +116,26 @@ export function DeliveryMap({ deliveryAddress, status }: Props) {
         await loadGoogleMaps(key!);
         if (cancelled) return;
 
-        // 2. Geocode kitchen + customer in parallel
-        const [kitchen, customer] = await Promise.all([
-          geocodeAddress("Bhook Lagi, Deoghar, Jharkhand, India"),
-          geocodeAddress(`${deliveryAddress}, Deoghar, Jharkhand, India`),
-        ]);
+        // 2a. Kitchen — prefer exact lat/lng from env vars so it's always right.
+        //     Fallback: geocode the KITCHEN_ADDRESS env var.
+        //     IMPORTANT: set NEXT_PUBLIC_KITCHEN_LAT + NEXT_PUBLIC_KITCHEN_LNG
+        //     in your hosting env to pin the kitchen exactly.
+        let kitchenCoords: Coords;
+        const kitchenLat = parseFloat(process.env.NEXT_PUBLIC_KITCHEN_LAT ?? "");
+        const kitchenLng = parseFloat(process.env.NEXT_PUBLIC_KITCHEN_LNG ?? "");
+        if (!isNaN(kitchenLat) && !isNaN(kitchenLng)) {
+          kitchenCoords = { lat: kitchenLat, lng: kitchenLng };
+        } else {
+          const kitchenAddr = process.env.NEXT_PUBLIC_KITCHEN_ADDRESS ?? "Deoghar, Jharkhand, India";
+          const geocodedKitchen = await geocodeAddress(kitchenAddr);
+          kitchenCoords = geocodedKitchen ?? { lat: 24.4860, lng: 86.6985 };
+        }
+
+        // 2b. Customer address — keep it city-scoped for accuracy
+        const customer = await geocodeAddress(deliveryAddress);
         if (cancelled) return;
 
-        const kitchenCoords = kitchen ?? { lat: 24.4860, lng: 86.6985 };
         const customerCoords = customer ?? { lat: 24.4910, lng: 86.6920 };
-
         if (!customer) setGeoError(true);
 
         const G = window.google!.maps;
