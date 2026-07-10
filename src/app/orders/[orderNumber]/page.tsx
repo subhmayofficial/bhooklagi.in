@@ -7,8 +7,10 @@ import { motion } from "framer-motion";
 import {
   CheckCircle2, MapPin, Phone, Clock, ChevronLeft,
   Bike, Package, UtilityPole, PartyPopper, XCircle,
+  ChefHat, Navigation2, ReceiptText,
 } from "lucide-react";
 import { formatInr } from "@/data/menu";
+import { estimateDeliveryMinutes } from "@/lib/location";
 import { ORDER_STATUS_META, type OrderRecord, type OrderStatus } from "@/lib/orders";
 
 // Leaflet requires window — dynamic import prevents SSR crash
@@ -35,6 +37,7 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ orderN
   const [order, setOrder] = useState<OrderRecord | null | undefined>(undefined);
   const [events, setEvents] = useState<OrderEvent[]>([]);
   const [error, setError] = useState("");
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     let active = true;
@@ -53,6 +56,11 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ orderN
     const t = setInterval(load, 15000);
     return () => { active = false; clearInterval(t); };
   }, [orderNumber]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 30000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   if (order === undefined && !error) {
     return (
@@ -82,9 +90,26 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ orderN
   const delivered = order.status === "delivered";
   const currentIndex = TIMELINE.indexOf(order.status as OrderStatus);
   const eventTime = (status: OrderStatus) => events.find((e) => e.status === status)?.created_at;
+  const customerCoords =
+    order.deliveryLat !== null && order.deliveryLng !== null
+      ? { lat: order.deliveryLat, lng: order.deliveryLng }
+      : null;
+  const eta = estimateDeliveryMinutes(customerCoords);
+  const elapsedMinutes = Math.max(0, (now - new Date(order.createdAt).getTime()) / 60000);
+  const remainingMinutes = delivered ? 0 : Math.max(1, Math.ceil(eta.max - elapsedMinutes));
+  const etaLabel = cancelled ? "Cancelled" : delivered ? "Delivered" : `${remainingMinutes} min`;
+  const liveLine = delivered
+    ? "Delivered. Enjoy your meal!"
+    : cancelled
+      ? "This order was cancelled."
+      : order.status === "out_for_delivery"
+        ? "Rider is heading to your exact pin"
+        : order.status === "preparing"
+          ? "Kitchen is preparing your food"
+          : "Order received by kitchen";
 
   return (
-    <main className="min-h-dvh bg-gray-50">
+    <main className="min-h-dvh bg-[#f7f7f7]">
       {/* Sticky header */}
       <div className="sticky top-0 z-[700] border-b border-gray-200 bg-white shadow-sm">
         <div className="mx-auto flex h-14 max-w-lg items-center gap-3 px-4">
@@ -106,73 +131,108 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ orderN
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          className={`overflow-hidden rounded-3xl text-white ${cancelled ? "bg-gradient-to-br from-red-500 to-rose-600" : delivered ? "bg-gradient-to-br from-green-500 to-emerald-600" : "bg-gradient-to-br from-brand-orange to-brand-gold"}`}
+          className="overflow-hidden rounded-[28px] border border-gray-100 bg-white shadow-[0_12px_36px_rgba(15,23,42,0.08)]"
         >
-          <div className="flex items-center gap-4 p-5">
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.15, type: "spring", stiffness: 280, damping: 20 }}
-              className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-4xl"
-            >
-              {meta.emoji}
-            </motion.div>
-            <div>
-              <p className="text-[18px] font-extrabold">{meta.label}</p>
-              <p className="mt-0.5 text-[13px] text-white/85">{meta.customerLine}</p>
+          <div className={`px-5 pb-5 pt-4 text-white ${cancelled ? "bg-gradient-to-br from-red-500 to-rose-600" : delivered ? "bg-gradient-to-br from-green-500 to-emerald-600" : "bg-gradient-to-br from-[#ef4f19] via-brand-orange to-brand-gold"}`}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-white/75">
+                  {delivered || cancelled ? "Order status" : "Arriving in"}
+                </p>
+                <div className="mt-1 flex items-end gap-2">
+                  <p className="text-[38px] font-black leading-none tracking-tight">{etaLabel}</p>
+                  {!cancelled && !delivered && <span className="pb-1 text-[13px] font-bold text-white/80">approx</span>}
+                </div>
+                <p className="mt-2 text-[13px] font-semibold text-white/90">{liveLine}</p>
+              </div>
+              <motion.div
+                initial={{ scale: 0.75, rotate: -8 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: "spring", stiffness: 260, damping: 18 }}
+                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl bg-white/20 text-4xl shadow-inner"
+              >
+                {meta.emoji}
+              </motion.div>
+            </div>
+
+            {!cancelled && !delivered && (
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                <div className="rounded-2xl bg-white/16 px-3 py-2 backdrop-blur">
+                  <ChefHat className="h-4 w-4" />
+                  <p className="mt-1 text-[10px] font-bold text-white/75">Kitchen</p>
+                  <p className="text-[12px] font-extrabold">{order.status === "placed" ? "Queued" : "Active"}</p>
+                </div>
+                <div className="rounded-2xl bg-white/16 px-3 py-2 backdrop-blur">
+                  <Bike className="h-4 w-4" />
+                  <p className="mt-1 text-[10px] font-bold text-white/75">Rider</p>
+                  <p className="text-[12px] font-extrabold">{order.status === "out_for_delivery" ? "On way" : "Soon"}</p>
+                </div>
+                <div className="rounded-2xl bg-white/16 px-3 py-2 backdrop-blur">
+                  <Navigation2 className="h-4 w-4" />
+                  <p className="mt-1 text-[10px] font-bold text-white/75">Pin</p>
+                  <p className="text-[12px] font-extrabold">{customerCoords ? "Locked" : "Address"}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="p-4">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[15px] font-extrabold text-gray-900">{meta.label}</p>
+                <p className="mt-0.5 text-[12px] font-medium text-gray-500">{meta.customerLine}</p>
+              </div>
               {!cancelled && !delivered && (
-                <div className="mt-2 flex items-center gap-1.5">
-                  <span className="relative flex h-2 w-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
+                <div className="shrink-0 rounded-full bg-green-50 px-3 py-1.5">
+                  <span className="flex items-center gap-1.5 text-[11px] font-extrabold text-green-700">
+                    <span className="relative flex h-2 w-2">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-70" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+                    </span>
+                    Live
                   </span>
-                  <span className="text-[12px] font-semibold text-white/90">Live tracking · ETA 25–35 min</span>
                 </div>
               )}
             </div>
-          </div>
 
-          {/* Progress bar for active orders */}
-          {!cancelled && (
-            <div className="px-5 pb-4">
-              <div className="flex justify-between mb-1">
-                {TIMELINE.map((s, i) => {
-                  const Icon = STEP_ICONS[s];
-                  const done = i <= currentIndex;
-                  return (
-                    <div key={s} className="flex flex-1 flex-col items-center gap-1">
-                      <div className={`flex h-7 w-7 items-center justify-center rounded-full transition-all ${done ? "bg-white text-brand-orange shadow-md" : "bg-white/20 text-white/50"}`}>
-                        <Icon className="h-4 w-4" strokeWidth={2.5} />
+            {!cancelled && (
+              <div className="mt-4">
+                <div className="mb-2 flex justify-between">
+                  {TIMELINE.map((s, i) => {
+                    const Icon = STEP_ICONS[s];
+                    const done = i <= currentIndex;
+                    return (
+                      <div key={s} className="flex flex-1 flex-col items-center gap-1">
+                        <div className={`flex h-7 w-7 items-center justify-center rounded-full transition-all ${done ? "bg-brand-orange text-white shadow-md" : "bg-gray-100 text-gray-300"}`}>
+                          <Icon className="h-4 w-4" strokeWidth={2.5} />
+                        </div>
+                        {i < TIMELINE.length - 1 && (
+                          <div className="absolute" style={{ display: "none" }} />
+                        )}
                       </div>
-                      {i < TIMELINE.length - 1 && (
-                        <div className="absolute" style={{ display: "none" }} />
-                      )}
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+                <div className="relative h-2 rounded-full bg-gray-100">
+                  <motion.div
+                    className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-brand-orange to-brand-gold"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.max((currentIndex / (TIMELINE.length - 1)) * 100, 5)}%` }}
+                    transition={{ duration: 0.6, ease: "easeOut" }}
+                  />
+                </div>
               </div>
-              <div className="relative h-1.5 rounded-full bg-white/25 mt-1">
-                <motion.div
-                  className="absolute left-0 top-0 h-full rounded-full bg-white"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${cancelled ? 0 : Math.max(((currentIndex) / (TIMELINE.length - 1)) * 100, 5)}%` }}
-                  transition={{ duration: 0.6, ease: "easeOut" }}
-                />
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </motion.div>
 
         {/* Map — kitchen→customer line, fills as status progresses */}
         {!cancelled && (
           <DeliveryMap
             deliveryAddress={order.deliveryAddress}
-            customerCoords={
-              order.deliveryLat !== null && order.deliveryLng !== null
-                ? { lat: order.deliveryLat, lng: order.deliveryLng }
-                : null
-            }
-            customerAccuracyM={order.deliveryAccuracyM}
+            customerCoords={customerCoords}
+            orderCreatedAt={order.createdAt}
+            estimatedDeliveryMinutes={eta.max}
             status={order.status as "placed" | "preparing" | "out_for_delivery" | "delivered" | "cancelled"}
           />
         )}
@@ -215,7 +275,10 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ orderN
 
         {/* Delivery info */}
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-          <p className="mb-3 text-[12px] font-bold uppercase tracking-wider text-gray-500">Delivery details</p>
+          <p className="mb-3 flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-wider text-gray-500">
+            <ReceiptText className="h-3.5 w-3.5" />
+            Delivery details
+          </p>
           <div className="flex items-start gap-2.5">
             <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand-orange" />
             <div>
@@ -229,7 +292,7 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ orderN
                   rel="noreferrer"
                   className="mt-1 inline-flex text-[12px] font-bold text-green-600"
                 >
-                  Exact GPS pin{order.deliveryAccuracyM !== null ? ` · ~${Math.round(order.deliveryAccuracyM)}m` : ""}
+                  Exact delivery pin
                 </a>
               )}
             </div>

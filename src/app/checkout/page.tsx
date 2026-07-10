@@ -12,6 +12,7 @@ import {
 import { useCartStore } from "@/stores/cart-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { formatInr } from "@/data/menu";
+import { estimateDeliveryMinutes } from "@/lib/location";
 import { computeOrderTotals } from "@/lib/pricing";
 
 type DeliveryLocation = {
@@ -57,6 +58,7 @@ export default function CheckoutPage() {
   const [saved, setSaved] = useState<SavedAddress[]>([]);
   const [deliveryLocation, setDeliveryLocation] = useState<DeliveryLocation | null>(null);
   const [locating, setLocating] = useState(false);
+  const deliveryEta = estimateDeliveryMinutes(deliveryLocation);
 
   useEffect(() => {
     if (!authUser) return;
@@ -107,9 +109,9 @@ export default function CheckoutPage() {
     if (!phone.trim()) e.phone = "Phone is required";
     else if (!/^[6-9]\d{9}$/.test(phone.trim())) e.phone = "Enter a valid 10-digit number";
     if (!address.trim()) e.address = "Delivery address is required";
-    if (!deliveryLocation) e.location = "Precise GPS location is required";
+    if (!deliveryLocation) e.location = "Current location is required";
     else if (deliveryLocation.accuracyM !== null && deliveryLocation.accuracyM > MAX_LOCATION_ACCURACY_M) {
-      e.location = `Location is too broad (${Math.round(deliveryLocation.accuracyM)}m). Please retry near an open area.`;
+      e.location = "Location is not precise enough. Please retry near an open area.";
     }
     return e;
   }
@@ -139,7 +141,7 @@ export default function CheckoutPage() {
             setDeliveryLocation(null);
             setErrors((p) => ({
               ...p,
-              location: `Location is too broad (${Math.round(accuracyM)}m). Please retry near an open area.`,
+              location: "Location is not precise enough. Please retry near an open area.",
             }));
             resolve(null);
             return;
@@ -173,9 +175,9 @@ export default function CheckoutPage() {
     }
 
     const e = validateStep1();
-    if (!currentLocation) e.location = e.location || "Precise GPS location is required";
+    if (!currentLocation) e.location = e.location || "Current location is required";
     else if (currentLocation.accuracyM !== null && currentLocation.accuracyM > MAX_LOCATION_ACCURACY_M) {
-      e.location = `Location is too broad (${Math.round(currentLocation.accuracyM)}m). Please retry near an open area.`;
+      e.location = "Location is not precise enough. Please retry near an open area.";
     } else {
       delete e.location;
     }
@@ -364,13 +366,13 @@ export default function CheckoutPage() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className={`text-[12px] font-extrabold ${errors.location ? "text-red-700" : deliveryLocation ? "text-green-800" : "text-orange-800"}`}>
-                        {deliveryLocation ? "Precise location captured" : "Capture exact delivery pin"}
+                        {deliveryLocation ? "Current location captured" : "Get current location"}
                       </p>
                       <p className={`mt-0.5 text-[11px] ${errors.location ? "text-red-600" : deliveryLocation ? "text-green-700" : "text-orange-700"}`}>
                         {errors.location ||
                           (deliveryLocation
-                            ? `GPS accuracy: ${deliveryLocation.accuracyM !== null ? `~${Math.round(deliveryLocation.accuracyM)}m` : "available"}`
-                            : "We need GPS permission so the rider gets the exact pin.")}
+                            ? "Your delivery pin is ready."
+                            : "Allow location permission so the rider gets the exact pin.")}
                       </p>
                     </div>
                     <button
@@ -379,7 +381,7 @@ export default function CheckoutPage() {
                       disabled={locating}
                       className="shrink-0 rounded-full bg-white px-3 py-1.5 text-[11px] font-bold text-brand-orange shadow-sm ring-1 ring-orange-100 disabled:opacity-60"
                     >
-                      {locating ? "Fetching…" : deliveryLocation ? "Refresh" : "Use GPS"}
+                      {locating ? "Fetching..." : deliveryLocation ? "Refresh" : "Get current location"}
                     </button>
                   </div>
                 </div>
@@ -440,12 +442,14 @@ export default function CheckoutPage() {
                 <p className="text-[13px] text-gray-500">+91 {phone}</p>
                 {deliveryLocation && (
                   <p className="mt-1 text-[11px] font-semibold text-green-600">
-                    Exact pin captured · {deliveryLocation.accuracyM !== null ? `~${Math.round(deliveryLocation.accuracyM)}m accuracy` : "GPS"}
+                    Exact delivery pin captured
                   </p>
                 )}
                 <div className="mt-3 flex items-center gap-2 rounded-xl bg-orange-50 px-3 py-2">
                   <Bike className="h-4 w-4 text-brand-orange" strokeWidth={2} />
-                  <span className="text-[12px] font-semibold text-orange-800">Estimated delivery: 25–35 minutes</span>
+                  <span className="text-[12px] font-semibold text-orange-800">
+                    Estimated delivery: {deliveryEta.min}-{deliveryEta.max} minutes
+                  </span>
                 </div>
               </div>
 

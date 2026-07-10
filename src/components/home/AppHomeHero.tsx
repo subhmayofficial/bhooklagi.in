@@ -20,6 +20,7 @@ import {
 import { useAuthStore } from "@/stores/auth-store";
 import { useCartStore, cartTotals } from "@/stores/cart-store";
 import { menuItems, formatInr } from "@/data/menu";
+import { estimateDeliveryMinutes, type Coords } from "@/lib/location";
 
 type LastOrder = {
   orderNumber: string;
@@ -72,13 +73,21 @@ export function AppHomeHero() {
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
 
   const [locationLabel, setLocationLabel] = useState("Deoghar, Jharkhand");
+  const [customerCoords, setCustomerCoords] = useState<Coords | null>(null);
   const [locating, setLocating] = useState(false);
   const [locationErrorMsg, setLocationErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
     const cached = localStorage.getItem("bl_location_label");
+    const cachedCoords = localStorage.getItem("bl_location_coords");
     if (cached) setLocationLabel(cached);
+    if (cachedCoords) {
+      try {
+        const parsed = JSON.parse(cachedCoords) as Coords;
+        if (Number.isFinite(parsed.lat) && Number.isFinite(parsed.lng)) setCustomerCoords(parsed);
+      } catch {}
+    }
   }, []);
 
   function flashLocationError(msg: string) {
@@ -97,6 +106,9 @@ export function AppHomeHero() {
       async (pos) => {
         try {
           const { latitude, longitude } = pos.coords;
+          const coords = { lat: latitude, lng: longitude };
+          setCustomerCoords(coords);
+          localStorage.setItem("bl_location_coords", JSON.stringify(coords));
           const res = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&zoom=16&addressdetails=1`,
             { headers: { Accept: "application/json" } },
@@ -121,7 +133,7 @@ export function AppHomeHero() {
           err.code === err.PERMISSION_DENIED ? "Permission denied" : "Couldn't get location",
         );
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
     );
   }
 
@@ -175,6 +187,8 @@ export function AppHomeHero() {
     else openLoginModal();
   }
 
+  const eta = estimateDeliveryMinutes(customerCoords);
+
   return (
     <section
       className="relative overflow-hidden bg-gradient-to-br from-brand-orange via-brand-orange-dark to-brand-gold px-4 pb-7"
@@ -208,7 +222,7 @@ export function AppHomeHero() {
               <MapPin className="h-3.5 w-3.5 shrink-0" strokeWidth={2.5} />
             )}
             <span className="max-w-[150px] truncate">
-              {locating ? "Locating…" : locationErrorMsg ?? locationLabel}
+              {locating ? "Locating..." : locationErrorMsg ?? (customerCoords ? locationLabel : "Get current location")}
             </span>
             <ChevronDown className="h-3 w-3 shrink-0 opacity-80" strokeWidth={2.5} />
           </button>
@@ -265,11 +279,11 @@ export function AppHomeHero() {
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
               </span>
               <p className="truncate text-[14px] font-extrabold text-gray-900">
-                Delivery in 25–35 min
+                {customerCoords ? `Delivery in ${eta.min}-${eta.max} min` : "Get current location for ETA"}
               </p>
             </div>
             <p className="truncate text-[11px] text-gray-500">
-              Fastest kitchen near {locationLabel.split(",")[0]}
+              {customerCoords ? `Fastest kitchen near ${locationLabel.split(",")[0]}` : "Precise location keeps delivery time real"}
             </p>
           </div>
           <span className="shrink-0 rotate-[-3deg] rounded-full bg-ink px-2.5 py-1 text-[10px] font-extrabold text-brand-gold shadow-sm">

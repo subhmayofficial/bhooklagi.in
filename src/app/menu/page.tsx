@@ -63,7 +63,7 @@ export default function MenuPage() {
                 BHOOK LAGI
               </h1>
               <p className="mt-1 text-[12px] font-medium text-white/70">
-                Street food · Deoghar, Jharkhand · 25–35 min delivery
+                Street food · Deoghar, Jharkhand · live ETA at checkout
               </p>
             </div>
 
@@ -77,7 +77,7 @@ export default function MenuPage() {
           {/* Info pills */}
           <div className="mt-4 flex flex-wrap gap-2">
             {[
-              { Icon: Clock,       text: "25–35 min" },
+              { Icon: Clock,       text: "Live ETA" },
               { Icon: Bike,        text: "Free delivery" },
               { Icon: ShieldCheck, text: "Hygienic kitchen" },
             ].map(({ Icon, text }) => (

@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Navigation, MapPin } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Minus, Navigation, MapPin, Plus } from "lucide-react";
+import { KITCHEN_COORDS } from "@/lib/location";
 
 // ─── Minimal Google Maps type shims ────────────────────────────────────────
 type GMLatLng = { lat(): number; lng(): number };
 type GMMap = {
   fitBounds(b: object): void;
   getZoom(): number;
+  panBy(x: number, y: number): void;
   setZoom(z: number): void;
 };
 type GMMarker = { setMap(m: GMMap | null): void };
@@ -90,21 +92,51 @@ async function geocodeAddress(address: string): Promise<Coords | null> {
 type Props = {
   deliveryAddress: string;
   customerCoords?: Coords | null;
-  customerAccuracyM?: number | null;
+  orderCreatedAt?: string;
+  estimatedDeliveryMinutes?: number;
   status: Status;
 };
 
-export function DeliveryMap({ deliveryAddress, customerCoords, customerAccuracyM, status }: Props) {
+export function DeliveryMap({ deliveryAddress, customerCoords, orderCreatedAt, estimatedDeliveryMinutes, status }: Props) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<GMMap | null>(null);
   const markersRef = useRef<GMMarker[]>([]);
   const linesRef = useRef<GMPolyline[]>([]);
 
-  const [eta, setEta] = useState<number | null>(null);
+  const [routeEta, setRouteEta] = useState<number | null>(null);
   const [geoError, setGeoError] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [now, setNow] = useState(() => Date.now());
 
-  const progress = STATUS_PROGRESS[status] ?? 0;
+  const elapsedMinutes = orderCreatedAt ? Math.max(0, (now - new Date(orderCreatedAt).getTime()) / 60000) : 0;
+  const targetMinutes = estimatedDeliveryMinutes ?? routeEta ?? 35;
+  const timeProgress = targetMinutes > 0 ? elapsedMinutes / targetMinutes : 0;
+  const progress =
+    status === "delivered"
+      ? 1
+      : status === "cancelled"
+        ? 0
+        : Math.min(0.96, Math.max(STATUS_PROGRESS[status] ?? 0, timeProgress));
+  const remainingMinutes =
+    status === "delivered"
+      ? 0
+      : Math.max(1, Math.ceil(targetMinutes - elapsedMinutes));
+
+  function zoomMap(delta: number) {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    map.setZoom(map.getZoom() + delta);
+  }
+
+  function panMap(x: number, y: number) {
+    mapInstanceRef.current?.panBy(x, y);
+  }
+
+  useEffect(() => {
+    if (status === "cancelled" || status === "delivered") return;
+    const timer = window.setInterval(() => setNow(Date.now()), 30000);
+    return () => window.clearInterval(timer);
+  }, [status]);
 
   useEffect(() => {
     const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
@@ -120,20 +152,7 @@ export function DeliveryMap({ deliveryAddress, customerCoords, customerAccuracyM
         await loadGoogleMaps(key!);
         if (cancelled) return;
 
-        // 2a. Kitchen — prefer exact lat/lng from env vars so it's always right.
-        //     Fallback: geocode the KITCHEN_ADDRESS env var.
-        //     IMPORTANT: set NEXT_PUBLIC_KITCHEN_LAT + NEXT_PUBLIC_KITCHEN_LNG
-        //     in your hosting env to pin the kitchen exactly.
-        let kitchenCoords: Coords;
-        const kitchenLat = parseFloat(process.env.NEXT_PUBLIC_KITCHEN_LAT ?? "");
-        const kitchenLng = parseFloat(process.env.NEXT_PUBLIC_KITCHEN_LNG ?? "");
-        if (!isNaN(kitchenLat) && !isNaN(kitchenLng)) {
-          kitchenCoords = { lat: kitchenLat, lng: kitchenLng };
-        } else {
-          const kitchenAddr = process.env.NEXT_PUBLIC_KITCHEN_ADDRESS ?? "Deoghar, Jharkhand, India";
-          const geocodedKitchen = await geocodeAddress(kitchenAddr);
-          kitchenCoords = geocodedKitchen ?? { lat: 24.4860, lng: 86.6985 };
-        }
+        const kitchenCoords: Coords = KITCHEN_COORDS;
 
         // 2b. Customer pin — prefer captured GPS coords from checkout.
         const customer = customerCoords ?? await geocodeAddress(deliveryAddress);
@@ -224,7 +243,7 @@ export function DeliveryMap({ deliveryAddress, customerCoords, customerAccuracyM
             const route = result.routes[0];
             const path = route.overview_path.map((p) => ({ lat: p.lat(), lng: p.lng() }));
             const totalMinutes = Math.ceil((route.legs[0].duration.value / 60) * 1.3 + 10);
-            setEta(totalMinutes);
+            setRouteEta(totalMinutes);
 
             linesRef.current = drawLines(m!, G, path, progress);
             fitMap(m!, G, kitchenCoords, customerPin);
@@ -262,7 +281,7 @@ export function DeliveryMap({ deliveryAddress, customerCoords, customerAccuracyM
     build();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deliveryAddress, customerCoords?.lat, customerCoords?.lng, status]);
+  }, [deliveryAddress, customerCoords?.lat, customerCoords?.lng, status, progress]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -283,11 +302,9 @@ export function DeliveryMap({ deliveryAddress, customerCoords, customerAccuracyM
               {status === "out_for_delivery" ? "Rider on the way!" : "Order being prepared"}
             </span>
           </div>
-          {eta !== null && (
-            <span className="rounded-full bg-white/20 px-3 py-1 text-[12px] font-extrabold text-white">
-              ~{eta} min
-            </span>
-          )}
+          <span className="rounded-full bg-white/20 px-3 py-1 text-[12px] font-extrabold text-white">
+            {remainingMinutes} min
+          </span>
         </div>
       )}
 
@@ -301,9 +318,67 @@ export function DeliveryMap({ deliveryAddress, customerCoords, customerAccuracyM
           </div>
         )}
         <div ref={mapRef} style={{ height: "250px", width: "100%", background: "#e5e3df" }} />
+        <div className="absolute right-2 top-2 z-20 overflow-hidden rounded-xl bg-white shadow-lg ring-1 ring-black/10">
+          <button
+            type="button"
+            aria-label="Zoom in"
+            onClick={() => zoomMap(1)}
+            className="flex h-9 w-9 items-center justify-center text-gray-700 active:bg-gray-100"
+          >
+            <Plus className="h-4 w-4" strokeWidth={3} />
+          </button>
+          <div className="h-px bg-gray-100" />
+          <button
+            type="button"
+            aria-label="Zoom out"
+            onClick={() => zoomMap(-1)}
+            className="flex h-9 w-9 items-center justify-center text-gray-700 active:bg-gray-100"
+          >
+            <Minus className="h-4 w-4" strokeWidth={3} />
+          </button>
+        </div>
+        <div className="absolute bottom-2 right-2 z-20 grid grid-cols-3 gap-1 rounded-xl bg-white/95 p-1 shadow-lg ring-1 ring-black/10">
+          <span />
+          <button
+            type="button"
+            aria-label="Move map up"
+            onClick={() => panMap(0, -90)}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-700 active:bg-gray-100"
+          >
+            <ArrowUp className="h-4 w-4" strokeWidth={3} />
+          </button>
+          <span />
+          <button
+            type="button"
+            aria-label="Move map left"
+            onClick={() => panMap(-90, 0)}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-700 active:bg-gray-100"
+          >
+            <ArrowLeft className="h-4 w-4" strokeWidth={3} />
+          </button>
+          <div className="h-8 w-8 rounded-lg bg-brand-orange/10" />
+          <button
+            type="button"
+            aria-label="Move map right"
+            onClick={() => panMap(90, 0)}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-700 active:bg-gray-100"
+          >
+            <ArrowRight className="h-4 w-4" strokeWidth={3} />
+          </button>
+          <span />
+          <button
+            type="button"
+            aria-label="Move map down"
+            onClick={() => panMap(0, 90)}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-700 active:bg-gray-100"
+          >
+            <ArrowDown className="h-4 w-4" strokeWidth={3} />
+          </button>
+          <span />
+        </div>
         {geoError && (
           <div className="absolute bottom-2 left-2 rounded-lg bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700 shadow ring-1 ring-amber-200">
-            Approx. location - GPS pin unavailable
+            Approx. location - delivery pin unavailable
           </div>
         )}
       </div>
@@ -322,9 +397,9 @@ export function DeliveryMap({ deliveryAddress, customerCoords, customerAccuracyM
           <span className="text-[14px]">📍</span>
         </div>
       </div>
-      {customerCoords && customerAccuracyM !== undefined && (
+      {customerCoords && (
         <div className="border-t border-gray-100 bg-white px-4 py-2 text-[10px] font-semibold text-green-700">
-          Exact checkout pin used{customerAccuracyM !== null ? ` · ~${Math.round(customerAccuracyM)}m accuracy` : ""}
+          Exact checkout pin used
         </div>
       )}
     </div>
@@ -357,8 +432,7 @@ function drawLines(
 
   // Filled portion — orange
   if (progress > 0) {
-    const cutIndex = Math.floor(path.length * progress);
-    const filledPath = path.slice(0, Math.max(cutIndex, 2));
+    const filledPath = getPartialPath(path, progress);
     const filledLine = new G.Polyline({
       path: filledPath,
       geodesic: true,
@@ -370,6 +444,44 @@ function drawLines(
     return [fullLine, filledLine];
   }
   return [fullLine];
+}
+
+function getPartialPath(path: { lat: number; lng: number }[], progress: number) {
+  if (path.length <= 2) return path;
+  if (progress >= 1) return path;
+
+  const segments = path.slice(1).map((point, index) => ({
+    from: path[index],
+    to: point,
+    length: distanceBetween(path[index], point),
+  }));
+  const total = segments.reduce((sum, segment) => sum + segment.length, 0);
+  const target = total * progress;
+  const partial = [path[0]];
+  let covered = 0;
+
+  for (const segment of segments) {
+    if (covered + segment.length < target) {
+      partial.push(segment.to);
+      covered += segment.length;
+      continue;
+    }
+
+    const ratio = segment.length === 0 ? 0 : (target - covered) / segment.length;
+    partial.push({
+      lat: segment.from.lat + (segment.to.lat - segment.from.lat) * ratio,
+      lng: segment.from.lng + (segment.to.lng - segment.from.lng) * ratio,
+    });
+    break;
+  }
+
+  return partial.length > 1 ? partial : path.slice(0, 2);
+}
+
+function distanceBetween(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
+  const lat = a.lat - b.lat;
+  const lng = a.lng - b.lng;
+  return Math.sqrt(lat * lat + lng * lng);
 }
 
 function fitMap(m: GMMap, G: GoogleMapsNamespace, a: Coords, b: Coords) {

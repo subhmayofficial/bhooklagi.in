@@ -149,7 +149,7 @@ export default function CartPage() {
                 </div>
                 <div className="flex items-center gap-1 rounded-xl bg-green-50 px-2.5 py-1">
                   <Clock className="h-3 w-3 text-green-600" strokeWidth={2} />
-                  <span className="text-[11px] font-bold text-green-700">25–35 min</span>
+                  <span className="text-[11px] font-bold text-green-700">Live ETA at checkout</span>
                 </div>
               </div>
 

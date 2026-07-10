@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { LogOut, RefreshCw, Users, ShoppingBag, MapPinned, Navigation } from "lucide-react";
 import { formatInr } from "@/data/menu";
+import { KITCHEN_COORDS_QUERY } from "@/lib/location";
 import { ORDER_STATUS_META, NEXT_STATUS, type OrderStatus } from "@/lib/orders";
 
 type AdminOrder = {
@@ -41,13 +42,7 @@ function googlePinUrl(lat: number, lng: number) {
 }
 
 function googleRouteUrl(lat: number, lng: number) {
-  const kitchenLat = process.env.NEXT_PUBLIC_KITCHEN_LAT;
-  const kitchenLng = process.env.NEXT_PUBLIC_KITCHEN_LNG;
-  const origin =
-    kitchenLat && kitchenLng
-      ? `${kitchenLat},${kitchenLng}`
-      : process.env.NEXT_PUBLIC_KITCHEN_ADDRESS ?? "Deoghar, Jharkhand, India";
-  return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${lat},${lng}&travelmode=driving`;
+  return `https://www.google.com/maps/dir/?api=1&origin=${KITCHEN_COORDS_QUERY}&destination=${lat},${lng}&travelmode=driving`;
 }
 
 export default function AdminOrdersPage() {

@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
   }
   if (location.accuracyM !== null && location.accuracyM > MAX_LOCATION_ACCURACY_M) {
     return NextResponse.json(
-      { error: `Location is too broad (${Math.round(location.accuracyM)}m). Please move near an open area and retry.` },
+      { error: "Location is not precise enough. Please move near an open area and retry." },
       { status: 400 },
     );
   }
