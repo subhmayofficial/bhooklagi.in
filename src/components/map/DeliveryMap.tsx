@@ -89,10 +89,12 @@ async function geocodeAddress(address: string): Promise<Coords | null> {
 // ─── Component ─────────────────────────────────────────────────────────────
 type Props = {
   deliveryAddress: string;
+  customerCoords?: Coords | null;
+  customerAccuracyM?: number | null;
   status: Status;
 };
 
-export function DeliveryMap({ deliveryAddress, status }: Props) {
+export function DeliveryMap({ deliveryAddress, customerCoords, customerAccuracyM, status }: Props) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<GMMap | null>(null);
   const markersRef = useRef<GMMarker[]>([]);
@@ -112,6 +114,8 @@ export function DeliveryMap({ deliveryAddress, status }: Props) {
 
     async function build() {
       try {
+        setLoading(true);
+        setGeoError(false);
         // 1. Load Maps JS API
         await loadGoogleMaps(key!);
         if (cancelled) return;
@@ -131,11 +135,11 @@ export function DeliveryMap({ deliveryAddress, status }: Props) {
           kitchenCoords = geocodedKitchen ?? { lat: 24.4860, lng: 86.6985 };
         }
 
-        // 2b. Customer address — keep it city-scoped for accuracy
-        const customer = await geocodeAddress(deliveryAddress);
+        // 2b. Customer pin — prefer captured GPS coords from checkout.
+        const customer = customerCoords ?? await geocodeAddress(deliveryAddress);
         if (cancelled) return;
 
-        const customerCoords = customer ?? { lat: 24.4910, lng: 86.6920 };
+        const customerPin = customer ?? { lat: 24.4910, lng: 86.6920 };
         if (!customer) setGeoError(true);
 
         const G = window.google!.maps;
@@ -144,7 +148,7 @@ export function DeliveryMap({ deliveryAddress, status }: Props) {
         let m = mapInstanceRef.current;
         if (!m) {
           m = new G.Map(mapRef.current!, {
-            center: { lat: (kitchenCoords.lat + customerCoords.lat) / 2, lng: (kitchenCoords.lng + customerCoords.lng) / 2 },
+            center: { lat: (kitchenCoords.lat + customerPin.lat) / 2, lng: (kitchenCoords.lng + customerPin.lng) / 2 },
             zoom: 14,
             disableDefaultUI: true,
             gestureHandling: "cooperative",
@@ -181,7 +185,7 @@ export function DeliveryMap({ deliveryAddress, status }: Props) {
         });
 
         const customerMarker = new G.Marker({
-          position: { lat: customerCoords.lat, lng: customerCoords.lng },
+          position: { lat: customerPin.lat, lng: customerPin.lng },
           map: m,
           title: "Your location",
           icon: {
@@ -203,17 +207,17 @@ export function DeliveryMap({ deliveryAddress, status }: Props) {
         directionsService.route(
           {
             origin: new G.LatLng(kitchenCoords.lat, kitchenCoords.lng),
-            destination: new G.LatLng(customerCoords.lat, customerCoords.lng),
+            destination: new G.LatLng(customerPin.lat, customerPin.lng),
             travelMode: G.TravelMode.DRIVING,
           },
           (result, status) => {
             if (cancelled || !result || status !== G.DirectionsStatus.OK) {
               // Fallback: straight line
-              drawLines(m!, G, [
+              linesRef.current = drawLines(m!, G, [
                 { lat: kitchenCoords.lat, lng: kitchenCoords.lng },
-                { lat: customerCoords.lat, lng: customerCoords.lng },
+                { lat: customerPin.lat, lng: customerPin.lng },
               ], progress);
-              fitMap(m!, G, kitchenCoords, customerCoords);
+              fitMap(m!, G, kitchenCoords, customerPin);
               return;
             }
 
@@ -222,15 +226,15 @@ export function DeliveryMap({ deliveryAddress, status }: Props) {
             const totalMinutes = Math.ceil((route.legs[0].duration.value / 60) * 1.3 + 10);
             setEta(totalMinutes);
 
-            drawLines(m!, G, path, progress);
-            fitMap(m!, G, kitchenCoords, customerCoords);
+            linesRef.current = drawLines(m!, G, path, progress);
+            fitMap(m!, G, kitchenCoords, customerPin);
           },
         );
 
         // Add rider marker for out_for_delivery
         if (status === "out_for_delivery") {
-          const midLat = kitchenCoords.lat + (customerCoords.lat - kitchenCoords.lat) * progress;
-          const midLng = kitchenCoords.lng + (customerCoords.lng - kitchenCoords.lng) * progress;
+          const midLat = kitchenCoords.lat + (customerPin.lat - kitchenCoords.lat) * progress;
+          const midLng = kitchenCoords.lng + (customerPin.lng - kitchenCoords.lng) * progress;
           const riderMarker = new G.Marker({
             position: { lat: midLat, lng: midLng },
             map: m,
@@ -258,7 +262,7 @@ export function DeliveryMap({ deliveryAddress, status }: Props) {
     build();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deliveryAddress, status]);
+  }, [deliveryAddress, customerCoords?.lat, customerCoords?.lng, status]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -299,7 +303,7 @@ export function DeliveryMap({ deliveryAddress, status }: Props) {
         <div ref={mapRef} style={{ height: "250px", width: "100%", background: "#e5e3df" }} />
         {geoError && (
           <div className="absolute bottom-2 left-2 rounded-lg bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700 shadow ring-1 ring-amber-200">
-            ⚠️ Approx. location — update KITCHEN_ADDRESS in settings
+            Approx. location - GPS pin unavailable
           </div>
         )}
       </div>
@@ -318,6 +322,11 @@ export function DeliveryMap({ deliveryAddress, status }: Props) {
           <span className="text-[14px]">📍</span>
         </div>
       </div>
+      {customerCoords && customerAccuracyM !== undefined && (
+        <div className="border-t border-gray-100 bg-white px-4 py-2 text-[10px] font-semibold text-green-700">
+          Exact checkout pin used{customerAccuracyM !== null ? ` · ~${Math.round(customerAccuracyM)}m accuracy` : ""}
+        </div>
+      )}
     </div>
   );
 }

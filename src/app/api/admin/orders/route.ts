@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   let query = supabase
     .from("orders")
     .select(
-      "id, order_number, items, status, payment_mode, payment_status, delivery_name, delivery_phone, delivery_address, delivery_landmark, subtotal, delivery_fee, gst, grand_total, created_at",
+      "id, order_number, items, status, payment_mode, payment_status, delivery_name, delivery_phone, delivery_address, delivery_landmark, delivery_lat, delivery_lng, delivery_accuracy_m, delivery_location_source, delivery_location_captured_at, subtotal, delivery_fee, gst, grand_total, created_at",
     )
     .order("created_at", { ascending: false })
     .limit(200);
@@ -39,6 +39,11 @@ export async function GET(req: NextRequest) {
     deliveryPhone: o.delivery_phone as string,
     deliveryAddress: o.delivery_address as string,
     deliveryLandmark: o.delivery_landmark as string | null,
+    deliveryLat: o.delivery_lat as number | null,
+    deliveryLng: o.delivery_lng as number | null,
+    deliveryAccuracyM: o.delivery_accuracy_m as number | null,
+    deliveryLocationSource: o.delivery_location_source as string | null,
+    deliveryLocationCapturedAt: o.delivery_location_captured_at as string | null,
     subtotal: o.subtotal as number,
     deliveryFee: o.delivery_fee as number,
     gst: o.gst as number,

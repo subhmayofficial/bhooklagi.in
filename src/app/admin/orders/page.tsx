@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { LogOut, RefreshCw, Users, ShoppingBag } from "lucide-react";
+import { LogOut, RefreshCw, Users, ShoppingBag, MapPinned, Navigation } from "lucide-react";
 import { formatInr } from "@/data/menu";
 import { ORDER_STATUS_META, NEXT_STATUS, type OrderStatus } from "@/lib/orders";
 
@@ -18,6 +18,11 @@ type AdminOrder = {
   deliveryPhone: string;
   deliveryAddress: string;
   deliveryLandmark: string | null;
+  deliveryLat: number | null;
+  deliveryLng: number | null;
+  deliveryAccuracyM: number | null;
+  deliveryLocationSource: string | null;
+  deliveryLocationCapturedAt: string | null;
   grandTotal: number;
   createdAt: string;
 };
@@ -30,6 +35,20 @@ const FILTERS: { label: string; value: OrderStatus | "all" }[] = [
   { label: "Delivered", value: "delivered" },
   { label: "Cancelled", value: "cancelled" },
 ];
+
+function googlePinUrl(lat: number, lng: number) {
+  return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+}
+
+function googleRouteUrl(lat: number, lng: number) {
+  const kitchenLat = process.env.NEXT_PUBLIC_KITCHEN_LAT;
+  const kitchenLng = process.env.NEXT_PUBLIC_KITCHEN_LNG;
+  const origin =
+    kitchenLat && kitchenLng
+      ? `${kitchenLat},${kitchenLng}`
+      : process.env.NEXT_PUBLIC_KITCHEN_ADDRESS ?? "Deoghar, Jharkhand, India";
+  return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${lat},${lng}&travelmode=driving`;
+}
 
 export default function AdminOrdersPage() {
   const router = useRouter();
@@ -178,6 +197,39 @@ export default function AdminOrdersPage() {
                   <br />
                   {o.deliveryAddress}
                   {o.deliveryLandmark ? ` (Near: ${o.deliveryLandmark})` : ""}
+                  {o.deliveryLat !== null && o.deliveryLng !== null ? (
+                    <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-gray-200 pt-2">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-[11px] font-bold text-green-700">
+                        <MapPinned className="h-3.5 w-3.5" />
+                        Exact pin{typeof o.deliveryAccuracyM === "number" ? ` ~${Math.round(o.deliveryAccuracyM)}m` : ""}
+                      </span>
+                      <a
+                        href={googlePinUrl(o.deliveryLat, o.deliveryLng)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-brand-orange ring-1 ring-orange-100"
+                      >
+                        <MapPinned className="h-3.5 w-3.5" />
+                        Open pin
+                      </a>
+                      <a
+                        href={googleRouteUrl(o.deliveryLat, o.deliveryLng)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-brand-orange ring-1 ring-orange-100"
+                      >
+                        <Navigation className="h-3.5 w-3.5" />
+                        Route
+                      </a>
+                      <span className="text-[10px] font-medium text-gray-400">
+                        {o.deliveryLat.toFixed(6)}, {o.deliveryLng.toFixed(6)}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="mt-2 rounded-lg bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700">
+                      Exact GPS pin not captured for this order
+                    </div>
+                  )}
                 </div>
 
                 {/* Actions */}

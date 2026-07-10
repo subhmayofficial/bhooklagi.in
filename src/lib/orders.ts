@@ -80,6 +80,11 @@ export type OrderRecord = {
   deliveryPhone: string;
   deliveryAddress: string;
   deliveryLandmark: string | null;
+  deliveryLat: number | null;
+  deliveryLng: number | null;
+  deliveryAccuracyM: number | null;
+  deliveryLocationSource: string | null;
+  deliveryLocationCapturedAt: string | null;
   subtotal: number;
   deliveryFee: number;
   gst: number;

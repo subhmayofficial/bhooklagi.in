@@ -25,6 +25,11 @@ create table if not exists public.orders (
   delivery_phone text not null,
   delivery_address text not null,
   delivery_landmark text,
+  delivery_lat double precision,
+  delivery_lng double precision,
+  delivery_accuracy_m double precision,
+  delivery_location_source text,
+  delivery_location_captured_at timestamptz,
   payment_mode text not null check (payment_mode in ('cod', 'online', 'wallet')),
   payment_status text not null default 'pending' check (payment_status in ('pending', 'paid', 'failed', 'refunded')),
   subtotal integer not null,
@@ -38,6 +43,7 @@ create table if not exists public.orders (
 );
 
 create index if not exists orders_customer_id_idx on public.orders(customer_id);
+create index if not exists orders_delivery_location_idx on public.orders(delivery_lat, delivery_lng) where delivery_lat is not null and delivery_lng is not null;
 
 alter table public.orders enable row level security;
 
@@ -62,6 +68,11 @@ create table if not exists public.saved_addresses (
   label text,                          -- Home, Work, etc.
   address text not null,
   landmark text,
+  lat double precision,
+  lng double precision,
+  accuracy_m double precision,
+  location_source text,
+  location_captured_at timestamptz,
   is_default boolean not null default false,
   created_at timestamptz not null default now()
 );

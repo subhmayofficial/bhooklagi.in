@@ -7,17 +7,34 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   MapPin, Phone, User, Landmark,
   CheckCircle2, ChevronRight, Bike, CreditCard, Package, ChevronLeft,
+  LocateFixed, AlertCircle,
 } from "lucide-react";
 import { useCartStore } from "@/stores/cart-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { formatInr } from "@/data/menu";
 import { computeOrderTotals } from "@/lib/pricing";
 
-type PaymentMode = "cod";
-type SavedAddress = { id: string; label: string | null; address: string; landmark: string | null; isDefault: boolean };
+type DeliveryLocation = {
+  lat: number;
+  lng: number;
+  accuracyM: number | null;
+  capturedAt: string;
+};
+type SavedAddress = {
+  id: string;
+  label: string | null;
+  address: string;
+  landmark: string | null;
+  isDefault: boolean;
+  lat: number | null;
+  lng: number | null;
+  accuracyM: number | null;
+  locationCapturedAt: string | null;
+};
 type Step = 1 | 2;
 
 const STEP_LABELS = ["Delivery", "Review & Pay"];
+const MAX_LOCATION_ACCURACY_M = 250;
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -38,6 +55,8 @@ export default function CheckoutPage() {
   const [placing, setPlacing] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState<SavedAddress[]>([]);
+  const [deliveryLocation, setDeliveryLocation] = useState<DeliveryLocation | null>(null);
+  const [locating, setLocating] = useState(false);
 
   useEffect(() => {
     if (!authUser) return;
@@ -56,6 +75,14 @@ export default function CheckoutPage() {
         if (def) {
           setAddress((p) => p || def.address);
           setLandmark((p) => p || def.landmark || "");
+          if (def.lat !== null && def.lng !== null) {
+            setDeliveryLocation({
+              lat: def.lat,
+              lng: def.lng,
+              accuracyM: def.accuracyM,
+              capturedAt: def.locationCapturedAt ?? new Date().toISOString(),
+            });
+          }
           setSaveAddress(false);
         }
       })
@@ -80,11 +107,78 @@ export default function CheckoutPage() {
     if (!phone.trim()) e.phone = "Phone is required";
     else if (!/^[6-9]\d{9}$/.test(phone.trim())) e.phone = "Enter a valid 10-digit number";
     if (!address.trim()) e.address = "Delivery address is required";
+    if (!deliveryLocation) e.location = "Precise GPS location is required";
+    else if (deliveryLocation.accuracyM !== null && deliveryLocation.accuracyM > MAX_LOCATION_ACCURACY_M) {
+      e.location = `Location is too broad (${Math.round(deliveryLocation.accuracyM)}m). Please retry near an open area.`;
+    }
     return e;
   }
 
-  function goToStep2() {
+  async function capturePreciseLocation() {
+    if (!("geolocation" in navigator)) {
+      setErrors((p) => ({ ...p, location: "Location is not supported on this device." }));
+      return null;
+    }
+
+    setLocating(true);
+    setErrors((p) => ({ ...p, location: "" }));
+
+    return new Promise<DeliveryLocation | null>((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const location: DeliveryLocation = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            accuracyM: position.coords.accuracy ?? null,
+            capturedAt: new Date(position.timestamp || Date.now()).toISOString(),
+          };
+
+          setLocating(false);
+          const accuracyM = location.accuracyM;
+          if (accuracyM !== null && accuracyM > MAX_LOCATION_ACCURACY_M) {
+            setDeliveryLocation(null);
+            setErrors((p) => ({
+              ...p,
+              location: `Location is too broad (${Math.round(accuracyM)}m). Please retry near an open area.`,
+            }));
+            resolve(null);
+            return;
+          }
+
+          setDeliveryLocation(location);
+          setErrors((p) => ({ ...p, location: "" }));
+          resolve(location);
+        },
+        (error) => {
+          const message =
+            error.code === error.PERMISSION_DENIED
+              ? "Please allow location permission to place the order."
+              : error.code === error.TIMEOUT
+                ? "Location request timed out. Please retry."
+                : "Could not fetch precise location. Please retry.";
+          setLocating(false);
+          setDeliveryLocation(null);
+          setErrors((p) => ({ ...p, location: message }));
+          resolve(null);
+        },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
+      );
+    });
+  }
+
+  async function goToStep2() {
+    let currentLocation = deliveryLocation;
+    if (!currentLocation) {
+      currentLocation = await capturePreciseLocation();
+    }
+
     const e = validateStep1();
+    if (!currentLocation) e.location = e.location || "Precise GPS location is required";
+    else if (currentLocation.accuracyM !== null && currentLocation.accuracyM > MAX_LOCATION_ACCURACY_M) {
+      e.location = `Location is too broad (${Math.round(currentLocation.accuracyM)}m). Please retry near an open area.`;
+    } else {
+      delete e.location;
+    }
     if (Object.keys(e).length > 0) { setErrors(e); return; }
     setErrors({});
     setStep(2);
@@ -103,7 +197,13 @@ export default function CheckoutPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           lines,
-          delivery: { name: name.trim(), phone: phone.trim(), address: address.trim(), landmark: landmark.trim() || undefined },
+          delivery: {
+            name: name.trim(),
+            phone: phone.trim(),
+            address: address.trim(),
+            landmark: landmark.trim() || undefined,
+            location: deliveryLocation,
+          },
           saveAddress,
           paymentMode: "cod",
         }),
@@ -182,7 +282,22 @@ export default function CheckoutPage() {
                       <button
                         key={a.id}
                         type="button"
-                        onClick={() => { setAddress(a.address); setLandmark(a.landmark || ""); setSaveAddress(false); setErrors((p) => ({ ...p, address: "" })); }}
+                        onClick={() => {
+                          setAddress(a.address);
+                          setLandmark(a.landmark || "");
+                          setSaveAddress(false);
+                          setErrors((p) => ({ ...p, address: "", location: "" }));
+                          if (a.lat !== null && a.lng !== null) {
+                            setDeliveryLocation({
+                              lat: a.lat,
+                              lng: a.lng,
+                              accuracyM: a.accuracyM,
+                              capturedAt: a.locationCapturedAt ?? new Date().toISOString(),
+                            });
+                          } else {
+                            setDeliveryLocation(null);
+                          }
+                        }}
                         className={`shrink-0 rounded-2xl border-2 px-3 py-2 text-left text-[12px] transition-all ${address === a.address ? "border-brand-orange bg-brand-orange/[0.04]" : "border-gray-200 bg-white"}`}
                       >
                         {a.label && <span className="block font-bold text-gray-900">{a.label}</span>}
@@ -242,6 +357,33 @@ export default function CheckoutPage() {
                 />
                 {errors.address && <p className="mt-1 text-[12px] text-red-500">{errors.address}</p>}
 
+                <div className={`mt-3 rounded-xl border px-3 py-3 ${errors.location ? "border-red-200 bg-red-50" : deliveryLocation ? "border-green-200 bg-green-50" : "border-orange-100 bg-orange-50"}`}>
+                  <div className="flex items-start gap-3">
+                    <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${deliveryLocation ? "bg-green-100 text-green-700" : "bg-white text-brand-orange"}`}>
+                      {errors.location ? <AlertCircle className="h-4 w-4" /> : <LocateFixed className="h-4 w-4" />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-[12px] font-extrabold ${errors.location ? "text-red-700" : deliveryLocation ? "text-green-800" : "text-orange-800"}`}>
+                        {deliveryLocation ? "Precise location captured" : "Capture exact delivery pin"}
+                      </p>
+                      <p className={`mt-0.5 text-[11px] ${errors.location ? "text-red-600" : deliveryLocation ? "text-green-700" : "text-orange-700"}`}>
+                        {errors.location ||
+                          (deliveryLocation
+                            ? `GPS accuracy: ${deliveryLocation.accuracyM !== null ? `~${Math.round(deliveryLocation.accuracyM)}m` : "available"}`
+                            : "We need GPS permission so the rider gets the exact pin.")}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={capturePreciseLocation}
+                      disabled={locating}
+                      className="shrink-0 rounded-full bg-white px-3 py-1.5 text-[11px] font-bold text-brand-orange shadow-sm ring-1 ring-orange-100 disabled:opacity-60"
+                    >
+                      {locating ? "Fetching…" : deliveryLocation ? "Refresh" : "Use GPS"}
+                    </button>
+                  </div>
+                </div>
+
                 <label className="mb-1.5 mt-3 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-500">
                   <Landmark className="h-3.5 w-3.5" /> Landmark (optional)
                 </label>
@@ -296,6 +438,11 @@ export default function CheckoutPage() {
                 <p className="text-[14px] font-bold text-gray-900">{name}</p>
                 <p className="text-[13px] text-gray-600">{address}{landmark ? `, near ${landmark}` : ""}</p>
                 <p className="text-[13px] text-gray-500">+91 {phone}</p>
+                {deliveryLocation && (
+                  <p className="mt-1 text-[11px] font-semibold text-green-600">
+                    Exact pin captured · {deliveryLocation.accuracyM !== null ? `~${Math.round(deliveryLocation.accuracyM)}m accuracy` : "GPS"}
+                  </p>
+                )}
                 <div className="mt-3 flex items-center gap-2 rounded-xl bg-orange-50 px-3 py-2">
                   <Bike className="h-4 w-4 text-brand-orange" strokeWidth={2} />
                   <span className="text-[12px] font-semibold text-orange-800">Estimated delivery: 25–35 minutes</span>

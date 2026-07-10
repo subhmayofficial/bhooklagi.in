@@ -167,6 +167,12 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ orderN
         {!cancelled && (
           <DeliveryMap
             deliveryAddress={order.deliveryAddress}
+            customerCoords={
+              order.deliveryLat !== null && order.deliveryLng !== null
+                ? { lat: order.deliveryLat, lng: order.deliveryLng }
+                : null
+            }
+            customerAccuracyM={order.deliveryAccuracyM}
             status={order.status as "placed" | "preparing" | "out_for_delivery" | "delivered" | "cancelled"}
           />
         )}
@@ -216,6 +222,16 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ orderN
               <p className="text-[14px] font-bold text-gray-900">{order.deliveryName}</p>
               <p className="text-[13px] text-gray-600">{order.deliveryAddress}</p>
               {order.deliveryLandmark && <p className="text-[12px] text-gray-400">Near: {order.deliveryLandmark}</p>}
+              {order.deliveryLat !== null && order.deliveryLng !== null && (
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${order.deliveryLat},${order.deliveryLng}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-1 inline-flex text-[12px] font-bold text-green-600"
+                >
+                  Exact GPS pin{order.deliveryAccuracyM !== null ? ` · ~${Math.round(order.deliveryAccuracyM)}m` : ""}
+                </a>
+              )}
             </div>
           </div>
           <div className="mt-2 flex items-center gap-2">

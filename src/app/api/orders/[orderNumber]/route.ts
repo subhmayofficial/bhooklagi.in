@@ -13,7 +13,7 @@ export async function GET(
   const { data: order, error } = await supabase
     .from("orders")
     .select(
-      "id, order_number, customer_id, items, status, payment_mode, payment_status, delivery_name, delivery_phone, delivery_address, delivery_landmark, subtotal, delivery_fee, gst, grand_total, created_at",
+      "id, order_number, customer_id, items, status, payment_mode, payment_status, delivery_name, delivery_phone, delivery_address, delivery_landmark, delivery_lat, delivery_lng, delivery_accuracy_m, delivery_location_source, delivery_location_captured_at, subtotal, delivery_fee, gst, grand_total, created_at",
     )
     .eq("order_number", orderNumber)
     .maybeSingle();
@@ -50,6 +50,11 @@ export async function GET(
       deliveryPhone: order.delivery_phone,
       deliveryAddress: order.delivery_address,
       deliveryLandmark: order.delivery_landmark,
+      deliveryLat: order.delivery_lat,
+      deliveryLng: order.delivery_lng,
+      deliveryAccuracyM: order.delivery_accuracy_m,
+      deliveryLocationSource: order.delivery_location_source,
+      deliveryLocationCapturedAt: order.delivery_location_captured_at,
       subtotal: order.subtotal,
       deliveryFee: order.delivery_fee,
       gst: order.gst,
