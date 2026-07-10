@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ChevronLeft, MapPin, Phone, User, Landmark, Lock,
-  CheckCircle2, ChevronRight, Bike, CreditCard, Package,
+  MapPin, Phone, User, Landmark,
+  CheckCircle2, ChevronRight, Bike, CreditCard, Package, ChevronLeft,
 } from "lucide-react";
 import { useCartStore } from "@/stores/cart-store";
 import { useAuthStore } from "@/stores/auth-store";
@@ -71,28 +71,8 @@ export default function CheckoutPage() {
     );
   }
 
-  if (authStatus === "guest") {
-    return (
-      <main className="flex min-h-dvh flex-col items-center justify-center px-4 text-center">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-orange/10">
-          <Lock className="h-6 w-6 text-brand-orange" />
-        </div>
-        <h1 className="mt-5 text-[19px] font-bold text-gray-900">Log in to checkout</h1>
-        <p className="mx-auto mt-2 max-w-xs text-[14px] text-gray-500">Verify your mobile number to place the order and track it.</p>
-        <button type="button" onClick={openLoginModal} className="mt-6 inline-flex rounded-full bg-brand-orange px-8 py-3 text-[14px] font-bold text-white shadow-[0_8px_24px_rgba(232,93,4,0.35)]">
-          Log in with OTP
-        </button>
-      </main>
-    );
-  }
-
-  if (authStatus === "loading") {
-    return (
-      <main className="flex min-h-dvh items-center justify-center">
-        <p className="text-[14px] text-gray-400">Loading…</p>
-      </main>
-    );
-  }
+  // Don't gate with a full page — guest users see the form and are prompted
+  // to log in via the existing OTP modal only when they try to place the order.
 
   function validateStep1() {
     const e: Record<string, string> = {};
@@ -111,6 +91,11 @@ export default function CheckoutPage() {
   }
 
   async function placeOrder() {
+    // If not logged in, open the OTP modal as a popup — no page redirect.
+    if (authStatus !== "authenticated") {
+      openLoginModal();
+      return;
+    }
     setPlacing(true);
     try {
       const res = await fetch("/api/orders", {

@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -9,6 +10,12 @@ import {
 } from "lucide-react";
 import { formatInr } from "@/data/menu";
 import { ORDER_STATUS_META, type OrderRecord, type OrderStatus } from "@/lib/orders";
+
+// Leaflet requires window — dynamic import prevents SSR crash
+const DeliveryMap = dynamic(
+  () => import("@/components/map/DeliveryMap").then((m) => ({ default: m.DeliveryMap })),
+  { ssr: false, loading: () => <div className="h-[290px] animate-pulse rounded-2xl bg-gray-100" /> },
+);
 
 type OrderEvent = { status: string; note: string | null; created_at: string };
 
@@ -22,36 +29,6 @@ const STEP_ICONS: Record<OrderStatus, React.ElementType> = {
   cancelled: XCircle,
 };
 
-// Deoghar, Jharkhand rough coordinates
-const DEOGHAR_LAT = 24.4864;
-const DEOGHAR_LON = 86.6950;
-
-function DeliveryMap({ address }: { address: string }) {
-  const encodedAddr = encodeURIComponent(`${address}, Deoghar, Jharkhand`);
-  const mapSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${DEOGHAR_LON - 0.025},${DEOGHAR_LAT - 0.015},${DEOGHAR_LON + 0.025},${DEOGHAR_LAT + 0.015}&layer=mapnik&marker=${DEOGHAR_LAT},${DEOGHAR_LON}`;
-  const linkHref = `https://www.openstreetmap.org/search?query=${encodedAddr}`;
-
-  return (
-    <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-gray-100 shadow-sm">
-      <iframe
-        title="Delivery area map"
-        src={mapSrc}
-        width="100%"
-        height="220"
-        className="block"
-        loading="lazy"
-      />
-      {/* Frosted overlay with pin */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-white/80 to-transparent pb-3 pt-8 text-center">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-gray-700 shadow-md ring-1 ring-black/5">
-          <MapPin className="h-3 w-3 text-brand-orange" strokeWidth={2.5} />
-          Deoghar, Jharkhand
-        </span>
-      </div>
-      <a href={linkHref} target="_blank" rel="noopener noreferrer" className="pointer-events-none absolute inset-0" aria-label="View on OpenStreetMap" />
-    </div>
-  );
-}
 
 export default function OrderTrackingPage({ params }: { params: Promise<{ orderNumber: string }> }) {
   const { orderNumber } = use(params);
@@ -186,8 +163,13 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ orderN
           )}
         </motion.div>
 
-        {/* Map */}
-        {!cancelled && <DeliveryMap address={order.deliveryAddress} />}
+        {/* Map — kitchen→customer line, fills as status progresses */}
+        {!cancelled && (
+          <DeliveryMap
+            deliveryAddress={order.deliveryAddress}
+            status={order.status as "placed" | "preparing" | "out_for_delivery" | "delivered" | "cancelled"}
+          />
+        )}
 
         {/* Timeline */}
         {!cancelled && (
