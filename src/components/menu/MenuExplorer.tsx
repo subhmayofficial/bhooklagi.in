@@ -13,6 +13,7 @@ import {
 } from "@/data/menu";
 import { useCartStore, cartTotals } from "@/stores/cart-store";
 import { DishCard } from "@/components/menu/DishCard";
+import { ItemDetailSheet } from "@/components/menu/ItemDetailSheet";
 import { cn } from "@/lib/utils";
 
 /* ── Category images for the sidebar / pill bar ─────────────────── */
@@ -48,6 +49,7 @@ export function MenuExplorer() {
   const [diet, setDiet]           = useState<DietFilter>("all");
   const [showFilter, setShowFilter] = useState(false);
   const [mounted, setMounted]     = useState(false);
+  const [openItemId, setOpenItemId] = useState<string | null>(null);
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const pillsRef    = useRef<HTMLDivElement>(null);
 
@@ -324,7 +326,7 @@ export function MenuExplorer() {
                   >
                     <CategorySectionHeader cat={cat} count={items.length} />
                     <div className="rounded-2xl border border-gray-100 bg-white px-4 shadow-sm">
-                      {items.map((item, i) => <DishCard key={item.id} item={item} index={i} />)}
+                      {items.map((item, i) => <DishCard key={item.id} item={item} index={i} onOpen={() => setOpenItemId(item.id)} />)}
                     </div>
                   </div>
                 );
@@ -332,13 +334,18 @@ export function MenuExplorer() {
             ) : (
               /* Single category view */
               <div className="rounded-2xl border border-gray-100 bg-white px-4 shadow-sm">
-                {filtered.map((item, i) => <DishCard key={item.id} item={item} index={i} />)}
+                {filtered.map((item, i) => <DishCard key={item.id} item={item} index={i} onOpen={() => setOpenItemId(item.id)} />)}
               </div>
             )}
           </motion.div>
         </AnimatePresence>
 
       </div>
+
+      <ItemDetailSheet 
+        itemId={openItemId} 
+        onClose={() => setOpenItemId(null)} 
+      />
 
       {/* ══════════════════════════════════════════
           FLOATING CART BAR

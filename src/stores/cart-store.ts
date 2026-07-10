@@ -10,6 +10,8 @@ export type CartLine = {
   unitPrice: number;
   qty: number;
   emoji: string;
+  image?: string;
+  diet?: string;
 };
 
 type CartState = {
@@ -52,6 +54,8 @@ export const useCartStore = create<CartState>()(
                 unitPrice: item.price,
                 qty,
                 emoji: item.emoji,
+                image: item.image,
+                diet: item.diet,
               },
             ],
           });
