@@ -14,6 +14,8 @@ import {
   ShoppingBag,
   Mic,
   X,
+  Clock,
+  Loader2,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useCartStore, cartTotals } from "@/stores/cart-store";
@@ -69,7 +71,59 @@ export function AppHomeHero() {
   const [lastOrderStatus, setLastOrderStatus] = useState<LastOrderStatus>("idle");
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
 
-  useEffect(() => setMounted(true), []);
+  const [locationLabel, setLocationLabel] = useState("Deoghar, Jharkhand");
+  const [locating, setLocating] = useState(false);
+  const [locationErrorMsg, setLocationErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+    const cached = localStorage.getItem("bl_location_label");
+    if (cached) setLocationLabel(cached);
+  }, []);
+
+  function flashLocationError(msg: string) {
+    setLocationErrorMsg(msg);
+    setTimeout(() => setLocationErrorMsg(null), 3000);
+  }
+
+  function detectLocation() {
+    if (locating) return;
+    if (!("geolocation" in navigator)) {
+      flashLocationError("Location not supported");
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&zoom=16&addressdetails=1`,
+            { headers: { Accept: "application/json" } },
+          );
+          const data = await res.json();
+          const addr: Record<string, string> = data?.address ?? {};
+          const rough =
+            addr.suburb || addr.neighbourhood || addr.village || addr.hamlet || addr.city_district;
+          const city = addr.town || addr.city || addr.county || "Deoghar";
+          const label = rough ? `${rough}, ${city}` : `${city}, Jharkhand`;
+          setLocationLabel(label);
+          localStorage.setItem("bl_location_label", label);
+        } catch {
+          flashLocationError("Couldn't fetch address");
+        } finally {
+          setLocating(false);
+        }
+      },
+      (err) => {
+        setLocating(false);
+        flashLocationError(
+          err.code === err.PERMISSION_DENIED ? "Permission denied" : "Couldn't get location",
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 },
+    );
+  }
 
   useEffect(() => {
     if (status !== "authenticated") {
@@ -144,10 +198,18 @@ export function AppHomeHero() {
         <div className="mb-4 flex items-center justify-between gap-2">
           <button
             type="button"
-            className="flex min-w-0 items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-[12px] font-semibold text-white backdrop-blur-sm"
+            onClick={detectLocation}
+            disabled={locating}
+            className="flex min-w-0 items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-[12px] font-semibold text-white backdrop-blur-sm disabled:opacity-80"
           >
-            <MapPin className="h-3.5 w-3.5 shrink-0" strokeWidth={2.5} />
-            <span className="truncate">Deoghar, Jharkhand</span>
+            {locating ? (
+              <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" strokeWidth={2.5} />
+            ) : (
+              <MapPin className="h-3.5 w-3.5 shrink-0" strokeWidth={2.5} />
+            )}
+            <span className="max-w-[150px] truncate">
+              {locating ? "Locating…" : locationErrorMsg ?? locationLabel}
+            </span>
             <ChevronDown className="h-3 w-3 shrink-0 opacity-80" strokeWidth={2.5} />
           </button>
 
@@ -186,25 +248,35 @@ export function AppHomeHero() {
           </div>
         </div>
 
-        {/* Compact delivery + promo badges — visual, not a giant headline */}
+        {/* Delivery ETA block — a proper card, not just a thin pill */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="flex flex-wrap items-center gap-2"
+          className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-lg"
         >
-          <span className="flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-[13px] font-bold text-white backdrop-blur-sm">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-300 opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-green-400" />
-            </span>
-            25–35 min
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-orange/10">
+            <Clock className="h-5 w-5 text-brand-orange" strokeWidth={2.5} />
           </span>
-          <span className="rotate-[-2deg] rounded-full bg-ink px-3 py-1.5 text-[11px] font-extrabold text-brand-gold shadow-sm">
-            🔥 Flat ₹80 OFF
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+              </span>
+              <p className="truncate text-[14px] font-extrabold text-gray-900">
+                Delivery in 25–35 min
+              </p>
+            </div>
+            <p className="truncate text-[11px] text-gray-500">
+              Fastest kitchen near {locationLabel.split(",")[0]}
+            </p>
+          </div>
+          <span className="shrink-0 rotate-[-3deg] rounded-full bg-ink px-2.5 py-1 text-[10px] font-extrabold text-brand-gold shadow-sm">
+            🔥 ₹80 OFF
           </span>
         </motion.div>
-        <p className="mt-2 text-[13px] font-medium text-white/85">
+        <p className="mt-3 text-[13px] font-medium text-white/85">
           {greeting()}{user?.name ? `, ${user.name.split(" ")[0]}` : ""} — bhook lagi? 👋
         </p>
 
