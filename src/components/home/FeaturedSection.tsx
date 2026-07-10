@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Minus, Flame, ArrowRight, Zap } from "lucide-react";
 import { menuItems, formatInr } from "@/data/menu";
@@ -97,16 +98,19 @@ export function FeaturedSection() {
 }
 
 function FeaturedCard({ itemId }: { itemId: string }) {
-  const item = menuItems.find((m) => m.id === itemId)!;
+  const item      = menuItems.find((m) => m.id === itemId)!;
   const addItem   = useCartStore((s) => s.addItem);
   const increment = useCartStore((s) => s.increment);
   const decrement = useCartStore((s) => s.decrement);
   const lines     = useCartStore((s) => s.lines);
   const cartLine  = lines.find((l) => l.itemId === item.id);
-  const qty = cartLine?.qty ?? 0;
+  const qty       = cartLine?.qty ?? 0;
+
+  const [imgLoaded, setImgLoaded] = useState(false);
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-white/8 bg-gray-900 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-brand-orange/30 hover:shadow-[0_8px_32px_rgba(232,93,4,0.25)]">
+    <div className="group relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gray-900 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-brand-orange/30 hover:shadow-[0_8px_32px_rgba(232,93,4,0.25)]">
+
       {/* Bestseller flash */}
       {item.bestseller && (
         <div className="absolute left-0 right-0 top-0 z-10 flex items-center justify-center gap-1 bg-gradient-to-r from-brand-orange to-brand-gold py-0.5">
@@ -115,8 +119,23 @@ function FeaturedCard({ itemId }: { itemId: string }) {
         </div>
       )}
 
-      {/* Food image or emoji fallback */}
-      <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-gray-800 via-gray-900 to-gray-800">
+      {/* ── Clickable image area → menu page ── */}
+      <Link
+        href={`/menu?cat=${item.categoryId}`}
+        className="relative block aspect-square overflow-hidden bg-gradient-to-br from-gray-800 via-gray-900 to-gray-800"
+        tabIndex={-1}
+        aria-label={`View ${item.name} on menu`}
+      >
+        {/* Image skeleton shimmer */}
+        {!imgLoaded && (
+          <div className="absolute inset-0 z-10 animate-pulse bg-gradient-to-br from-gray-700 via-gray-800 to-gray-700">
+            <div
+              className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/5 to-transparent animate-[shimmer_1.5s_infinite]"
+              style={{ animation: "shimmer 1.5s infinite" }}
+            />
+          </div>
+        )}
+
         {item.image ? (
           <>
             <Image
@@ -124,9 +143,9 @@ function FeaturedCard({ itemId }: { itemId: string }) {
               alt={item.name}
               fill
               sizes="(max-width: 768px) 160px, 25vw"
-              className="object-cover transition-transform duration-500 group-hover:scale-110"
+              className={`object-cover transition-all duration-500 group-hover:scale-110 ${imgLoaded ? "opacity-100" : "opacity-0"}`}
+              onLoad={() => setImgLoaded(true)}
             />
-            {/* Gradient overlay at bottom for readability */}
             <div className="absolute inset-0 bg-gradient-to-t from-gray-900/60 via-transparent to-transparent" />
           </>
         ) : (
@@ -142,16 +161,12 @@ function FeaturedCard({ itemId }: { itemId: string }) {
           </>
         )}
 
-        {/* Diet indicator dot */}
+        {/* Diet dot */}
         {item.diet && (
           <span
-            className={`absolute left-2 top-2 z-20 h-4 w-4 rounded-sm border-2 flex items-center justify-center ${
-              item.diet === "veg"
-                ? "border-green-500 bg-white"
-                : item.diet === "egg"
-                ? "border-amber-500 bg-white"
-                : "border-red-500 bg-white"
-            } ${item.bestseller ? "top-7" : "top-2"}`}
+            className={`absolute z-20 h-4 w-4 rounded-sm border-2 flex items-center justify-center bg-white ${
+              item.diet === "veg" ? "border-green-500" : item.diet === "egg" ? "border-amber-500" : "border-red-500"
+            } ${item.bestseller ? "left-2 top-7" : "left-2 top-2"}`}
           >
             <span
               className={`h-2 w-2 rounded-full ${
@@ -167,13 +182,16 @@ function FeaturedCard({ itemId }: { itemId: string }) {
             🌶 Spicy
           </span>
         )}
-      </div>
+      </Link>
 
       {/* Info */}
       <div className="p-3">
-        <p className="text-[13px] font-semibold leading-snug text-white line-clamp-1">
-          {item.name}
-        </p>
+        {/* Name — clickable → menu */}
+        <Link href={`/menu?cat=${item.categoryId}`}>
+          <p className="text-[13px] font-semibold leading-snug text-white line-clamp-1 hover:text-brand-gold transition-colors">
+            {item.name}
+          </p>
+        </Link>
         <p className="mt-0.5 text-[10px] leading-tight text-gray-500 line-clamp-2">
           {item.description}
         </p>
@@ -209,9 +227,7 @@ function FeaturedCard({ itemId }: { itemId: string }) {
                 <button type="button" onClick={() => decrement(item.id)} className="text-white active:scale-90">
                   <Minus className="h-3 w-3" strokeWidth={3} />
                 </button>
-                <span className="min-w-[1rem] text-center text-[12px] font-extrabold text-white">
-                  {qty}
-                </span>
+                <span className="min-w-[1rem] text-center text-[12px] font-extrabold text-white">{qty}</span>
                 <button type="button" onClick={() => increment(item.id)} className="text-white active:scale-90">
                   <Plus className="h-3 w-3" strokeWidth={3} />
                 </button>

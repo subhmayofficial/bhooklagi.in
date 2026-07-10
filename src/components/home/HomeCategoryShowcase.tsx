@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import type { MenuCategoryId } from "@/data/menu";
 import { ArrowRight } from "lucide-react";
@@ -58,6 +59,64 @@ const featured: {
   },
 ];
 
+/* ── Single category circle with its own skeleton state ─── */
+function CategoryCircle({ c, index }: { c: (typeof featured)[number]; index: number }) {
+  const [loaded, setLoaded] = useState(false);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20, scale: 0.92 }}
+      whileInView={{ opacity: 1, y: 0, scale: 1 }}
+      viewport={{ once: true, margin: "-30px" }}
+      transition={{ delay: index * 0.07, duration: 0.4, ease: "easeOut" }}
+    >
+      <Link href={`/menu?cat=${c.id}`} className="group flex flex-col items-center gap-2">
+        {/* Circle image with skeleton + glow */}
+        <div className="relative">
+          {c.tag && (
+            <span
+              className={`absolute -right-2 -top-1 z-10 rotate-6 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[8px] font-extrabold text-white shadow-md ${c.tagColor ?? "bg-ink"}`}
+            >
+              {c.tag}
+            </span>
+          )}
+
+          {/* Hover glow ring */}
+          <div className="absolute inset-0 rounded-full bg-gradient-to-br from-brand-orange/40 to-brand-gold/20 opacity-0 blur-md transition-opacity duration-300 group-hover:opacity-100" />
+
+          {/* Image container */}
+          <div className="relative h-[72px] w-[72px] overflow-hidden rounded-full ring-2 ring-white shadow-md transition-all duration-300 group-hover:shadow-xl group-hover:ring-brand-orange/40 sm:h-[84px] sm:w-[84px] md:h-[96px] md:w-[96px]">
+            {/* Skeleton shimmer — shown until image loads */}
+            {!loaded && (
+              <div className="absolute inset-0 z-10 animate-pulse bg-gradient-to-br from-gray-200 via-gray-100 to-gray-200" />
+            )}
+
+            <Image
+              src={c.image}
+              alt={c.label}
+              fill
+              sizes="96px"
+              className={`object-cover transition-all duration-500 group-hover:scale-110 ${loaded ? "opacity-100" : "opacity-0"}`}
+              onLoad={() => setLoaded(true)}
+            />
+
+            {/* Shimmer on hover */}
+            <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/20 to-white/0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+          </div>
+        </div>
+
+        {/* Label */}
+        <div className="text-center">
+          <p className="text-[12px] font-bold text-gray-800 transition-colors group-hover:text-brand-orange">
+            {c.label}
+          </p>
+          <p className="text-[10px] text-gray-400">{c.blurb}</p>
+        </div>
+      </Link>
+    </motion.div>
+  );
+}
+
 export function HomeCategoryShowcase() {
   return (
     <section className="bg-app-texture px-4 py-6 md:px-6 md:py-12">
@@ -85,51 +144,7 @@ export function HomeCategoryShowcase() {
         {/* Grid */}
         <div className="grid grid-cols-3 gap-x-2 gap-y-4 md:grid-cols-6 md:gap-x-4">
           {featured.map((c, i) => (
-            <motion.div
-              key={c.id}
-              initial={{ opacity: 0, y: 20, scale: 0.92 }}
-              whileInView={{ opacity: 1, y: 0, scale: 1 }}
-              viewport={{ once: true, margin: "-30px" }}
-              transition={{ delay: i * 0.07, duration: 0.4, ease: "easeOut" }}
-            >
-              <Link
-                href={`/menu?cat=${c.id}`}
-                className="group flex flex-col items-center gap-2"
-              >
-                {/* Circle image with glow */}
-                <div className="relative">
-                  {c.tag && (
-                    <span
-                      className={`absolute -right-2 -top-1 z-10 rotate-6 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[8px] font-extrabold text-white shadow-md ${c.tagColor ?? "bg-ink"}`}
-                    >
-                      {c.tag}
-                    </span>
-                  )}
-                  {/* Glow ring */}
-                  <div className="absolute inset-0 rounded-full bg-gradient-to-br from-brand-orange/40 to-brand-gold/20 opacity-0 blur-md transition-opacity duration-300 group-hover:opacity-100" />
-
-                  <div className="relative h-[72px] w-[72px] overflow-hidden rounded-full bg-gradient-to-br from-brand-cream to-brand-cream-dark ring-2 ring-white shadow-md transition-all duration-300 group-hover:shadow-xl group-hover:ring-brand-orange/40 sm:h-[84px] sm:w-[84px] md:h-[96px] md:w-[96px]">
-                    <Image
-                      src={c.image}
-                      alt={c.label}
-                      fill
-                      sizes="96px"
-                      className="object-cover transition-transform duration-500 group-hover:scale-115"
-                    />
-                    {/* Shimmer overlay on hover */}
-                    <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/20 to-white/0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-                  </div>
-                </div>
-
-                {/* Label */}
-                <div className="text-center">
-                  <p className="text-[12px] font-bold text-gray-800 transition-colors group-hover:text-brand-orange">
-                    {c.label}
-                  </p>
-                  <p className="text-[10px] text-gray-400">{c.blurb}</p>
-                </div>
-              </Link>
-            </motion.div>
+            <CategoryCircle key={c.id} c={c} index={i} />
           ))}
         </div>
       </div>
