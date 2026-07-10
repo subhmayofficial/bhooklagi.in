@@ -3,21 +3,57 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { CheckCircle2, MapPin, Phone, Clock } from "lucide-react";
-import { SiteHeader } from "@/components/layout/SiteHeader";
+import {
+  CheckCircle2, MapPin, Phone, Clock, ChevronLeft,
+  Bike, Package, UtilityPole, PartyPopper, XCircle,
+} from "lucide-react";
 import { formatInr } from "@/data/menu";
 import { ORDER_STATUS_META, type OrderRecord, type OrderStatus } from "@/lib/orders";
 
 type OrderEvent = { status: string; note: string | null; created_at: string };
 
-// The forward path a normal order walks through (cancelled is shown separately).
 const TIMELINE: OrderStatus[] = ["placed", "preparing", "out_for_delivery", "delivered"];
 
-export default function OrderTrackingPage({
-  params,
-}: {
-  params: Promise<{ orderNumber: string }>;
-}) {
+const STEP_ICONS: Record<OrderStatus, React.ElementType> = {
+  placed: Package,
+  preparing: UtilityPole,
+  out_for_delivery: Bike,
+  delivered: PartyPopper,
+  cancelled: XCircle,
+};
+
+// Deoghar, Jharkhand rough coordinates
+const DEOGHAR_LAT = 24.4864;
+const DEOGHAR_LON = 86.6950;
+
+function DeliveryMap({ address }: { address: string }) {
+  const encodedAddr = encodeURIComponent(`${address}, Deoghar, Jharkhand`);
+  const mapSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${DEOGHAR_LON - 0.025},${DEOGHAR_LAT - 0.015},${DEOGHAR_LON + 0.025},${DEOGHAR_LAT + 0.015}&layer=mapnik&marker=${DEOGHAR_LAT},${DEOGHAR_LON}`;
+  const linkHref = `https://www.openstreetmap.org/search?query=${encodedAddr}`;
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-gray-100 shadow-sm">
+      <iframe
+        title="Delivery area map"
+        src={mapSrc}
+        width="100%"
+        height="220"
+        className="block"
+        loading="lazy"
+      />
+      {/* Frosted overlay with pin */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-white/80 to-transparent pb-3 pt-8 text-center">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-gray-700 shadow-md ring-1 ring-black/5">
+          <MapPin className="h-3 w-3 text-brand-orange" strokeWidth={2.5} />
+          Deoghar, Jharkhand
+        </span>
+      </div>
+      <a href={linkHref} target="_blank" rel="noopener noreferrer" className="pointer-events-none absolute inset-0" aria-label="View on OpenStreetMap" />
+    </div>
+  );
+}
+
+export default function OrderTrackingPage({ params }: { params: Promise<{ orderNumber: string }> }) {
   const { orderNumber } = use(params);
   const [order, setOrder] = useState<OrderRecord | null | undefined>(undefined);
   const [events, setEvents] = useState<OrderEvent[]>([]);
@@ -28,231 +64,222 @@ export default function OrderTrackingPage({
     async function load() {
       try {
         const res = await fetch(`/api/orders/${orderNumber}`);
-        if (res.status === 404) {
-          if (active) setOrder(null);
-          return;
-        }
+        if (res.status === 404) { if (active) setOrder(null); return; }
         const payload = await res.json();
         if (!res.ok) throw new Error(payload?.error || "Could not load order.");
-        if (active) {
-          setOrder(payload.order);
-          setEvents(payload.events ?? []);
-        }
+        if (active) { setOrder(payload.order); setEvents(payload.events ?? []); }
       } catch (e) {
         if (active) setError(e instanceof Error ? e.message : "Could not load order.");
       }
     }
     load();
-    // Poll so the customer sees kitchen status updates without refreshing.
     const t = setInterval(load, 15000);
-    return () => {
-      active = false;
-      clearInterval(t);
-    };
+    return () => { active = false; clearInterval(t); };
   }, [orderNumber]);
 
   if (order === undefined && !error) {
     return (
-      <>
-        <SiteHeader />
-        <main className="mx-auto max-w-lg px-4 pb-28 pt-28 text-center">
-          <p className="text-[14px] text-gray-400">Loading…</p>
-        </main>
-      </>
+      <main className="flex min-h-dvh items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+            <Clock className="h-8 w-8 text-brand-orange" strokeWidth={2} />
+          </motion.div>
+          <p className="text-[14px] text-gray-500">Loading your order…</p>
+        </div>
+      </main>
     );
   }
 
   if (!order) {
     return (
-      <>
-        <SiteHeader />
-        <main className="mx-auto max-w-lg px-4 pb-28 pt-24 text-center">
-          <p className="text-[18px] font-bold text-gray-800">Order not found</p>
-          <p className="mt-2 text-[14px] text-gray-500">{error || "This order doesn't exist or isn't yours."}</p>
-          <Link
-            href="/orders"
-            className="mt-8 inline-flex rounded-full bg-brand-orange px-8 py-3 text-[14px] font-bold text-white"
-          >
-            My orders
-          </Link>
-        </main>
-      </>
+      <main className="flex min-h-dvh flex-col items-center justify-center px-4 text-center">
+        <p className="text-[18px] font-bold text-gray-800">Order not found</p>
+        <p className="mt-2 text-[14px] text-gray-500">{error || "This order doesn't exist or isn't yours."}</p>
+        <Link href="/orders" className="mt-8 inline-flex rounded-full bg-brand-orange px-8 py-3 text-[14px] font-bold text-white">My orders</Link>
+      </main>
     );
   }
 
   const meta = ORDER_STATUS_META[order.status];
   const cancelled = order.status === "cancelled";
-  const currentIndex = TIMELINE.indexOf(order.status);
-  const placedAt = new Date(order.createdAt);
-  const eventTime = (status: OrderStatus) =>
-    events.find((e) => e.status === status)?.created_at;
+  const delivered = order.status === "delivered";
+  const currentIndex = TIMELINE.indexOf(order.status as OrderStatus);
+  const eventTime = (status: OrderStatus) => events.find((e) => e.status === status)?.created_at;
 
   return (
-    <>
-      <SiteHeader />
-      <main className="mx-auto max-w-lg px-4 pb-28 pt-20 md:pb-16 md:pt-24">
+    <main className="min-h-dvh bg-gray-50">
+      {/* Sticky header */}
+      <div className="sticky top-0 z-[700] border-b border-gray-200 bg-white shadow-sm">
+        <div className="mx-auto flex h-14 max-w-lg items-center gap-3 px-4">
+          <Link href="/orders" className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-600">
+            <ChevronLeft className="h-4 w-4" strokeWidth={2.5} />
+          </Link>
+          <div className="flex-1">
+            <p className="text-[15px] font-extrabold text-gray-900">Order {order.orderNumber}</p>
+            <p className="text-[11px] font-medium text-gray-500">
+              {new Date(order.createdAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-lg px-4 py-5 space-y-4">
+
+        {/* Status hero card */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ type: "spring", stiffness: 220, damping: 24 }}
-          className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-lg"
+          className={`overflow-hidden rounded-3xl text-white ${cancelled ? "bg-gradient-to-br from-red-500 to-rose-600" : delivered ? "bg-gradient-to-br from-green-500 to-emerald-600" : "bg-gradient-to-br from-brand-orange to-brand-gold"}`}
         >
-          {/* Header */}
-          <div
-            className={`flex flex-col items-center px-6 py-8 text-center ${
-              cancelled
-                ? "bg-gradient-to-br from-red-500 to-rose-600"
-                : "bg-gradient-to-br from-green-500 to-emerald-600"
-            }`}
-          >
+          <div className="flex items-center gap-4 p-5">
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.15, type: "spring", stiffness: 280, damping: 20 }}
+              className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-4xl"
             >
-              <span className="text-5xl">{meta.emoji}</span>
+              {meta.emoji}
             </motion.div>
-            <h1 className="mt-3 text-[22px] font-extrabold text-white">{meta.label}</h1>
-            <p className="mt-1 text-[13px] text-white/85">{meta.customerLine}</p>
-          </div>
-
-          {/* Order meta */}
-          <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Order</p>
-              <p className="mt-0.5 font-mono text-[14px] font-bold text-gray-900">{order.orderNumber}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Placed</p>
-              <p className="mt-0.5 text-[13px] font-semibold text-gray-700">
-                {placedAt.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
-              </p>
+              <p className="text-[18px] font-extrabold">{meta.label}</p>
+              <p className="mt-0.5 text-[13px] text-white/85">{meta.customerLine}</p>
+              {!cancelled && !delivered && (
+                <div className="mt-2 flex items-center gap-1.5">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
+                  </span>
+                  <span className="text-[12px] font-semibold text-white/90">Live tracking · ETA 25–35 min</span>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Status timeline */}
+          {/* Progress bar for active orders */}
           {!cancelled && (
-            <div className="border-b border-gray-100 px-5 py-5">
-              <ul className="space-y-4">
-                {TIMELINE.map((status, i) => {
+            <div className="px-5 pb-4">
+              <div className="flex justify-between mb-1">
+                {TIMELINE.map((s, i) => {
+                  const Icon = STEP_ICONS[s];
                   const done = i <= currentIndex;
-                  const active = i === currentIndex;
-                  const sMeta = ORDER_STATUS_META[status];
-                  const at = eventTime(status);
                   return (
-                    <li key={status} className="flex items-center gap-3">
-                      <span
-                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[13px] ${
-                          done ? "bg-brand-orange text-white" : "bg-gray-100 text-gray-300"
-                        }`}
-                      >
-                        {done ? <CheckCircle2 className="h-4 w-4" /> : i + 1}
-                      </span>
-                      <div className="flex flex-1 items-center justify-between">
-                        <span
-                          className={`text-[14px] ${
-                            active ? "font-bold text-gray-900" : done ? "font-semibold text-gray-700" : "text-gray-400"
-                          }`}
-                        >
-                          {sMeta.emoji} {sMeta.label}
-                        </span>
-                        {at && (
-                          <span className="text-[11px] text-gray-400">
-                            {new Date(at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
-                          </span>
-                        )}
+                    <div key={s} className="flex flex-1 flex-col items-center gap-1">
+                      <div className={`flex h-7 w-7 items-center justify-center rounded-full transition-all ${done ? "bg-white text-brand-orange shadow-md" : "bg-white/20 text-white/50"}`}>
+                        <Icon className="h-4 w-4" strokeWidth={2.5} />
                       </div>
-                    </li>
+                      {i < TIMELINE.length - 1 && (
+                        <div className="absolute" style={{ display: "none" }} />
+                      )}
+                    </div>
                   );
                 })}
-              </ul>
-            </div>
-          )}
-
-          {/* Estimated time */}
-          {!cancelled && order.status !== "delivered" && (
-            <div className="flex items-center gap-3 border-b border-gray-100 bg-orange-50 px-5 py-3.5">
-              <Clock className="h-4 w-4 text-brand-orange" />
-              <p className="text-[13px] font-bold text-gray-900">Estimated delivery: 30 – 45 mins</p>
-            </div>
-          )}
-
-          {/* Delivery */}
-          <div className="border-b border-gray-100 px-5 py-4">
-            <div className="flex items-start gap-2.5">
-              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand-orange" />
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Delivering to</p>
-                <p className="mt-0.5 text-[13px] font-semibold text-gray-900">{order.deliveryName}</p>
-                <p className="text-[13px] text-gray-600">{order.deliveryAddress}</p>
-                {order.deliveryLandmark && (
-                  <p className="text-[12px] text-gray-400">Near: {order.deliveryLandmark}</p>
-                )}
+              </div>
+              <div className="relative h-1.5 rounded-full bg-white/25 mt-1">
+                <motion.div
+                  className="absolute left-0 top-0 h-full rounded-full bg-white"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${cancelled ? 0 : Math.max(((currentIndex) / (TIMELINE.length - 1)) * 100, 5)}%` }}
+                  transition={{ duration: 0.6, ease: "easeOut" }}
+                />
               </div>
             </div>
-            <div className="mt-2.5 flex items-center gap-2">
-              <Phone className="h-3.5 w-3.5 text-gray-400" />
-              <p className="text-[13px] text-gray-600">+91 {order.deliveryPhone.slice(-10)}</p>
-            </div>
-          </div>
+          )}
+        </motion.div>
 
-          {/* Items */}
-          <div className="px-5 py-4">
-            <p className="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-400">Your items</p>
-            <ul className="space-y-2.5">
-              {order.items.map((l) => (
-                <li key={l.itemId} className="flex items-center justify-between gap-3">
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span className="text-xl">{l.emoji}</span>
-                    <span className="truncate text-[13px] font-medium text-gray-800">
-                      {l.name}
-                      <span className="ml-1 text-gray-400">×{l.qty}</span>
-                    </span>
-                  </span>
-                  <span className="shrink-0 text-[13px] font-semibold text-gray-900">
-                    {formatInr(l.unitPrice * l.qty)}
-                  </span>
-                </li>
-              ))}
+        {/* Map */}
+        {!cancelled && <DeliveryMap address={order.deliveryAddress} />}
+
+        {/* Timeline */}
+        {!cancelled && (
+          <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+            <p className="mb-4 text-[12px] font-bold uppercase tracking-wider text-gray-500">Order updates</p>
+            <ul className="space-y-0">
+              {TIMELINE.map((status, i) => {
+                const done = i <= currentIndex;
+                const active = i === currentIndex;
+                const sMeta = ORDER_STATUS_META[status];
+                const Icon = STEP_ICONS[status];
+                const at = eventTime(status);
+                return (
+                  <li key={status} className="relative flex gap-3">
+                    {/* Connector line */}
+                    {i < TIMELINE.length - 1 && (
+                      <div className={`absolute left-[13px] top-7 h-[calc(100%-4px)] w-0.5 ${done && i < currentIndex ? "bg-brand-orange" : "bg-gray-100"}`} />
+                    )}
+                    <div className={`relative z-10 mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${done ? "bg-brand-orange text-white" : "bg-gray-100 text-gray-300"}`}>
+                      {done ? <CheckCircle2 className="h-4 w-4" /> : <Icon className="h-3.5 w-3.5" strokeWidth={2} />}
+                    </div>
+                    <div className={`pb-5 flex-1 ${i === TIMELINE.length - 1 ? "pb-0" : ""}`}>
+                      <div className="flex items-start justify-between">
+                        <p className={`text-[14px] ${active ? "font-extrabold text-gray-900" : done ? "font-semibold text-gray-700" : "text-gray-400"}`}>
+                          {sMeta.emoji} {sMeta.label}
+                        </p>
+                        {at && <span className="text-[11px] text-gray-400">{new Date(at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</span>}
+                      </div>
+                      {active && <p className="mt-0.5 text-[12px] text-brand-orange">{sMeta.customerLine}</p>}
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           </div>
+        )}
 
-          {/* Bill */}
-          <div className="space-y-2 border-t border-gray-100 bg-gray-50 px-5 py-4">
-            <div className="flex justify-between text-[13px] text-gray-500">
-              <span>Item total</span><span>{formatInr(order.subtotal)}</span>
+        {/* Delivery info */}
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <p className="mb-3 text-[12px] font-bold uppercase tracking-wider text-gray-500">Delivery details</p>
+          <div className="flex items-start gap-2.5">
+            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand-orange" />
+            <div>
+              <p className="text-[14px] font-bold text-gray-900">{order.deliveryName}</p>
+              <p className="text-[13px] text-gray-600">{order.deliveryAddress}</p>
+              {order.deliveryLandmark && <p className="text-[12px] text-gray-400">Near: {order.deliveryLandmark}</p>}
             </div>
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <Phone className="h-3.5 w-3.5 text-gray-400" />
+            <a href={`tel:+91${order.deliveryPhone.slice(-10)}`} className="text-[13px] text-gray-600">+91 {order.deliveryPhone.slice(-10)}</a>
+          </div>
+        </div>
+
+        {/* Items + bill */}
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <p className="mb-3 text-[12px] font-bold uppercase tracking-wider text-gray-500">Your items</p>
+          <ul className="space-y-2.5">
+            {order.items.map((l) => (
+              <li key={l.itemId} className="flex items-center justify-between gap-2">
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="text-xl">{l.emoji}</span>
+                  <span className="truncate text-[13px] font-medium text-gray-800">{l.name} <span className="text-gray-400">×{l.qty}</span></span>
+                </span>
+                <span className="shrink-0 text-[13px] font-semibold text-gray-900">{formatInr(l.unitPrice * l.qty)}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-4 space-y-2 border-t border-gray-100 pt-3">
+            <div className="flex justify-between text-[13px] text-gray-500"><span>Item total</span><span>{formatInr(order.subtotal)}</span></div>
             <div className="flex justify-between text-[13px] text-gray-500">
               <span>Delivery</span>
-              <span className={order.deliveryFee === 0 ? "font-semibold text-green-600" : ""}>
-                {order.deliveryFee === 0 ? "FREE" : formatInr(order.deliveryFee)}
-              </span>
+              <span className={order.deliveryFee === 0 ? "font-semibold text-green-600" : ""}>{order.deliveryFee === 0 ? "FREE" : formatInr(order.deliveryFee)}</span>
             </div>
-            <div className="flex justify-between text-[13px] text-gray-500">
-              <span>Taxes</span><span>{formatInr(order.gst)}</span>
-            </div>
-            <div className="flex justify-between pt-2 text-[16px] font-extrabold text-gray-900">
-              <span>Total ({order.paymentMode === "cod" ? "Cash on Delivery" : "Paid"})</span>
+            <div className="flex justify-between text-[13px] text-gray-500"><span>Taxes</span><span>{formatInr(order.gst)}</span></div>
+            <div className="flex justify-between pt-2 text-[15px] font-extrabold text-gray-900">
+              <span>{order.paymentMode === "cod" ? "Cash on Delivery" : "Paid"}</span>
               <span className="text-brand-orange">{formatInr(order.grandTotal)}</span>
             </div>
           </div>
-        </motion.div>
+        </div>
 
-        <div className="mt-6 grid grid-cols-2 gap-3">
-          <Link
-            href="/orders"
-            className="flex items-center justify-center rounded-2xl border-2 border-gray-200 bg-white py-3.5 text-[14px] font-bold text-gray-700 transition-colors hover:border-brand-orange/30 hover:text-brand-orange"
-          >
+        {/* Actions */}
+        <div className="grid grid-cols-2 gap-3 pb-6">
+          <Link href="/orders" className="flex items-center justify-center rounded-2xl border-2 border-gray-200 bg-white py-3.5 text-[14px] font-bold text-gray-700 transition-colors hover:border-brand-orange/30 hover:text-brand-orange">
             My orders
           </Link>
-          <Link
-            href="/menu"
-            className="flex items-center justify-center rounded-2xl bg-ink py-3.5 text-[14px] font-bold text-brand-gold transition-opacity hover:opacity-90"
-          >
+          <Link href="/menu" className="flex items-center justify-center rounded-2xl bg-ink py-3.5 text-[14px] font-bold text-brand-gold transition-opacity hover:opacity-90">
             Order more
           </Link>
         </div>
-      </main>
-    </>
+      </div>
+    </main>
   );
 }

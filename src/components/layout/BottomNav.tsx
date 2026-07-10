@@ -23,7 +23,8 @@ export function BottomNav() {
   useEffect(() => setMounted(true), []);
   const { qty } = cartTotals(lines);
 
-  if (pathname === "/") return null;
+  const HIDDEN_PATHS = ["/", "/cart", "/checkout"];
+  if (HIDDEN_PATHS.includes(pathname) || pathname.startsWith("/orders/")) return null;
 
   return (
     <nav
