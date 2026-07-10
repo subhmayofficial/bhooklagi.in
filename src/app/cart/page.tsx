@@ -9,7 +9,7 @@ import {
   ArrowLeft, Clock, Shield, Bike, Sparkles, CheckCircle2,
   ChevronDown, ChevronUp,
 } from "lucide-react";
-import { SiteHeader } from "@/components/layout/SiteHeader";
+
 import { useCartStore, cartTotals, type CartLine } from "@/stores/cart-store";
 import { menuItems, formatInr } from "@/data/menu";
 import { useState } from "react";
@@ -52,11 +52,9 @@ export default function CartPage() {
 
   return (
     <>
-      <SiteHeader />
-
       {/* ── Page hero bar ── */}
-      <div className="fixed left-0 right-0 top-[56px] z-[700] border-b border-gray-100 bg-white/95 backdrop-blur-md">
-        <div className="mx-auto flex h-12 max-w-3xl items-center gap-3 px-4">
+      <div className="fixed left-0 right-0 top-0 z-[700] border-b border-gray-200 bg-white shadow-sm">
+        <div className="mx-auto flex h-14 max-w-3xl items-center gap-3 px-4">
           <button
             type="button"
             onClick={() => router.back()}
@@ -65,15 +63,15 @@ export default function CartPage() {
             <ArrowLeft className="h-4 w-4" strokeWidth={2.5} />
           </button>
           <div>
-            <h1 className="text-[15px] font-extrabold text-gray-900">
+            <h1 className="text-[16px] font-extrabold text-gray-950">
               Your Bag {qty > 0 && <span className="text-brand-orange">({qty})</span>}
             </h1>
-            <p className="text-[10px] text-gray-400">Bhook Lagi · Deoghar</p>
+            <p className="text-[10px] font-semibold text-gray-500">Bhook Lagi · Deoghar</p>
           </div>
         </div>
       </div>
 
-      <main className="min-h-screen bg-gray-50 pb-36 pt-[108px] md:pb-16">
+      <main className="min-h-screen bg-gray-100 pb-36 pt-[80px] md:pb-16">
         <div className="mx-auto max-w-3xl px-4">
 
           {/* ════════════════════ EMPTY STATE ════════════════════ */}
@@ -82,16 +80,16 @@ export default function CartPage() {
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex flex-col items-center rounded-3xl border border-dashed border-gray-200 bg-white py-20 text-center shadow-sm"
+                className="flex flex-col items-center rounded-3xl border-2 border-dashed border-gray-300 bg-white py-20 text-center shadow-sm"
               >
                 <motion.div
                   animate={{ y: [0, -8, 0] }}
                   transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
                 >
-                  <ShoppingBag className="h-16 w-16 text-gray-200" strokeWidth={1.2} />
+                  <ShoppingBag className="h-16 w-16 text-gray-300" strokeWidth={1.2} />
                 </motion.div>
-                <p className="mt-5 text-[18px] font-extrabold text-gray-700">Your bag is empty</p>
-                <p className="mt-1 text-[13px] text-gray-400">Add some delicious food to get started</p>
+                <p className="mt-5 text-[18px] font-extrabold text-gray-900">Your bag is empty</p>
+                <p className="mt-1 text-[13px] font-medium text-gray-500">Add some delicious food to get started</p>
                 <Link
                   href="/menu"
                   className="mt-7 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-brand-orange to-brand-gold px-8 py-3.5 text-[14px] font-extrabold text-white shadow-lg shadow-brand-orange/30 transition-all hover:shadow-xl active:scale-95"
@@ -112,7 +110,7 @@ export default function CartPage() {
                 <motion.div
                   initial={{ opacity: 0, y: -8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="overflow-hidden rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3"
+                  className="overflow-hidden rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3"
                 >
                   <div className="mb-2 flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -138,16 +136,16 @@ export default function CartPage() {
               {subtotal >= freeDeliveryAt && (
                 <div className="flex items-center gap-2.5 rounded-2xl border border-green-100 bg-green-50 px-4 py-3">
                   <CheckCircle2 className="h-5 w-5 text-green-600" strokeWidth={2} />
-                  <p className="text-[13px] font-bold text-green-700">🎉 You&apos;ve unlocked free delivery!</p>
+                  <p className="text-[13px] font-extrabold text-green-800">🎉 You&apos;ve unlocked free delivery!</p>
                 </div>
               )}
 
               {/* ── Restaurant info strip ── */}
-              <div className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
+              <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3.5 shadow-sm">
                 <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-orange/10 text-[20px]">🍔</span>
                 <div className="flex-1">
-                  <p className="text-[13px] font-extrabold text-gray-900">Bhook Lagi</p>
-                  <p className="text-[11px] text-gray-400">Street food · Deoghar, Jharkhand</p>
+                  <p className="text-[13px] font-extrabold text-gray-950">Bhook Lagi</p>
+                  <p className="text-[11px] font-medium text-gray-500">Street food · Deoghar, Jharkhand</p>
                 </div>
                 <div className="flex items-center gap-1 rounded-xl bg-green-50 px-2.5 py-1">
                   <Clock className="h-3 w-3 text-green-600" strokeWidth={2} />
@@ -158,8 +156,8 @@ export default function CartPage() {
               {/* ── Cart items card ── */}
               <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
                 {/* Header */}
-                <div className="flex items-center justify-between border-b border-gray-50 px-4 py-3">
-                  <p className="text-[11px] font-extrabold uppercase tracking-widest text-gray-400">
+                <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50 px-4 py-3">
+                  <p className="text-[11px] font-extrabold uppercase tracking-widest text-gray-600">
                     Items · {qty} added
                   </p>
                   <Link href="/menu" className="text-[11px] font-bold text-brand-orange hover:underline">
@@ -181,14 +179,14 @@ export default function CartPage() {
               </div>
 
               {/* ── Promo code ── */}
-              <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+              <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                 <div className="mb-3 flex items-center gap-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-orange/10">
                     <Tag className="h-4 w-4 text-brand-orange" strokeWidth={2.5} />
                   </div>
                   <div>
-                    <p className="text-[13px] font-extrabold text-gray-900">Promo code</p>
-                    <p className="text-[10px] text-gray-400">Try BHOOK20 for ₹80 off on orders above ₹299</p>
+                    <p className="text-[13px] font-extrabold text-gray-950">Promo code</p>
+                    <p className="text-[10px] font-semibold text-gray-500">Try BHOOK20 for ₹80 off on orders above ₹299</p>
                   </div>
                 </div>
 
@@ -248,7 +246,7 @@ export default function CartPage() {
                 >
                   <div className="flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-brand-orange" strokeWidth={2} />
-                    <span className="text-[13px] font-extrabold text-gray-900">Bill details</span>
+                    <span className="text-[13px] font-extrabold text-gray-950">Bill details</span>
                   </div>
                   {showBillDetails
                     ? <ChevronUp className="h-4 w-4 text-gray-400" strokeWidth={2.5} />
@@ -265,7 +263,7 @@ export default function CartPage() {
                       transition={{ duration: 0.22 }}
                       className="overflow-hidden"
                     >
-                      <div className="space-y-2.5 border-t border-gray-50 px-4 pb-4 pt-3">
+                      <div className="space-y-2.5 border-t border-gray-100 px-4 pb-4 pt-3">
                         <BillRow label="Item total" value={formatInr(subtotal)} />
                         <BillRow
                           label="Delivery charge"
@@ -277,10 +275,10 @@ export default function CartPage() {
                         {promoApplied && (
                           <BillRow label="Promo discount (BHOOK20)" value={`-${formatInr(promoDiscount)}`} green />
                         )}
-                        <div className="my-1 h-px bg-dashed bg-gray-100" />
+                        <div className="my-1 h-px bg-gray-200" />
                         <div className="flex items-center justify-between pt-1">
-                          <span className="text-[15px] font-extrabold text-gray-900">To pay</span>
-                          <span className="font-display text-[22px] leading-none tracking-wide text-brand-orange">
+                          <span className="text-[15px] font-extrabold text-gray-950">To pay</span>
+                          <span className="font-display text-[24px] leading-none tracking-wide text-brand-orange">  
                             {formatInr(grand)}
                           </span>
                         </div>
@@ -291,18 +289,18 @@ export default function CartPage() {
 
                 {!showBillDetails && (
                   <div className="flex items-center justify-between border-t border-gray-50 px-4 py-3">
-                    <span className="text-[13px] text-gray-500">Total</span>
-                    <span className="font-display text-[18px] text-brand-orange">{formatInr(grand)}</span>
+                    <span className="text-[13px] font-bold text-gray-700">Total</span>
+                    <span className="font-display text-[20px] text-brand-orange">{formatInr(grand)}</span>
                   </div>
                 )}
               </div>
 
               {/* ── Safety note ── */}
-              <div className="flex items-center gap-2.5 rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
+              <div className="flex items-center gap-2.5 rounded-2xl border border-green-100 bg-green-50 px-4 py-3">
                 <Shield className="h-4 w-4 flex-shrink-0 text-green-600" strokeWidth={2} />
-                <p className="text-[11px] leading-relaxed text-gray-500">
-                  <span className="font-bold text-gray-700">100% safe & hygienic.</span>{" "}
-                  Your food is freshly prepared after order placement. No pre-cooked batches.
+                <p className="text-[11px] leading-relaxed text-green-900">
+                  <span className="font-extrabold text-green-800">100% safe & hygienic.</span>{" "}
+                  Freshly prepared after order placement. No pre-cooked batches.
                 </p>
               </div>
 
