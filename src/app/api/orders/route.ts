@@ -6,6 +6,7 @@ import type { CartLine } from "@/stores/cart-store";
 
 const PHONE_RE = /^[6-9]\d{9}$/;
 const MAX_LOCATION_ACCURACY_M = 250;
+const VALID_PROMO = "BHOOK20";
 
 type DeliveryLocation = {
   lat: number;
@@ -74,8 +75,8 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const lines = body?.lines;
   const delivery = body?.delivery ?? {};
-  // COD-only for now; other modes are rejected until their flows exist.
-  const paymentMode = "cod";
+  const requestedPaymentMode = typeof body?.paymentMode === "string" ? body.paymentMode : "cod";
+  const paymentMode = requestedPaymentMode === "online" || requestedPaymentMode === "upi" ? "online" : "cod";
   const saveAddress = body?.saveAddress === true;
 
   if (!isValidLines(lines)) {
@@ -105,6 +106,8 @@ export async function POST(req: NextRequest) {
   }
 
   const totals = computeOrderTotals(lines);
+  const promoCode = typeof body?.promoCode === "string" ? body.promoCode.trim().toUpperCase() : "";
+  const promoDiscount = promoCode === VALID_PROMO && totals.subtotal >= 299 ? 80 : 0;
   const supabase = getSupabaseAdminClient();
 
   const { data: order, error } = await supabase
@@ -126,7 +129,7 @@ export async function POST(req: NextRequest) {
       subtotal: totals.subtotal,
       delivery_fee: totals.deliveryFee,
       gst: totals.gst,
-      grand_total: totals.grandTotal,
+      grand_total: Math.max(0, totals.grandTotal - promoDiscount),
     })
     .select("id, order_number, created_at")
     .single();
@@ -159,6 +162,7 @@ export async function POST(req: NextRequest) {
       orderNumber: order.order_number as string,
       createdAt: order.created_at as string,
       ...totals,
+      grandTotal: Math.max(0, totals.grandTotal - promoDiscount),
     },
   });
 }
