@@ -93,6 +93,21 @@ export default function RootLayout({
         <WhatsAppFloatButton />
         <OtpLoginModal />
         <Script src={MSG91_SCRIPT_SRC} strategy="afterInteractive" />
+
+        {/* Google tag (gtag.js) */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-8N9WY0WXSH"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+
+            gtag('config', 'G-8N9WY0WXSH');
+          `}
+        </Script>
       </body>
     </html>
   );
