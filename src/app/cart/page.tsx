@@ -20,7 +20,7 @@ import { useEffect, useState } from "react";
 const MAX_LOCATION_ACCURACY_M = 250;
 
 type PaymentMode = "cod" | "upi";
-type CheckoutStep = "contact" | "address" | "review";
+type CheckoutStep = "contact" | "address";
 type DeliveryLocation = {
   lat: number;
   lng: number;
@@ -40,9 +40,8 @@ type SavedAddress = {
 };
 
 const CHECKOUT_STEPS: { id: CheckoutStep; label: string; helper: string }[] = [
-  { id: "contact", label: "Name", helper: "Who is ordering?" },
-  { id: "address", label: "Address", helper: "Where to deliver?" },
-  { id: "review", label: "Review", helper: "Pay & confirm" },
+  { id: "contact", label: "Contact", helper: "Who is ordering?" },
+  { id: "address", label: "Deliver to", helper: "Your delivery address" },
 ];
 
 export default function CartPage() {
@@ -71,7 +70,7 @@ export default function CartPage() {
   const [showBillDetails, setShowBillDetails] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>("contact");
-  const [paymentMode, setPaymentMode] = useState<PaymentMode>("cod");
+  const [paymentMode, setPaymentMode] = useState<PaymentMode>("upi");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
@@ -98,13 +97,11 @@ export default function CartPage() {
   const checkoutPrimaryLabel =
     checkoutStep === "contact"
       ? "Next: delivery address"
-      : checkoutStep === "address"
-        ? deliveryLocation
-          ? "Next: review order"
-          : "Fetch location & continue"
-        : placing
-          ? "Placing order..."
-          : "Place order";
+      : placing
+        ? "Placing order…"
+        : deliveryLocation
+          ? "Place Order"
+          : "Get location & Place Order";
 
   useEffect(() => {
     if (useCartStore.persist.hasHydrated()) setCartReady(true);
@@ -214,8 +211,7 @@ export default function CartPage() {
 
   function stepForErrors(nextErrors: Record<string, string>): CheckoutStep {
     if (nextErrors.name || nextErrors.phone) return "contact";
-    if (nextErrors.address || nextErrors.location) return "address";
-    return "review";
+    return "address";
   }
 
   async function captureCurrentLocation() {
@@ -276,8 +272,7 @@ export default function CartPage() {
     }
     const contactErrors = validateContactStep();
     if (Object.keys(contactErrors).length > 0) setCheckoutStep("contact");
-    else if (Object.keys(validateAddressStep()).length > 0) setCheckoutStep("address");
-    else setCheckoutStep("review");
+    else setCheckoutStep("address");
     setCheckoutOpen(true);
   }
 
@@ -295,34 +290,29 @@ export default function CartPage() {
       return;
     }
 
-    if (checkoutStep === "address") {
-      let currentLocation = deliveryLocation;
-      if (!currentLocation) currentLocation = await captureCurrentLocation();
-      const nextErrors = validateAddressStep(currentLocation);
-      if (Object.keys(nextErrors).length > 0) {
-        setErrors((previous) => ({ ...previous, ...nextErrors }));
-        return;
-      }
-      setErrors((previous) => ({ ...previous, address: "", location: "" }));
-      setCheckoutStep("review");
+    // address step — capture location then place order directly
+    let currentLocation = deliveryLocation;
+    if (!currentLocation) currentLocation = await captureCurrentLocation();
+    const nextErrors = validateAddressStep(currentLocation);
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors((previous) => ({ ...previous, ...nextErrors }));
       return;
     }
-
-    await placeOrder();
+    setErrors((previous) => ({ ...previous, address: "", location: "" }));
+    await placeOrder(currentLocation ?? undefined);
   }
 
   function goToPreviousCheckoutStep() {
-    if (checkoutStep === "review") setCheckoutStep("address");
-    else if (checkoutStep === "address") setCheckoutStep("contact");
+    if (checkoutStep === "address") setCheckoutStep("contact");
   }
 
-  async function placeOrder() {
+  async function placeOrder(overrideLocation?: DeliveryLocation) {
     if (authStatus !== "authenticated") {
       openLoginModal();
       return;
     }
 
-    let currentLocation = deliveryLocation;
+    let currentLocation = overrideLocation ?? deliveryLocation;
     if (!currentLocation) currentLocation = await captureCurrentLocation();
 
     const nextErrors = validateDelivery(currentLocation);
@@ -769,7 +759,7 @@ export default function CartPage() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", stiffness: 280, damping: 30 }}
-              className="mx-auto flex max-h-[90dvh] w-full max-w-3xl flex-col overflow-hidden rounded-t-[32px] bg-white shadow-2xl md:rounded-[32px]"
+              className="relative mx-auto flex max-h-[90dvh] w-full max-w-3xl flex-col overflow-hidden rounded-t-[32px] bg-white shadow-2xl md:rounded-[32px]"
             >
               <div className="border-b border-gray-100 bg-white px-4 pb-4 pt-3">
                 <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-gray-200" />
@@ -790,7 +780,7 @@ export default function CartPage() {
                   </button>
                 </div>
 
-                <div className="mt-4 grid grid-cols-3 gap-2">
+                <div className="mt-4 grid grid-cols-2 gap-2">
                   {CHECKOUT_STEPS.map((step, index) => {
                     const active = index === checkoutStepIndex;
                     const complete = index < checkoutStepIndex;
@@ -965,45 +955,6 @@ export default function CartPage() {
                     </motion.div>
                   )}
 
-                  {checkoutStep === "review" && (
-                    <motion.div
-                      key="review-step"
-                      initial={{ opacity: 0, x: 18 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -18 }}
-                      transition={{ duration: 0.2 }}
-                      className="space-y-3"
-                    >
-                      <div className="rounded-3xl border border-green-100 bg-green-50 p-4">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="h-5 w-5 text-green-600" strokeWidth={2.5} />
-                          <p className="text-[16px] font-extrabold text-green-900">Ready to place</p>
-                        </div>
-                        <p className="mt-1 text-[12px] font-semibold text-green-700">
-                          Delivery in {deliveryEta.min}-{deliveryEta.max} minutes · {paymentMode === "cod" ? "Cash on delivery" : "UPI selected"}
-                        </p>
-                      </div>
-
-                      <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-                        <p className="text-[11px] font-black uppercase tracking-widest text-gray-400">Contact</p>
-                        <p className="mt-1 text-[14px] font-extrabold text-gray-950">{name}</p>
-                        <p className="text-[12px] font-semibold text-gray-500">+91 {phone}</p>
-                      </div>
-
-                      <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-                        <p className="text-[11px] font-black uppercase tracking-widest text-gray-400">Deliver to</p>
-                        <p className="mt-1 text-[14px] font-extrabold leading-snug text-gray-950">{address}</p>
-                        {landmark && <p className="mt-1 text-[12px] font-semibold text-gray-500">Landmark: {landmark}</p>}
-                      </div>
-
-                      <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[13px] font-bold text-gray-600">{qty} item{qty > 1 ? "s" : ""} total</span>
-                          <span className="price-text text-[20px] font-black text-brand-orange">{formatInr(grand)}</span>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
                 </AnimatePresence>
 
                 {errors.submit && (
@@ -1037,11 +988,77 @@ export default function CartPage() {
                   </button>
                 </div>
               </div>
+
+              {/* Fun placing overlay */}
+              <AnimatePresence>
+                {placing && <PlacingOverlay />}
+              </AnimatePresence>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
     </>
+  );
+}
+
+/* ── Placing order overlay ────────────────────────────────────── */
+const PLACING_TIPS = [
+  "Freshly made after every order 🍳",
+  "No pre-cooked batches, ever! 🔥",
+  "Your rider is on standby 🛵",
+  "Chef is on it right now 👨‍🍳",
+  "Packing with love 💛",
+];
+const FOOD_EMOJIS = ["🍔", "🌮", "🍟", "🍕", "🥙", "🌯"];
+
+function PlacingOverlay() {
+  const [tipIndex, setTipIndex] = useState(0);
+  const [emojiIndex, setEmojiIndex] = useState(0);
+
+  useEffect(() => {
+    const tipTimer = setInterval(() => setTipIndex((i) => (i + 1) % PLACING_TIPS.length), 2200);
+    const emojiTimer = setInterval(() => setEmojiIndex((i) => (i + 1) % FOOD_EMOJIS.length), 600);
+    return () => { clearInterval(tipTimer); clearInterval(emojiTimer); };
+  }, []);
+
+  return (
+    <motion.div
+      key="placing-overlay"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      className="absolute inset-0 z-50 flex flex-col items-center justify-center rounded-3xl bg-white/95 backdrop-blur-sm"
+    >
+      <motion.div
+        key={emojiIndex}
+        initial={{ scale: 0.4, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 1.4, opacity: 0 }}
+        transition={{ duration: 0.3 }}
+        className="text-[64px] leading-none"
+      >
+        {FOOD_EMOJIS[emojiIndex]}
+      </motion.div>
+
+      <div className="mt-5 flex items-center gap-2">
+        <span className="h-4 w-4 animate-spin rounded-full border-2 border-brand-orange/20 border-t-brand-orange" />
+        <p className="text-[14px] font-extrabold text-gray-950">Placing your order…</p>
+      </div>
+
+      <AnimatePresence mode="wait">
+        <motion.p
+          key={tipIndex}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.3 }}
+          className="mt-3 max-w-[220px] text-center text-[12px] font-semibold text-gray-500"
+        >
+          {PLACING_TIPS[tipIndex]}
+        </motion.p>
+      </AnimatePresence>
+    </motion.div>
   );
 }
 

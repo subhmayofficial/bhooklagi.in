@@ -9,7 +9,7 @@ import {
   CheckCircle2, MapPin, Phone, Clock, ChevronLeft,
   Bike, Package, UtilityPole, PartyPopper, XCircle,
   ChefHat, Navigation2, ReceiptText, RotateCcw, UtensilsCrossed,
-  Star,
+  Star, Smartphone,
 } from "lucide-react";
 import { RatingCard } from "@/components/order/RatingCard";
 import { formatInr } from "@/data/menu";
@@ -139,6 +139,17 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ orderN
 
       <div className="mx-auto max-w-lg px-4 py-5 space-y-4">
 
+        {/* Map — shown at very top when not cancelled */}
+        {!cancelled && (
+          <DeliveryMap
+            deliveryAddress={order.deliveryAddress}
+            customerCoords={customerCoords}
+            orderCreatedAt={order.createdAt}
+            estimatedDeliveryMinutes={eta.max}
+            status={order.status as "placed" | "preparing" | "out_for_delivery" | "delivered" | "cancelled"}
+          />
+        )}
+
         {/* Status hero card */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
@@ -237,17 +248,6 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ orderN
             )}
           </div>
         </motion.div>
-
-        {/* Map — kitchen→customer line, fills as status progresses */}
-        {!cancelled && (
-          <DeliveryMap
-            deliveryAddress={order.deliveryAddress}
-            customerCoords={customerCoords}
-            orderCreatedAt={order.createdAt}
-            estimatedDeliveryMinutes={eta.max}
-            status={order.status as "placed" | "preparing" | "out_for_delivery" | "delivered" | "cancelled"}
-          />
-        )}
 
         {/* Timeline */}
         {!cancelled && (
@@ -353,6 +353,29 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ orderN
             </div>
           </div>
         </div>
+
+        {/* Pay Online — for COD orders not yet delivered or cancelled */}
+        {order.paymentMode === "cod" && !delivered && !cancelled && (
+          <div className="overflow-hidden rounded-2xl border border-orange-100 bg-gradient-to-br from-orange-50 to-amber-50 p-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-brand-orange/10 text-brand-orange">
+                <Smartphone className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <p className="text-[14px] font-extrabold text-gray-900">Pay online instead</p>
+                <p className="mt-0.5 text-[12px] font-medium text-gray-500">Skip the cash hassle — pay via any UPI app</p>
+              </div>
+            </div>
+            <a
+              href={`upi://pay?pa=${encodeURIComponent(process.env.NEXT_PUBLIC_UPI_ID ?? "bhooklagi@upi")}&pn=${encodeURIComponent("Bhook Lagi")}&am=${order.grandTotal}&tn=${encodeURIComponent(`Order ${order.orderNumber}`)}&cu=INR`}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-brand-orange to-brand-gold py-3.5 text-[14px] font-extrabold text-white shadow-md shadow-brand-orange/25 active:scale-[0.98]"
+            >
+              <Smartphone className="h-4 w-4" />
+              Pay {formatInr(order.grandTotal)} via UPI
+            </a>
+            <p className="mt-2 text-center text-[10px] text-gray-400">Opens your UPI app · GPay, PhonePe, Paytm, BHIM</p>
+          </div>
+        )}
 
         {/* Rating — shown only for delivered orders */}
         {delivered && !order.ratedAt && (
