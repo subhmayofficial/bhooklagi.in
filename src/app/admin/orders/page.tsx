@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   LogOut, RefreshCw, Users, ShoppingBag, MapPinned, Navigation,
   Bell, BellOff, Clock, Phone, ChevronRight, CheckCircle2, XCircle,
-  Bike, UtensilsCrossed, PackageCheck, AlertCircle,
+  Bike, UtensilsCrossed, PackageCheck, AlertCircle, Star,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { formatInr } from "@/data/menu";
@@ -31,6 +31,10 @@ type AdminOrder = {
   deliveryLocationCapturedAt: string | null;
   grandTotal: number;
   createdAt: string;
+  foodRating: number | null;
+  deliveryRating: number | null;
+  ratingComment: string | null;
+  ratedAt: string | null;
 };
 
 const FILTERS: { label: string; value: OrderStatus | "all"; icon: React.ReactNode }[] = [
@@ -640,6 +644,40 @@ export default function AdminOrdersPage() {
                         </button>
                       )}
                     </div>
+
+                    {/* Customer rating — shown for delivered orders */}
+                    {o.status === "delivered" && o.ratedAt && (
+                      <div className="mt-3 rounded-xl border border-white/8 bg-black/20 px-3 py-2.5">
+                        <p className="mb-1.5 flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-widest text-gray-500">
+                          <Star className="h-3 w-3 fill-amber-400 stroke-amber-400" strokeWidth={1.5} />
+                          Customer rating
+                        </p>
+                        <div className="flex flex-wrap gap-4">
+                          <div>
+                            <p className="text-[10px] text-gray-500">Food</p>
+                            <div className="mt-0.5 flex gap-0.5">
+                              {[1,2,3,4,5].map((s) => (
+                                <Star key={s} className={`h-4 w-4 ${s <= (o.foodRating ?? 0) ? "fill-amber-400 stroke-amber-400" : "fill-transparent stroke-gray-700"}`} strokeWidth={1.5} />
+                              ))}
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-gray-500">Delivery</p>
+                            <div className="mt-0.5 flex gap-0.5">
+                              {[1,2,3,4,5].map((s) => (
+                                <Star key={s} className={`h-4 w-4 ${s <= (o.deliveryRating ?? 0) ? "fill-amber-400 stroke-amber-400" : "fill-transparent stroke-gray-700"}`} strokeWidth={1.5} />
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        {o.ratingComment && (
+                          <p className="mt-2 text-[11px] italic text-gray-400">&ldquo;{o.ratingComment}&rdquo;</p>
+                        )}
+                      </div>
+                    )}
+                    {o.status === "delivered" && !o.ratedAt && (
+                      <p className="mt-3 text-[11px] text-gray-600">Rating pending…</p>
+                    )}
                   </div>
                 </motion.div>
               );

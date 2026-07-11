@@ -38,6 +38,10 @@ create table if not exists public.orders (
   wallet_used integer not null default 0,
   grand_total integer not null,
   status text not null default 'placed' check (status in ('placed', 'preparing', 'out_for_delivery', 'delivered', 'cancelled')),
+  food_rating smallint check (food_rating between 1 and 5),
+  delivery_rating smallint check (delivery_rating between 1 and 5),
+  rating_comment text,
+  rated_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

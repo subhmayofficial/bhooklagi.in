@@ -92,4 +92,8 @@ export type OrderRecord = {
   gst: number;
   grandTotal: number;
   createdAt: string;
+  foodRating: number | null;
+  deliveryRating: number | null;
+  ratingComment: string | null;
+  ratedAt: string | null;
 };

@@ -13,7 +13,7 @@ export async function GET(
   const { data: order, error } = await supabase
     .from("orders")
     .select(
-      "id, order_number, customer_id, items, status, payment_mode, payment_status, delivery_name, delivery_phone, delivery_address, delivery_landmark, delivery_lat, delivery_lng, delivery_accuracy_m, delivery_location_source, delivery_location_captured_at, subtotal, delivery_fee, gst, grand_total, created_at",
+      "id, order_number, customer_id, items, status, payment_mode, payment_status, delivery_name, delivery_phone, delivery_address, delivery_landmark, delivery_lat, delivery_lng, delivery_accuracy_m, delivery_location_source, delivery_location_captured_at, subtotal, delivery_fee, gst, grand_total, created_at, food_rating, delivery_rating, rating_comment, rated_at",
     )
     .eq("order_number", orderNumber)
     .maybeSingle();
@@ -60,6 +60,10 @@ export async function GET(
       gst: order.gst,
       grandTotal: order.grand_total,
       createdAt: order.created_at,
+      foodRating: order.food_rating ?? null,
+      deliveryRating: order.delivery_rating ?? null,
+      ratingComment: order.rating_comment ?? null,
+      ratedAt: order.rated_at ?? null,
     },
     events: events ?? [],
   });

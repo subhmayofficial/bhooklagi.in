@@ -9,7 +9,9 @@ import {
   CheckCircle2, MapPin, Phone, Clock, ChevronLeft,
   Bike, Package, UtilityPole, PartyPopper, XCircle,
   ChefHat, Navigation2, ReceiptText, RotateCcw, UtensilsCrossed,
+  Star,
 } from "lucide-react";
+import { RatingCard } from "@/components/order/RatingCard";
 import { formatInr } from "@/data/menu";
 import { estimateDeliveryMinutes } from "@/lib/location";
 import { ORDER_STATUS_META, type OrderRecord, type OrderStatus } from "@/lib/orders";
@@ -351,6 +353,45 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ orderN
             </div>
           </div>
         </div>
+
+        {/* Rating — shown only for delivered orders */}
+        {delivered && !order.ratedAt && (
+          <RatingCard
+            orderNumber={order.orderNumber}
+            onRated={() => setOrder((o) => o ? { ...o, ratedAt: new Date().toISOString() } : o)}
+          />
+        )}
+
+        {/* Already rated — show submitted rating */}
+        {delivered && order.ratedAt && (
+          <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+            <p className="mb-3 flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-wider text-gray-500">
+              <Star className="h-3.5 w-3.5 fill-amber-400 stroke-amber-400" strokeWidth={1.5} />
+              Your rating
+            </p>
+            <div className="flex flex-wrap gap-4">
+              <div>
+                <p className="text-[11px] font-semibold text-gray-400">Food</p>
+                <div className="mt-1 flex gap-0.5">
+                  {[1,2,3,4,5].map((s) => (
+                    <Star key={s} className={`h-5 w-5 ${s <= (order.foodRating ?? 0) ? "fill-amber-400 stroke-amber-400" : "fill-transparent stroke-gray-200"}`} strokeWidth={1.5} />
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold text-gray-400">Delivery</p>
+                <div className="mt-1 flex gap-0.5">
+                  {[1,2,3,4,5].map((s) => (
+                    <Star key={s} className={`h-5 w-5 ${s <= (order.deliveryRating ?? 0) ? "fill-amber-400 stroke-amber-400" : "fill-transparent stroke-gray-200"}`} strokeWidth={1.5} />
+                  ))}
+                </div>
+              </div>
+            </div>
+            {order.ratingComment && (
+              <p className="mt-3 text-[12px] italic text-gray-500">&ldquo;{order.ratingComment}&rdquo;</p>
+            )}
+          </div>
+        )}
 
         {/* Actions */}
         <div className="grid grid-cols-2 gap-3 pb-6">
