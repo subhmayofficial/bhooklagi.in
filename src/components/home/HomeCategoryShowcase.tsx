@@ -57,6 +57,14 @@ const featured: {
     tag: "✨ New",
     tagColor: "bg-violet-500",
   },
+  {
+    id: "meals",
+    label: "Combos",
+    blurb: "Complete meals",
+    image: "https://b.zmtcdn.com/data/dish_photos/350/fbf1b3293a79314f77e1cc6dd2420350.jpeg",
+    tag: "🍱 Value",
+    tagColor: "bg-green-600",
+  },
 ];
 
 /* ── Single category circle with its own skeleton state ─── */
@@ -142,7 +150,7 @@ export function HomeCategoryShowcase() {
         </div>
 
         {/* Grid */}
-        <div className="grid grid-cols-3 gap-x-2 gap-y-4 md:grid-cols-6 md:gap-x-4">
+        <div className="grid grid-cols-4 gap-x-2 gap-y-4 md:grid-cols-7 md:gap-x-4">
           {featured.map((c, i) => (
             <CategoryCircle key={c.id} c={c} index={i} />
           ))}

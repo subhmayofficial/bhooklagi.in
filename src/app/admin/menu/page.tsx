@@ -55,7 +55,7 @@ export default function AdminMenuPage() {
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [saveResult, setSaveResult] = useState<Record<string, "ok" | "err">>({});
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [drafts, setDrafts] = useState<Record<string, { price: string; imageUrl: string }>>({});
+  const [drafts, setDrafts] = useState<Record<string, { name: string; price: string; imageUrl: string }>>({});
   const [showAddForm, setShowAddForm] = useState(false);
   const [addForm, setAddForm] = useState(EMPTY_FORM);
   const [adding, setAdding] = useState(false);
@@ -74,7 +74,7 @@ export default function AdminMenuPage() {
   useEffect(() => { load(); }, [load]);
 
   function initDraft(item: AdminMenuItem) {
-    setDrafts((prev) => ({ ...prev, [item.id]: { price: String(item.price), imageUrl: item.imageUrl ?? "" } }));
+    setDrafts((prev) => ({ ...prev, [item.id]: { name: item.name, price: String(item.price), imageUrl: item.imageUrl ?? "" } }));
   }
 
   function toggleExpand(item: AdminMenuItem) {
@@ -82,12 +82,12 @@ export default function AdminMenuPage() {
   }
 
   async function save(item: AdminMenuItem) {
-    const draft = drafts[item.id];
+    const draft = drafts?.[item.id];
     if (!draft) return;
     const newPrice = parseInt(draft.price, 10);
-    if (isNaN(newPrice) || newPrice <= 0) {
-      flash(item.id, "err"); return;
-    }
+    if (isNaN(newPrice) || newPrice <= 0) { flash(item.id, "err"); return; }
+    const newName = draft.name.trim();
+    if (!newName) { flash(item.id, "err"); return; }
     setSaving((p) => ({ ...p, [item.id]: true }));
     try {
       const endpoint = item.isCustom
@@ -96,11 +96,11 @@ export default function AdminMenuPage() {
       const res = await fetch(endpoint, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ price: newPrice, imageUrl: draft.imageUrl.trim() || null }),
+        body: JSON.stringify({ name: newName, price: newPrice, imageUrl: draft.imageUrl.trim() || null }),
       });
       if (!res.ok) throw new Error();
       flash(item.id, "ok");
-      updateItem(item.id, { price: newPrice, imageUrl: draft.imageUrl.trim() || null, hasOverride: true });
+      updateItem(item.id, { name: newName, price: newPrice, imageUrl: draft.imageUrl.trim() || null, hasOverride: true });
       setTimeout(() => setExpanded(null), 1200);
     } catch {
       flash(item.id, "err");
@@ -479,12 +479,12 @@ function ItemRow({
 }: {
   item: AdminMenuItem;
   expanded: boolean;
-  draft?: { price: string; imageUrl: string };
+  draft?: { name: string; price: string; imageUrl: string };
   saving: boolean;
   saveResult?: "ok" | "err";
   onToggleExpand: () => void;
   onToggleAvail: () => void;
-  onDraftChange: (patch: { price?: string; imageUrl?: string }) => void;
+  onDraftChange: (patch: { name?: string; price?: string; imageUrl?: string }) => void;
   onSave: () => void;
   onCancel: () => void;
   onDelete?: () => void;
@@ -551,6 +551,17 @@ function ItemRow({
             className="overflow-hidden border-t border-white/8"
           >
             <div className="space-y-3 p-4">
+              {/* Name */}
+              <div>
+                <label className="mb-1 block text-[10px] font-extrabold uppercase tracking-widest text-gray-500">Item Name</label>
+                <input
+                  type="text"
+                  value={draft.name}
+                  onChange={(e) => onDraftChange({ name: e.target.value })}
+                  placeholder="Item name"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[13px] font-bold text-white placeholder:text-gray-600 focus:border-brand-orange/50 focus:outline-none focus:ring-2 focus:ring-brand-orange/20"
+                />
+              </div>
               <div>
                 <label className="mb-1 block text-[10px] font-extrabold uppercase tracking-widest text-gray-500">Price (₹)</label>
                 <div className="flex items-center gap-2">

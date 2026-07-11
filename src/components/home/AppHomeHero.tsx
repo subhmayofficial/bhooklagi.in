@@ -579,7 +579,7 @@ export function AppHomeHero() {
           </AnimatePresence>
 
           {/* Quick category pills */}
-          <div className="hide-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5">
+          <div className="hide-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-0.5 pr-6">
             {QUICK_CATS.map((cat, i) => (
               <motion.button
                 key={cat.q}

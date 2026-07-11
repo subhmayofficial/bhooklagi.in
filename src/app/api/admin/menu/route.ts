@@ -10,13 +10,14 @@ export async function GET() {
 
   const supabase = getSupabaseAdminClient();
   const [{ data: overrideRows }, { data: customRows }] = await Promise.all([
-    supabase.from("menu_items").select("id, price, image_url, is_available, updated_at"),
+    supabase.from("menu_items").select("id, name, price, image_url, is_available, updated_at"),
     supabase.from("custom_menu_items").select("*").order("sort_order").order("created_at"),
   ]);
 
-  const overrideMap: Record<string, { price: number | null; imageUrl: string | null; isAvailable: boolean; updatedAt: string }> = {};
+  const overrideMap: Record<string, { name: string | null; price: number | null; imageUrl: string | null; isAvailable: boolean; updatedAt: string }> = {};
   for (const r of overrideRows ?? []) {
     overrideMap[r.id as string] = {
+      name: (r.name as string | null) ?? null,
       price: r.price as number | null,
       imageUrl: r.image_url as string | null,
       isAvailable: (r.is_available as boolean) ?? true,
@@ -28,7 +29,7 @@ export async function GET() {
     const ov = overrideMap[item.id];
     return {
       id: item.id,
-      name: item.name,
+      name: ov?.name ?? item.name,
       emoji: item.emoji,
       categoryId: item.categoryId,
       defaultPrice: item.price,

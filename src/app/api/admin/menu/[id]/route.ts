@@ -19,6 +19,9 @@ export async function PATCH(
   const body = await req.json().catch(() => ({}));
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
+  if (typeof body.name === "string" && body.name.trim()) {
+    update.name = body.name.trim();
+  }
   if (typeof body.price === "number" && body.price > 0) {
     update.price = Math.round(body.price);
   } else if (body.price === null) {
