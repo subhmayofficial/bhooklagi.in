@@ -27,9 +27,9 @@ const COMBO_META: Record<string, {
 }> = {
   "bl-everyday-meal": {
     tag: "EVERYDAY MEAL",
-    tagline: "Great taste, every single day",
-    items: ["Aloo Tikki Burger", "Classic Fries", "Masala Cold Drink"],
-    originalPrice: 177,
+    tagline: "Quick hunger, unbeatable price",
+    items: ["Aloo Tikki Burger", "Classic Fries"],
+    originalPrice: 128,  // 69+59
     accent: "from-[#1a0a00] via-[#3d1505] to-[#1a0a00]",
     badgeColor: "bg-green-500",
     glow: "rgba(34,197,94,0.35)",
@@ -37,35 +37,35 @@ const COMBO_META: Record<string, {
   "bl-chicken-meal": {
     tag: "BEST SELLER",
     tagline: "The one everyone keeps ordering",
-    items: ["Classic Chicken Burger", "Classic Fries", "Masala Cold Drink"],
-    originalPrice: 227,
+    items: ["Classic Chicken Burger", "Classic Fries", "Masala Cold Beverage"],
+    originalPrice: 227,  // 119+59+49
     accent: "from-[#1a0500] via-[#4d1200] to-[#1a0500]",
     badgeColor: "bg-brand-orange",
     glow: "rgba(232,93,4,0.5)",
   },
   "bl-roll-meal": {
     tag: "ROLL MEAL",
-    tagline: "Wrapped, loaded, and ready",
-    items: ["Chicken Cheese Roll", "Classic Fries", "Masala Cold Drink"],
-    originalPrice: 267,
+    tagline: "Desi-style, complete combo",
+    items: ["Special Egg Chicken Roll", "Classic Fries", "Masala Cold Beverage"],
+    originalPrice: 247,  // 139+59+49
     accent: "from-[#0a0a1a] via-[#15153d] to-[#0a0a1a]",
     badgeColor: "bg-blue-500",
     glow: "rgba(99,102,241,0.4)",
   },
   "bl-special-meal": {
     tag: "SPECIAL MEAL",
-    tagline: "The upgrade you deserve",
-    items: ["Chicken Cheese Burger", "Peri Peri Fries", "Fresh Lime Soda"],
-    originalPrice: 277,
+    tagline: "The full premium experience",
+    items: ["Chicken Cheese Burger", "Peri Peri Fries", "Cold Coffee"],
+    originalPrice: 327,  // 139+79+109 (cold coffee est)
     accent: "from-[#1a0a00] via-[#3d2005] to-[#1a0a00]",
     badgeColor: "bg-yellow-500",
     glow: "rgba(250,163,7,0.45)",
   },
   "bl-family-meal": {
     tag: "FAMILY MEAL",
-    tagline: "Feeds 2–3 people comfortably",
-    items: ["2× Chicken Cheese Burger", "2× Classic Fries", "2× Masala Cold Drink"],
-    originalPrice: 494,
+    tagline: "Feed two, spend less",
+    items: ["2× Classic Chicken Burger", "2× Classic Fries", "2× Masala Cold Beverage"],
+    originalPrice: 454,  // (119+59+49)×2
     accent: "from-[#0a1200] via-[#1a2e00] to-[#0a1200]",
     badgeColor: "bg-emerald-500",
     glow: "rgba(16,185,129,0.4)",
@@ -73,7 +73,7 @@ const COMBO_META: Record<string, {
   "bl-party-meal": {
     tag: "PARTY MEAL",
     tagline: "Go big with your crew",
-    items: ["2× Chicken Cheese Roll", "2× Chicken Cheese Burger", "2× Peri Peri Fries", "2× Masala Cold Drink"],
+    items: ["2× Chicken Cheese Roll", "2× Chicken Cheese Burger", "2× Peri Peri Fries", "2× Masala Cold Beverage"],
     originalPrice: 852,
     accent: "from-[#1a001a] via-[#3d0530] to-[#1a001a]",
     badgeColor: "bg-red-500",
@@ -239,16 +239,18 @@ function ComboCard({ meal, index }: { meal: typeof menuItems[number]; index: num
           ))}
         </div>
 
-        {/* Save badge */}
-        <div className="absolute right-0 top-4">
-          <div
-            className={`${meta.badgeColor} relative flex flex-col items-center px-3 pb-2 pt-1.5 text-white shadow-lg`}
-            style={{ clipPath: "polygon(0 0, 100% 0, 100% 85%, 50% 100%, 0 85%)" }}
-          >
-            <span className="text-[9px] font-bold uppercase tracking-wider opacity-90">SAVE</span>
-            <span className="font-display text-[22px] leading-none tracking-wider">₹{saves}</span>
+        {/* Save badge — only when savings are meaningful */}
+        {saves >= 15 && (
+          <div className="absolute right-0 top-4">
+            <div
+              className={`${meta.badgeColor} relative flex flex-col items-center px-3 pb-2 pt-1.5 text-white shadow-lg`}
+              style={{ clipPath: "polygon(0 0, 100% 0, 100% 85%, 50% 100%, 0 85%)" }}
+            >
+              <span className="text-[9px] font-bold uppercase tracking-wider opacity-90">SAVE</span>
+              <span className="font-display text-[22px] leading-none tracking-wider">₹{saves}</span>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Tag pill */}
         <div className="absolute left-4 top-4">
