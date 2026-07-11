@@ -9,7 +9,7 @@ import {
   ShoppingBag, ChevronRight, Search, X, SlidersHorizontal, Flame,
 } from "lucide-react";
 import {
-  categories, menuItems, type MenuCategoryId, formatInr,
+  categories, menuItems, type MenuCategoryId, type DietTag, formatInr,
 } from "@/data/menu";
 import { useCartStore, cartTotals } from "@/stores/cart-store";
 import { DishCard } from "@/components/menu/DishCard";
@@ -37,6 +37,11 @@ const DIET_OPTIONS: { value: DietFilter; label: string; color: string }[] = [
 
 type MenuOverride = { price?: number; imageUrl?: string; isAvailable: boolean };
 
+type CustomItem = {
+  id: string; name: string; description: string; price: number; emoji: string;
+  imageUrl: string | null; categoryId: string; diet?: string; spicy?: boolean; bestseller?: boolean; isAvailable: boolean;
+};
+
 export function MenuExplorer() {
   const router       = useRouter();
   const params       = useSearchParams();
@@ -53,6 +58,7 @@ export function MenuExplorer() {
   const [mounted, setMounted]     = useState(false);
   const [openItemId, setOpenItemId] = useState<string | null>(null);
   const [overrides, setOverrides] = useState<Record<string, MenuOverride>>({});
+  const [customItems, setCustomItems] = useState<CustomItem[]>([]);
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const pillsRef    = useRef<HTMLDivElement>(null);
 
@@ -64,29 +70,46 @@ export function MenuExplorer() {
   useEffect(() => {
     fetch("/api/menu-overrides")
       .then((r) => r.json())
-      .then((d) => setOverrides(d.overrides ?? {}))
+      .then((d) => {
+        setOverrides(d.overrides ?? {});
+        setCustomItems(d.customItems ?? []);
+      })
       .catch(() => {});
   }, []);
 
+  /* ── Merge hardcoded + custom items ── */
+  const allItems = useMemo<typeof menuItems>(() => {
+    const custom: typeof menuItems = customItems.map((ci) => ({
+      id: ci.id, name: ci.name, description: ci.description,
+      price: ci.price, emoji: ci.emoji,
+      image: ci.imageUrl ?? undefined,
+      categoryId: ci.categoryId as MenuCategoryId,
+      diet: ci.diet as DietTag | undefined,
+      spicy: ci.spicy ?? false,
+      bestseller: ci.bestseller ?? false,
+    }));
+    return [...menuItems, ...custom];
+  }, [customItems]);
+
   /* ── Filtered items ── */
   const filtered = useMemo(() => {
-    let items = active === "all" ? menuItems : menuItems.filter((m) => m.categoryId === active);
+    let items = active === "all" ? allItems : allItems.filter((m) => m.categoryId === active);
     if (diet !== "all") items = items.filter((m) => m.diet === diet);
     const q = query.trim().toLowerCase();
     if (q) items = items.filter((m) => m.name.toLowerCase().includes(q) || m.description.toLowerCase().includes(q));
     return items;
-  }, [active, query, diet]);
+  }, [active, query, diet, allItems]);
 
   /* ── Grouped by category (for "All" view) ── */
   const grouped = useMemo(() => {
     if (active !== "all" && !query) return null;
-    const map: Record<string, typeof menuItems> = {};
+    const map: Record<string, typeof allItems> = {};
     for (const item of filtered) {
       if (!map[item.categoryId]) map[item.categoryId] = [];
       map[item.categoryId].push(item);
     }
     return map;
-  }, [active, query, filtered]);
+  }, [active, query, filtered, allItems]);
 
   /* ── Cart ── */
   const lines           = useCartStore((s) => s.lines);
@@ -110,7 +133,7 @@ export function MenuExplorer() {
     }
   }
 
-  const bestsellers = menuItems.filter((m) => m.bestseller).slice(0, 5);
+  const bestsellers = allItems.filter((m) => m.bestseller).slice(0, 6);
 
   return (
     <div className="flex gap-0 md:gap-6">
@@ -141,12 +164,12 @@ export function MenuExplorer() {
                 <p className={cn("text-[12px] font-bold leading-tight", active === "all" ? "text-brand-orange" : "text-gray-800")}>
                   All Items
                 </p>
-                <p className="text-[10px] text-gray-400">{menuItems.length} items</p>
+                <p className="text-[10px] text-gray-400">{allItems.length} items</p>
               </div>
             </button>
 
             {categories.map((c) => {
-              const count = menuItems.filter((m) => m.categoryId === c.id).length;
+              const count = allItems.filter((m) => m.categoryId === c.id).length;
               const img   = CAT_IMAGES[c.id];
               return (
                 <button

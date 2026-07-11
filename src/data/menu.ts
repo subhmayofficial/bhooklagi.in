@@ -4,7 +4,8 @@ export type MenuCategoryId =
   | "maggi"
   | "fries"
   | "sandwiches"
-  | "drinks";
+  | "drinks"
+  | "meals";
 
 export type DietTag = "veg" | "egg" | "non-veg";
 
@@ -27,6 +28,7 @@ export const categories: {
   emoji: string;
   blurb: string;
 }[] = [
+  { id: "meals",      label: "Combo Meals", emoji: "🍱", blurb: "Complete meals, great value" },
   { id: "burgers",    label: "Burgers",     emoji: "🍔", blurb: "Juicy stacks & sauces" },
   { id: "rolls",      label: "Rolls",       emoji: "🌯", blurb: "Street-style wraps" },
   { id: "maggi",      label: "Maggi",       emoji: "🍜", blurb: "Masala moods" },
@@ -36,6 +38,68 @@ export const categories: {
 ];
 
 export const menuItems: MenuItem[] = [
+  // ── COMBO MEALS ──────────────────────────────────────────────────────────
+  {
+    id: "bl-everyday-meal",
+    name: "Bhook Lagi Everyday Meal",
+    description: "The perfect everyday combo — a crispy Aloo Tikki Burger, Classic Fries, and a refreshing Masala Cold Drink. Great taste, great value.",
+    price: 129,
+    emoji: "🍔",
+    categoryId: "meals",
+    diet: "veg",
+    bestseller: false,
+  },
+  {
+    id: "bl-chicken-meal",
+    name: "Bhook Lagi Chicken Meal",
+    description: "Our most ordered combo — Classic Chicken Burger with Classic Fries and a Masala Cold Drink. The one everyone comes back for.",
+    price: 199,
+    emoji: "🍗",
+    categoryId: "meals",
+    diet: "non-veg",
+    bestseller: true,
+  },
+  {
+    id: "bl-roll-meal",
+    name: "Bhook Lagi Roll Meal",
+    description: "For the roll lovers — a cheesy Chicken Cheese Roll paired with Classic Fries and a Masala Cold Drink. Wrapped and ready.",
+    price: 229,
+    emoji: "🌯",
+    categoryId: "meals",
+    diet: "non-veg",
+    bestseller: false,
+  },
+  {
+    id: "bl-special-meal",
+    name: "Bhook Lagi Special Meal",
+    description: "Upgrade your meal — Chicken Cheese Burger, spicy Peri Peri Fries, and a Fresh Lime Soda. The combo with the best flavour bang.",
+    price: 249,
+    emoji: "⭐",
+    categoryId: "meals",
+    diet: "non-veg",
+    bestseller: true,
+  },
+  {
+    id: "bl-family-meal",
+    name: "Bhook Lagi Family Meal",
+    description: "Feeds 2–3 people comfortably — 2 Chicken Cheese Burgers, 2 Classic Fries, and 2 Masala Cold Drinks. Order once, eat together.",
+    price: 399,
+    emoji: "👨‍👩‍👧",
+    categoryId: "meals",
+    diet: "non-veg",
+    bestseller: false,
+  },
+  {
+    id: "bl-party-meal",
+    name: "Bhook Lagi Party Meal",
+    description: "Go big with your crew — 2 Chicken Cheese Rolls, 2 Chicken Cheese Burgers, 2 Peri Peri Fries, 2 Masala Cold Drinks. For when the whole gang is hungry.",
+    price: 699,
+    emoji: "🎉",
+    categoryId: "meals",
+    diet: "non-veg",
+    bestseller: false,
+  },
+
   // ── BURGERS ──────────────────────────────────────────────────────────────
   {
     id: "bl-aloo-tikki-burger",
@@ -308,6 +372,7 @@ export const startingPrices: {
   label: string;
   from: number;
 }[] = [
+  { categoryId: "meals",      emoji: "🍱", label: "Combo Meals", from: 129 },
   { categoryId: "burgers",    emoji: "🍔", label: "Burgers",    from: 69 },
   { categoryId: "rolls",      emoji: "🌯", label: "Rolls",      from: 69 },
   { categoryId: "maggi",      emoji: "🍜", label: "Maggi",      from: 59 },
