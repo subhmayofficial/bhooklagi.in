@@ -74,6 +74,11 @@
     @apply border-b border-gray-200/80 bg-white/90 backdrop-blur-xl;
   }
 
+  .price-text {
+    font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+
   .hide-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;

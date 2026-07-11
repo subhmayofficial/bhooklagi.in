@@ -157,7 +157,7 @@ export function ItemDetailSheet({ itemId, onClose }: ItemDetailSheetProps) {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">Price</p>
-                  <p className="font-display text-[28px] leading-none tracking-wide text-gray-900">
+                  <p className="price-text text-[28px] font-black leading-none text-gray-900">
                     {formatInr(item.price)}
                   </p>
                 </div>

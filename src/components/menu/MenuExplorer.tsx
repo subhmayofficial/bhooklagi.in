@@ -376,7 +376,7 @@ export function MenuExplorer() {
                   <p className="text-[13px] font-extrabold text-white leading-tight">
                     {qty} item{qty > 1 ? "s" : ""} added
                   </p>
-                  <p className="text-[11px] font-semibold text-white/80">{formatInr(subtotal)}</p>
+                  <p className="price-text text-[11px] font-semibold text-white/80">{formatInr(subtotal)}</p>
                 </div>
               </div>
 
@@ -446,7 +446,7 @@ function BestsellerPill({ item }: { item: typeof menuItems[number] }) {
         </span>
       </div>
       <div className="flex items-center justify-between px-2.5 py-2">
-        <span className="font-display text-[14px] leading-none text-brand-orange">{formatInr(item.price)}</span>
+        <span className="price-text text-[14px] font-black leading-none text-brand-orange">{formatInr(item.price)}</span>
         <button
           type="button"
           onClick={() => addItem(item)}

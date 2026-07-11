@@ -154,7 +154,7 @@ export function DeliveryMap({ deliveryAddress, customerCoords, orderCreatedAt, e
 
         const kitchenCoords: Coords = KITCHEN_COORDS;
 
-        // 2b. Customer pin — prefer captured GPS coords from checkout.
+        // 2b. Customer location — prefer captured coordinates from order placement.
         const customer = customerCoords ?? await geocodeAddress(deliveryAddress);
         if (cancelled) return;
 
@@ -399,7 +399,7 @@ export function DeliveryMap({ deliveryAddress, customerCoords, orderCreatedAt, e
       </div>
       {customerCoords && (
         <div className="border-t border-gray-100 bg-white px-4 py-2 text-[10px] font-semibold text-green-700">
-          Exact checkout pin used
+          Delivery location ready
         </div>
       )}
     </div>

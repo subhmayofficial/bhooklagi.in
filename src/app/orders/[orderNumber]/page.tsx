@@ -3,15 +3,17 @@
 import { use, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   CheckCircle2, MapPin, Phone, Clock, ChevronLeft,
   Bike, Package, UtilityPole, PartyPopper, XCircle,
-  ChefHat, Navigation2, ReceiptText,
+  ChefHat, Navigation2, ReceiptText, RotateCcw, UtensilsCrossed,
 } from "lucide-react";
 import { formatInr } from "@/data/menu";
 import { estimateDeliveryMinutes } from "@/lib/location";
 import { ORDER_STATUS_META, type OrderRecord, type OrderStatus } from "@/lib/orders";
+import { useCartStore } from "@/stores/cart-store";
 
 // Leaflet requires window — dynamic import prevents SSR crash
 const DeliveryMap = dynamic(
@@ -33,7 +35,9 @@ const STEP_ICONS: Record<OrderStatus, React.ElementType> = {
 
 
 export default function OrderTrackingPage({ params }: { params: Promise<{ orderNumber: string }> }) {
+  const router = useRouter();
   const { orderNumber } = use(params);
+  const replaceLines = useCartStore((s) => s.replaceLines);
   const [order, setOrder] = useState<OrderRecord | null | undefined>(undefined);
   const [events, setEvents] = useState<OrderEvent[]>([]);
   const [error, setError] = useState("");
@@ -108,6 +112,12 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ orderN
           ? "Kitchen is preparing your food"
           : "Order received by kitchen";
 
+  function repeatOrder() {
+    if (!order) return;
+    replaceLines(order.items);
+    router.push("/cart");
+  }
+
   return (
     <main className="min-h-dvh bg-[#f7f7f7]">
       {/* Sticky header */}
@@ -149,9 +159,9 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ orderN
                 initial={{ scale: 0.75, rotate: -8 }}
                 animate={{ scale: 1, rotate: 0 }}
                 transition={{ type: "spring", stiffness: 260, damping: 18 }}
-                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl bg-white/20 text-4xl shadow-inner"
+                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl bg-white/20 shadow-inner"
               >
-                {meta.emoji}
+                <StatusIcon status={order.status} className="h-8 w-8 text-white" />
               </motion.div>
             </div>
 
@@ -169,8 +179,8 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ orderN
                 </div>
                 <div className="rounded-2xl bg-white/16 px-3 py-2 backdrop-blur">
                   <Navigation2 className="h-4 w-4" />
-                  <p className="mt-1 text-[10px] font-bold text-white/75">Pin</p>
-                  <p className="text-[12px] font-extrabold">{customerCoords ? "Locked" : "Address"}</p>
+                  <p className="mt-1 text-[10px] font-bold text-white/75">Address</p>
+                  <p className="text-[12px] font-extrabold">{customerCoords ? "Ready" : "Saved"}</p>
                 </div>
               </div>
             )}
@@ -260,7 +270,7 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ orderN
                     <div className={`pb-5 flex-1 ${i === TIMELINE.length - 1 ? "pb-0" : ""}`}>
                       <div className="flex items-start justify-between">
                         <p className={`text-[14px] ${active ? "font-extrabold text-gray-900" : done ? "font-semibold text-gray-700" : "text-gray-400"}`}>
-                          {sMeta.emoji} {sMeta.label}
+                          {sMeta.label}
                         </p>
                         {at && <span className="text-[11px] text-gray-400">{new Date(at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</span>}
                       </div>
@@ -304,20 +314,31 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ orderN
         </div>
 
         {/* Items + bill */}
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-          <p className="mb-3 text-[12px] font-bold uppercase tracking-wider text-gray-500">Your items</p>
-          <ul className="space-y-2.5">
+        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3.5">
+            <p className="flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-wider text-gray-500">
+              <UtensilsCrossed className="h-3.5 w-3.5" />
+              Order summary
+            </p>
+            <span className="rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-bold text-brand-orange">
+              {order.items.reduce((sum, item) => sum + item.qty, 0)} items
+            </span>
+          </div>
+          <ul className="divide-y divide-gray-100 px-4">
             {order.items.map((l) => (
-              <li key={l.itemId} className="flex items-center justify-between gap-2">
-                <span className="flex min-w-0 items-center gap-2">
-                  <span className="text-xl">{l.emoji}</span>
-                  <span className="truncate text-[13px] font-medium text-gray-800">{l.name} <span className="text-gray-400">×{l.qty}</span></span>
+              <li key={l.itemId} className="flex items-center justify-between gap-3 py-3">
+                <span className="flex min-w-0 items-center gap-3">
+                  <DietMark diet={l.diet} />
+                  <span className="min-w-0">
+                    <span className="block truncate text-[13px] font-bold text-gray-900">{l.name}</span>
+                    <span className="text-[11px] font-medium text-gray-400">Qty {l.qty} x {formatInr(l.unitPrice)}</span>
+                  </span>
                 </span>
-                <span className="shrink-0 text-[13px] font-semibold text-gray-900">{formatInr(l.unitPrice * l.qty)}</span>
+                <span className="shrink-0 text-[13px] font-extrabold text-gray-950">{formatInr(l.unitPrice * l.qty)}</span>
               </li>
             ))}
           </ul>
-          <div className="mt-4 space-y-2 border-t border-gray-100 pt-3">
+          <div className="space-y-2 border-t border-gray-100 px-4 py-3">
             <div className="flex justify-between text-[13px] text-gray-500"><span>Item total</span><span>{formatInr(order.subtotal)}</span></div>
             <div className="flex justify-between text-[13px] text-gray-500">
               <span>Delivery</span>
@@ -333,14 +354,42 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ orderN
 
         {/* Actions */}
         <div className="grid grid-cols-2 gap-3 pb-6">
-          <Link href="/orders" className="flex items-center justify-center rounded-2xl border-2 border-gray-200 bg-white py-3.5 text-[14px] font-bold text-gray-700 transition-colors hover:border-brand-orange/30 hover:text-brand-orange">
-            My orders
-          </Link>
+          <button
+            type="button"
+            onClick={repeatOrder}
+            className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-brand-orange to-brand-gold py-3.5 text-[14px] font-extrabold text-white shadow-md shadow-brand-orange/20 active:scale-[0.98]"
+          >
+            <RotateCcw className="h-4 w-4" />
+            Repeat
+          </button>
           <Link href="/menu" className="flex items-center justify-center rounded-2xl bg-ink py-3.5 text-[14px] font-bold text-brand-gold transition-opacity hover:opacity-90">
             Order more
           </Link>
         </div>
       </div>
     </main>
+  );
+}
+
+function StatusIcon({ status, className }: { status: OrderStatus; className?: string }) {
+  const Icon =
+    status === "placed" ? Package :
+    status === "preparing" ? ChefHat :
+    status === "out_for_delivery" ? Bike :
+    status === "delivered" ? PartyPopper :
+    XCircle;
+  return <Icon className={className} strokeWidth={2.5} />;
+}
+
+function DietMark({ diet }: { diet?: string }) {
+  const tone =
+    diet === "veg" ? "border-green-600 text-green-600" :
+    diet === "egg" ? "border-amber-500 text-amber-500" :
+    diet === "non-veg" ? "border-red-600 text-red-600" :
+    "border-gray-300 text-gray-400";
+  return (
+    <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border ${tone}`}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+    </span>
   );
 }

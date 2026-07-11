@@ -119,10 +119,10 @@ function CategoryCircle({ c, index }: { c: (typeof featured)[number]; index: num
 
 export function HomeCategoryShowcase() {
   return (
-    <section className="bg-app-texture px-4 py-6 md:px-6 md:py-12">
+    <section className="bg-app-texture px-4 pb-6 pt-4 md:px-6 md:pb-12 md:pt-8">
       <div className="mx-auto max-w-6xl">
         {/* Header */}
-        <div className="mb-6 flex items-end justify-between">
+        <div className="mb-5 flex items-end justify-between">
           <div>
             <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-brand-orange">
               Browse by category

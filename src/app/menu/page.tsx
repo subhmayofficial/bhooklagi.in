@@ -48,7 +48,7 @@ export default function MenuPage() {
 
       {/* ── Hero banner — Swiggy/Zomato style ── */}
       <div className="bg-gradient-to-br from-brand-orange via-[#d45200] to-brand-gold pt-[56px]">
-        <div className="mx-auto max-w-6xl px-4 py-5 md:px-6 md:py-7">
+        <div className="mx-auto max-w-6xl px-4 py-4 md:px-6 md:py-5">
           {/* Top row */}
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -59,11 +59,11 @@ export default function MenuPage() {
                 </span>
                 <span className="text-[11px] font-bold text-white/80 uppercase tracking-widest">Open now</span>
               </div>
-              <h1 className="mt-1 font-display text-[clamp(1.8rem,5vw,2.8rem)] leading-none tracking-wide text-white">
+              <h1 className="mt-1 font-display text-[clamp(1.65rem,4.5vw,2.5rem)] leading-none tracking-wide text-white">
                 BHOOK LAGI
               </h1>
               <p className="mt-1 text-[12px] font-medium text-white/70">
-                Street food · Deoghar, Jharkhand · live ETA at checkout
+                Street food · Deoghar, Jharkhand · live ETA with location
               </p>
             </div>
 
@@ -75,7 +75,7 @@ export default function MenuPage() {
           </div>
 
           {/* Info pills */}
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-wrap gap-2">
             {[
               { Icon: Clock,       text: "Live ETA" },
               { Icon: Bike,        text: "Free delivery" },
@@ -93,8 +93,8 @@ export default function MenuPage() {
         </div>
 
         {/* Wave divider */}
-        <svg viewBox="0 0 1440 28" className="block w-full" preserveAspectRatio="none" style={{ height: 28 }}>
-          <path d="M0,28 C360,0 1080,0 1440,28 L1440,28 L0,28 Z" fill="#f9fafb" />
+        <svg viewBox="0 0 1440 22" className="block w-full" preserveAspectRatio="none" style={{ height: 22 }}>
+          <path d="M0,22 C360,0 1080,0 1440,22 L1440,22 L0,22 Z" fill="#f9fafb" />
         </svg>
       </div>
 

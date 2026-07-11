@@ -67,6 +67,8 @@ export type OrderLine = {
   unitPrice: number;
   qty: number;
   emoji: string;
+  image?: string;
+  diet?: string;
 };
 
 export type OrderRecord = {

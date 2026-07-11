@@ -20,6 +20,7 @@ type CartState = {
   increment: (itemId: string) => void;
   decrement: (itemId: string) => void;
   remove: (itemId: string) => void;
+  replaceLines: (lines: CartLine[]) => void;
   clear: () => void;
 };
 
@@ -79,6 +80,7 @@ export const useCartStore = create<CartState>()(
       remove: (itemId) => {
         set({ lines: get().lines.filter((l) => l.itemId !== itemId) });
       },
+      replaceLines: (lines) => set({ lines: lines.filter((line) => line.qty > 0) }),
       clear: () => set({ lines: [] }),
     }),
     {

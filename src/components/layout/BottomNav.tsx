@@ -2,26 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, UtensilsCrossed, Receipt, User, ShoppingBag } from "lucide-react";
+import { Home, UtensilsCrossed, Receipt } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { useCartStore, cartTotals } from "@/stores/cart-store";
-import { useEffect, useState } from "react";
 
 const links = [
   { href: "/home",   label: "Home",    Icon: Home },
   { href: "/menu",   label: "Menu",    Icon: UtensilsCrossed },
   { href: "/orders", label: "Orders",  Icon: Receipt },
-  { href: "/account",label: "Account", Icon: User },
-  { href: "/cart",   label: "Cart",    Icon: ShoppingBag },
 ] as const;
 
 export function BottomNav() {
   const pathname = usePathname();
-  const lines    = useCartStore((s) => s.lines);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  const { qty } = cartTotals(lines);
 
   const HIDDEN_PATHS = ["/", "/cart", "/checkout"];
   if (HIDDEN_PATHS.includes(pathname) || pathname.startsWith("/orders/")) return null;
@@ -53,11 +45,6 @@ export function BottomNav() {
                 )}
                 <span className="relative">
                   <Icon className="mx-auto h-5 w-5" strokeWidth={active ? 2.5 : 1.8} />
-                  {href === "/cart" && mounted && qty > 0 && (
-                    <span className="absolute -right-2 -top-2 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand-orange px-1 text-[10px] font-bold text-white shadow">
-                      {qty > 9 ? "9+" : qty}
-                    </span>
-                  )}
                 </span>
                 <span className="relative">{label}</span>
               </Link>

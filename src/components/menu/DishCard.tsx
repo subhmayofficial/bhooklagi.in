@@ -83,7 +83,7 @@ export function DishCard({
           <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-gray-400">
             {item.description}
           </p>
-          <p className="mt-2.5 font-display text-[18px] leading-none tracking-wide text-gray-900">
+          <p className="price-text mt-2.5 text-[18px] font-black leading-none text-gray-900">
             {formatInr(item.price)}
           </p>
         </div>

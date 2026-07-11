@@ -11,14 +11,13 @@ import {
   ChevronRight,
   Wallet,
   User,
-  ShoppingBag,
   Mic,
   X,
   Clock,
   Loader2,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
-import { useCartStore, cartTotals } from "@/stores/cart-store";
+import { useCartStore } from "@/stores/cart-store";
 import { menuItems, formatInr } from "@/data/menu";
 import { estimateDeliveryMinutes, type Coords } from "@/lib/location";
 
@@ -62,8 +61,6 @@ export function AppHomeHero() {
   const status = useAuthStore((s) => s.status);
   const openLoginModal = useAuthStore((s) => s.openLoginModal);
   const addItem = useCartStore((s) => s.addItem);
-  const lines = useCartStore((s) => s.lines);
-  const { qty } = cartTotals(lines);
 
   const [mounted, setMounted] = useState(false);
   const [query, setQuery] = useState("");
@@ -191,8 +188,8 @@ export function AppHomeHero() {
 
   return (
     <section
-      className="relative overflow-hidden bg-gradient-to-br from-brand-orange via-brand-orange-dark to-brand-gold px-4 pb-7"
-      style={{ paddingTop: "calc(1rem + env(safe-area-inset-top))" }}
+      className="relative overflow-hidden bg-gradient-to-br from-brand-orange via-brand-orange-dark to-brand-gold px-4 pb-4 md:pb-5"
+      style={{ paddingTop: "calc(0.75rem + env(safe-area-inset-top))" }}
     >
       {/* Floating food accents */}
       {FLOATERS.map((f, i) => (
@@ -209,7 +206,7 @@ export function AppHomeHero() {
 
       <div className="relative mx-auto max-w-6xl">
         {/* App-style top row: location + quick icons (no website nav bar) */}
-        <div className="mb-4 flex items-center justify-between gap-2">
+        <div className="mb-3 flex items-center justify-between gap-2">
           <button
             type="button"
             onClick={detectLocation}
@@ -232,7 +229,7 @@ export function AppHomeHero() {
               <button
                 type="button"
                 onClick={() => router.push("/account")}
-                className="flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1.5 text-[11px] font-bold text-white backdrop-blur-sm"
+                className="price-text flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1.5 text-[11px] font-bold text-white backdrop-blur-sm"
               >
                 <Wallet className="h-3.5 w-3.5" strokeWidth={2.5} />
                 {formatInr(walletBalance ?? 0)}
@@ -242,22 +239,9 @@ export function AppHomeHero() {
               type="button"
               onClick={handleProfileTap}
               aria-label="Account"
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-white/20 text-white shadow-lg shadow-black/10 ring-1 ring-white/25 backdrop-blur-sm transition-transform active:scale-95"
             >
-              <User className="h-4 w-4" strokeWidth={2.5} />
-            </button>
-            <button
-              type="button"
-              onClick={() => router.push("/cart")}
-              aria-label="Cart"
-              className="relative flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm"
-            >
-              <ShoppingBag className="h-4 w-4" strokeWidth={2.5} />
-              {mounted && qty > 0 && (
-                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-ink px-1 text-[9px] font-bold text-brand-gold">
-                  {qty > 9 ? "9+" : qty}
-                </span>
-              )}
+              <User className="h-5 w-5" strokeWidth={2.5} />
             </button>
           </div>
         </div>
@@ -267,7 +251,7 @@ export function AppHomeHero() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-lg"
+          className="flex items-center gap-3 rounded-2xl bg-white p-2.5 shadow-lg"
         >
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-orange/10">
             <Clock className="h-5 w-5 text-brand-orange" strokeWidth={2.5} />
@@ -290,7 +274,7 @@ export function AppHomeHero() {
             🔥 ₹80 OFF
           </span>
         </motion.div>
-        <p className="mt-3 text-[13px] font-medium text-white/85">
+        <p className="mt-2 text-[13px] font-medium text-white/85">
           {greeting()}{user?.name ? `, ${user.name.split(" ")[0]}` : ""} — bhook lagi? 👋
         </p>
 
@@ -299,7 +283,7 @@ export function AppHomeHero() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, delay: 0.08 }}
-          className="mt-4 space-y-2.5"
+          className="mt-3 space-y-2"
         >
           {/* Search input row */}
           <form onSubmit={handleSearch} className="relative">
@@ -315,7 +299,7 @@ export function AppHomeHero() {
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="flex-1 bg-transparent py-4 pr-2 text-[14px] font-medium text-gray-900 placeholder-transparent focus:outline-none"
+                className="flex-1 bg-transparent py-3.5 pr-2 text-[14px] font-medium text-gray-900 placeholder-transparent focus:outline-none"
               />
 
               {/* Animated placeholder (when empty) */}
@@ -364,7 +348,7 @@ export function AppHomeHero() {
               {/* Search CTA */}
               <button
                 type="submit"
-                className="m-1.5 flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-brand-orange to-brand-gold px-4 py-2.5 text-[13px] font-extrabold text-white shadow-md shadow-brand-orange/30 transition-all active:scale-95 hover:shadow-lg"
+                className="m-1.5 flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-brand-orange to-brand-gold px-4 py-2 text-[13px] font-extrabold text-white shadow-md shadow-brand-orange/30 transition-all active:scale-95 hover:shadow-lg"
               >
                 <Search className="h-3.5 w-3.5" strokeWidth={3} />
                 Search
@@ -402,7 +386,7 @@ export function AppHomeHero() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.35, ease: "easeOut" }}
-              className="mt-4"
+              className="mt-3"
             >
               {lastOrderStatus === "loading" || !lastOrder ? (
                 <div className="flex w-full animate-pulse items-center gap-3 rounded-2xl bg-white/70 p-3.5 shadow-lg">
@@ -424,7 +408,7 @@ export function AppHomeHero() {
                   <span className="min-w-0 flex-1">
                     <span className="block text-[13px] font-bold text-gray-900">Reorder your last meal</span>
                     <span className="block truncate text-[12px] text-gray-500">
-                      {lastOrder.items.map((i) => `${i.emoji} ${i.name}`).join(", ")}
+                      {lastOrder.items.map((i) => i.name).join(", ")}
                     </span>
                   </span>
                   <motion.span

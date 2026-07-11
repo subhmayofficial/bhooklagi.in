@@ -91,7 +91,7 @@ export function PromoCta() {
               transition={{ duration: 0.4, delay: 0.14 }}
               className="mt-3 text-[13px] font-medium text-white/75"
             >
-              Min order ₹299. Offer auto-applies at checkout. No code needed.
+              Min order ₹299. Offer auto-applies in cart. No code needed.
             </motion.p>
 
             {/* Trust mini pills */}
@@ -134,7 +134,7 @@ export function PromoCta() {
             </Link>
 
             <p className="text-center text-[10px] font-semibold text-white/50">
-              No account needed · Instant checkout
+              No account needed · Quick ordering
             </p>
           </motion.div>
         </div>

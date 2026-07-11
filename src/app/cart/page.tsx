@@ -5,16 +5,46 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Minus, Plus, Trash2, Tag, ChevronRight, ShoppingBag,
+  Minus, Plus, Trash2, ChevronRight, ShoppingBag,
   ArrowLeft, Clock, Shield, Bike, Sparkles, CheckCircle2,
-  ChevronDown, ChevronUp,
+  ChevronDown, ChevronUp, MapPin, Phone, User, Landmark,
+  LocateFixed, AlertCircle, CreditCard, Banknote, X,
 } from "lucide-react";
 
 import { useCartStore, cartTotals, type CartLine } from "@/stores/cart-store";
 import { menuItems, formatInr } from "@/data/menu";
-import { useState } from "react";
+import { estimateDeliveryMinutes } from "@/lib/location";
+import { useAuthStore } from "@/stores/auth-store";
+import { useEffect, useState } from "react";
 
 const VALID_PROMO = "BHOOK20";
+const MAX_LOCATION_ACCURACY_M = 250;
+
+type PaymentMode = "cod" | "upi";
+type CheckoutStep = "contact" | "address" | "review";
+type DeliveryLocation = {
+  lat: number;
+  lng: number;
+  accuracyM: number | null;
+  capturedAt: string;
+};
+type SavedAddress = {
+  id: string;
+  label: string | null;
+  address: string;
+  landmark: string | null;
+  isDefault: boolean;
+  lat: number | null;
+  lng: number | null;
+  accuracyM: number | null;
+  locationCapturedAt: string | null;
+};
+
+const CHECKOUT_STEPS: { id: CheckoutStep; label: string; helper: string }[] = [
+  { id: "contact", label: "Name", helper: "Who is ordering?" },
+  { id: "address", label: "Address", helper: "Where to deliver?" },
+  { id: "review", label: "Review", helper: "Pay & confirm" },
+];
 
 export default function CartPage() {
   const router    = useRouter();
@@ -22,6 +52,10 @@ export default function CartPage() {
   const increment = useCartStore((s) => s.increment);
   const decrement = useCartStore((s) => s.decrement);
   const remove    = useCartStore((s) => s.remove);
+  const clear     = useCartStore((s) => s.clear);
+  const authUser = useAuthStore((s) => s.user);
+  const authStatus = useAuthStore((s) => s.status);
+  const openLoginModal = useAuthStore((s) => s.openLoginModal);
   const { subtotal, qty } = cartTotals(lines);
 
   const deliveryFee    = subtotal >= 299 || subtotal === 0 ? 0 : 49;
@@ -29,11 +63,76 @@ export default function CartPage() {
   const [promoInput, setPromoInput]     = useState("");
   const [promoApplied, setPromoApplied] = useState(false);
   const [promoError, setPromoError]     = useState("");
-  const [showBillDetails, setShowBillDetails] = useState(true);
+  const [showBillDetails, setShowBillDetails] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>("contact");
+  const [paymentMode, setPaymentMode] = useState<PaymentMode>("cod");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [landmark, setLandmark] = useState("");
+  const [saveAddress, setSaveAddress] = useState(true);
+  const [saved, setSaved] = useState<SavedAddress[]>([]);
+  const [deliveryLocation, setDeliveryLocation] = useState<DeliveryLocation | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [placing, setPlacing] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [cartReady, setCartReady] = useState(false);
   const promoDiscount = promoApplied ? 80 : 0;
   const grand = Math.max(0, subtotal + deliveryFee + gst - promoDiscount);
   const freeDeliveryAt = 299;
   const progress = Math.min((subtotal / freeDeliveryAt) * 100, 100);
+  const deliveryEta = estimateDeliveryMinutes(deliveryLocation);
+  const checkoutStepIndex = CHECKOUT_STEPS.findIndex((step) => step.id === checkoutStep);
+  const checkoutPrimaryLabel =
+    checkoutStep === "contact"
+      ? "Next: delivery address"
+      : checkoutStep === "address"
+        ? deliveryLocation
+          ? "Next: review order"
+          : "Fetch location & continue"
+        : placing
+          ? "Placing order..."
+          : "Place order";
+
+  useEffect(() => {
+    if (useCartStore.persist.hasHydrated()) setCartReady(true);
+    return useCartStore.persist.onFinishHydration(() => setCartReady(true));
+  }, []);
+
+  useEffect(() => {
+    if (cartReady && lines.length === 0 && !placing) router.replace("/menu");
+  }, [cartReady, lines.length, placing, router]);
+
+  useEffect(() => {
+    if (!authUser) return;
+    setName((previous) => previous || authUser.name || "");
+    setPhone((previous) => previous || authUser.phone.slice(-10));
+  }, [authUser]);
+
+  useEffect(() => {
+    if (authStatus !== "authenticated") return;
+    fetch("/api/addresses")
+      .then((response) => response.json())
+      .then((data) => {
+        const list: SavedAddress[] = data.addresses ?? [];
+        setSaved(list);
+        const defaultAddress = list.find((item) => item.isDefault) ?? list[0];
+        if (!defaultAddress) return;
+        setAddress((previous) => previous || defaultAddress.address);
+        setLandmark((previous) => previous || defaultAddress.landmark || "");
+        setSaveAddress(false);
+        if (defaultAddress.lat !== null && defaultAddress.lng !== null) {
+          setDeliveryLocation({
+            lat: defaultAddress.lat,
+            lng: defaultAddress.lng,
+            accuracyM: defaultAddress.accuracyM,
+            capturedAt: defaultAddress.locationCapturedAt ?? new Date().toISOString(),
+          });
+        }
+      })
+      .catch(() => {});
+  }, [authStatus]);
 
   function applyPromo() {
     if (promoInput.trim().toUpperCase() === VALID_PROMO) {
@@ -47,6 +146,196 @@ export default function CartPage() {
     } else {
       setPromoError("Invalid promo code. Try BHOOK20");
       setPromoApplied(false);
+    }
+  }
+
+  function validateDelivery(currentLocation = deliveryLocation) {
+    const nextErrors: Record<string, string> = {};
+    if (!name.trim()) nextErrors.name = "Name is required";
+    if (!phone.trim()) nextErrors.phone = "Phone is required";
+    else if (!/^[6-9]\d{9}$/.test(phone.trim())) nextErrors.phone = "Enter a valid 10-digit number";
+    if (!address.trim()) nextErrors.address = "Delivery address is required";
+    if (!currentLocation) nextErrors.location = "Current location is required";
+    else if (currentLocation.accuracyM !== null && currentLocation.accuracyM > MAX_LOCATION_ACCURACY_M) {
+      nextErrors.location = "Location is not precise enough. Please retry near an open area.";
+    }
+    return nextErrors;
+  }
+
+  function validateContactStep() {
+    const nextErrors: Record<string, string> = {};
+    if (!name.trim()) nextErrors.name = "Name is required";
+    if (!phone.trim()) nextErrors.phone = "Phone is required";
+    else if (!/^[6-9]\d{9}$/.test(phone.trim())) nextErrors.phone = "Enter a valid 10-digit number";
+    return nextErrors;
+  }
+
+  function validateAddressStep(currentLocation = deliveryLocation) {
+    const nextErrors: Record<string, string> = {};
+    if (!address.trim()) nextErrors.address = "Delivery address is required";
+    if (!currentLocation) nextErrors.location = "Current location is required";
+    else if (currentLocation.accuracyM !== null && currentLocation.accuracyM > MAX_LOCATION_ACCURACY_M) {
+      nextErrors.location = "Location is not precise enough. Please retry near an open area.";
+    }
+    return nextErrors;
+  }
+
+  function stepForErrors(nextErrors: Record<string, string>): CheckoutStep {
+    if (nextErrors.name || nextErrors.phone) return "contact";
+    if (nextErrors.address || nextErrors.location) return "address";
+    return "review";
+  }
+
+  async function captureCurrentLocation() {
+    if (!("geolocation" in navigator)) {
+      setErrors((previous) => ({ ...previous, location: "Location is not supported on this device." }));
+      return null;
+    }
+
+    setLocating(true);
+    setErrors((previous) => ({ ...previous, location: "" }));
+
+    return new Promise<DeliveryLocation | null>((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const location: DeliveryLocation = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            accuracyM: position.coords.accuracy ?? null,
+            capturedAt: new Date(position.timestamp || Date.now()).toISOString(),
+          };
+          setLocating(false);
+
+          if (location.accuracyM !== null && location.accuracyM > MAX_LOCATION_ACCURACY_M) {
+            setDeliveryLocation(null);
+            setErrors((previous) => ({
+              ...previous,
+              location: "Location is not precise enough. Please retry near an open area.",
+            }));
+            resolve(null);
+            return;
+          }
+
+          setDeliveryLocation(location);
+          setErrors((previous) => ({ ...previous, location: "" }));
+          resolve(location);
+        },
+        (error) => {
+          const message =
+            error.code === error.PERMISSION_DENIED
+              ? "Please allow location permission to place the order."
+              : error.code === error.TIMEOUT
+                ? "Location request timed out. Please retry."
+                : "Could not fetch current location. Please retry.";
+          setLocating(false);
+          setDeliveryLocation(null);
+          setErrors((previous) => ({ ...previous, location: message }));
+          resolve(null);
+        },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
+      );
+    });
+  }
+
+  function openCheckout() {
+    if (authStatus !== "authenticated") {
+      openLoginModal();
+      return;
+    }
+    const contactErrors = validateContactStep();
+    if (Object.keys(contactErrors).length > 0) setCheckoutStep("contact");
+    else if (Object.keys(validateAddressStep()).length > 0) setCheckoutStep("address");
+    else setCheckoutStep("review");
+    setCheckoutOpen(true);
+  }
+
+  async function goToNextCheckoutStep() {
+    setErrors((previous) => ({ ...previous, submit: "" }));
+
+    if (checkoutStep === "contact") {
+      const nextErrors = validateContactStep();
+      if (Object.keys(nextErrors).length > 0) {
+        setErrors((previous) => ({ ...previous, ...nextErrors }));
+        return;
+      }
+      setErrors((previous) => ({ ...previous, name: "", phone: "" }));
+      setCheckoutStep("address");
+      return;
+    }
+
+    if (checkoutStep === "address") {
+      let currentLocation = deliveryLocation;
+      if (!currentLocation) currentLocation = await captureCurrentLocation();
+      const nextErrors = validateAddressStep(currentLocation);
+      if (Object.keys(nextErrors).length > 0) {
+        setErrors((previous) => ({ ...previous, ...nextErrors }));
+        return;
+      }
+      setErrors((previous) => ({ ...previous, address: "", location: "" }));
+      setCheckoutStep("review");
+      return;
+    }
+
+    await placeOrder();
+  }
+
+  function goToPreviousCheckoutStep() {
+    if (checkoutStep === "review") setCheckoutStep("address");
+    else if (checkoutStep === "address") setCheckoutStep("contact");
+  }
+
+  async function placeOrder() {
+    if (authStatus !== "authenticated") {
+      openLoginModal();
+      return;
+    }
+
+    let currentLocation = deliveryLocation;
+    if (!currentLocation) currentLocation = await captureCurrentLocation();
+
+    const nextErrors = validateDelivery(currentLocation);
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors);
+      setCheckoutStep(stepForErrors(nextErrors));
+      setCheckoutOpen(true);
+      return;
+    }
+
+    setPlacing(true);
+    try {
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lines,
+          delivery: {
+            name: name.trim(),
+            phone: phone.trim(),
+            address: address.trim(),
+            landmark: landmark.trim() || undefined,
+            location: currentLocation,
+          },
+          saveAddress,
+          paymentMode: paymentMode === "upi" ? "online" : "cod",
+          promoCode: promoApplied ? VALID_PROMO : undefined,
+        }),
+      });
+      const payload = await response.json();
+      if (response.status === 401) {
+        setPlacing(false);
+        openLoginModal();
+        return;
+      }
+      if (!response.ok) throw new Error(payload?.error || "Could not place order.");
+      clear();
+      router.push(`/orders/${payload.order.orderNumber}`);
+    } catch (error) {
+      setErrors((previous) => ({
+        ...previous,
+        submit: error instanceof Error ? error.message : "Could not place order.",
+      }));
+      setCheckoutOpen(true);
+      setPlacing(false);
     }
   }
 
@@ -71,12 +360,12 @@ export default function CartPage() {
         </div>
       </div>
 
-      <main className="min-h-screen bg-gray-100 pb-36 pt-[80px] md:pb-16">
+      <main className="min-h-screen bg-[#f7f2ee] pb-44 pt-[80px] md:pb-36">
         <div className="mx-auto max-w-3xl px-4">
 
           {/* ════════════════════ EMPTY STATE ════════════════════ */}
           <AnimatePresence>
-            {lines.length === 0 && (
+            {lines.length === 0 && cartReady && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -116,7 +405,7 @@ export default function CartPage() {
                     <div className="flex items-center gap-2">
                       <Bike className="h-4 w-4 text-amber-600" strokeWidth={2} />
                       <p className="text-[12px] font-bold text-amber-800">
-                        Add <span className="text-amber-600">{formatInr(freeDeliveryAt - subtotal)}</span> more for free delivery
+                        Add <span className="price-text text-amber-600">{formatInr(freeDeliveryAt - subtotal)}</span> more for free delivery
                       </p>
                     </div>
                     <span className="text-[10px] font-bold text-amber-500">
@@ -149,7 +438,9 @@ export default function CartPage() {
                 </div>
                 <div className="flex items-center gap-1 rounded-xl bg-green-50 px-2.5 py-1">
                   <Clock className="h-3 w-3 text-green-600" strokeWidth={2} />
-                  <span className="text-[11px] font-bold text-green-700">Live ETA at checkout</span>
+                  <span className="text-[11px] font-bold text-green-700">
+                    {deliveryLocation ? `${deliveryEta.min}-${deliveryEta.max} min` : "Live ETA"}
+                  </span>
                 </div>
               </div>
 
@@ -179,18 +470,22 @@ export default function CartPage() {
               </div>
 
               {/* ── Promo code ── */}
-              <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                <div className="mb-3 flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-orange/10">
-                    <Tag className="h-4 w-4 text-brand-orange" strokeWidth={2.5} />
-                  </div>
+              <div className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
+                <div className="mb-3 flex items-center justify-between gap-2">
                   <div>
-                    <p className="text-[13px] font-extrabold text-gray-950">Promo code</p>
-                    <p className="text-[10px] font-semibold text-gray-500">Try BHOOK20 for ₹80 off on orders above ₹299</p>
+                    <p className="text-[16px] font-extrabold text-gray-950">
+                      {promoApplied ? "You saved ₹80 with BHOOK20" : "Save more on this order"}
+                    </p>
+                    <p className="text-[12px] font-semibold text-blue-500">View all coupons</p>
                   </div>
+                  {promoApplied && (
+                    <button type="button" onClick={() => setPromoApplied(false)} className="text-[12px] font-extrabold text-red-500">
+                      Remove
+                    </button>
+                  )}
                 </div>
 
-                <div className="flex gap-2">
+                {!promoApplied && <div className="flex gap-2">
                   <input
                     type="text"
                     value={promoInput}
@@ -210,7 +505,7 @@ export default function CartPage() {
                   >
                     Apply
                   </button>
-                </div>
+                </div>}
 
                 <AnimatePresence>
                   {promoApplied && (
@@ -246,7 +541,11 @@ export default function CartPage() {
                 >
                   <div className="flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-brand-orange" strokeWidth={2} />
-                    <span className="text-[13px] font-extrabold text-gray-950">Bill details</span>
+                    <span className="text-[16px] font-extrabold text-gray-950">
+                      Total Bill <span className="price-text text-gray-400 line-through">{promoApplied ? formatInr(subtotal + deliveryFee + gst) : ""}</span>{" "}
+                      <span className="price-text">{formatInr(grand)}</span>
+                    </span>
+                    {promoApplied && <span className="rounded-md bg-blue-50 px-2 py-1 text-[11px] font-bold text-blue-600">You saved ₹80</span>}
                   </div>
                   {showBillDetails
                     ? <ChevronUp className="h-4 w-4 text-gray-400" strokeWidth={2.5} />
@@ -267,7 +566,7 @@ export default function CartPage() {
                         <BillRow label="Item total" value={formatInr(subtotal)} />
                         <BillRow
                           label="Delivery charge"
-                          value={deliveryFee === 0 ? "FREE 🎉" : formatInr(deliveryFee)}
+                          value={deliveryFee === 0 ? "FREE" : formatInr(deliveryFee)}
                           hint={deliveryFee > 0 ? "Free above ₹299" : undefined}
                           green={deliveryFee === 0}
                         />
@@ -278,7 +577,7 @@ export default function CartPage() {
                         <div className="my-1 h-px bg-gray-200" />
                         <div className="flex items-center justify-between pt-1">
                           <span className="text-[15px] font-extrabold text-gray-950">To pay</span>
-                          <span className="font-display text-[24px] leading-none tracking-wide text-brand-orange">  
+                          <span className="price-text text-[24px] font-black leading-none text-brand-orange">
                             {formatInr(grand)}
                           </span>
                         </div>
@@ -290,7 +589,7 @@ export default function CartPage() {
                 {!showBillDetails && (
                   <div className="flex items-center justify-between border-t border-gray-50 px-4 py-3">
                     <span className="text-[13px] font-bold text-gray-700">Total</span>
-                    <span className="font-display text-[20px] text-brand-orange">{formatInr(grand)}</span>
+                    <span className="price-text text-[20px] font-black text-brand-orange">{formatInr(grand)}</span>
                   </div>
                 )}
               </div>
@@ -317,39 +616,318 @@ export default function CartPage() {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
             transition={{ type: "spring", stiffness: 340, damping: 32 }}
-            className="fixed bottom-0 left-0 right-0 z-[800] border-t border-white/20 bg-white/95 px-4 py-3 backdrop-blur-md md:bottom-0"
+            className="fixed bottom-0 left-0 right-0 z-[800] border-t border-gray-800/10 bg-[#1f1f27]/95 px-4 py-3 text-white shadow-[0_-14px_44px_rgba(15,23,42,0.22)] backdrop-blur-md md:bottom-0"
             style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
           >
-            <div className="mx-auto max-w-3xl">
-              <button
-                type="button"
-                onClick={() => router.push("/checkout")}
-                className="group relative flex w-full items-center justify-between overflow-hidden rounded-2xl bg-gradient-to-r from-brand-orange to-brand-gold px-5 py-4 shadow-[0_8px_28px_rgba(232,93,4,0.4)] transition-all active:scale-[0.99]"
-              >
-                {/* Shimmer sweep */}
-                <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/15 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+            <div className="mx-auto max-w-3xl space-y-3">
+              <p className="text-[15px] font-bold text-white/95">Bhook Lagi Wallet Balance: ₹0 · Add money</p>
+              <div className="flex items-center gap-3">
+                <PaymentSelector paymentMode={paymentMode} onChange={setPaymentMode} />
 
-                <div className="relative flex items-center gap-3">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20 text-[14px] font-extrabold text-white">
-                    {qty}
-                  </span>
-                  <div className="text-left">
-                    <p className="text-[14px] font-extrabold text-white">Proceed to checkout</p>
-                    <p className="text-[11px] font-medium text-white/75">Razorpay · 100% secure</p>
+                <button
+                  type="button"
+                  onClick={openCheckout}
+                  disabled={placing}
+                  className="group relative flex flex-1 items-center justify-between overflow-hidden rounded-2xl bg-gradient-to-r from-brand-orange to-brand-gold px-4 py-3.5 shadow-[0_8px_28px_rgba(232,93,4,0.4)] transition-all active:scale-[0.99] disabled:opacity-70"
+                >
+                  <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/15 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+                  <div className="relative text-left">
+                    <p className="price-text text-[18px] font-black leading-none text-white">{formatInr(grand)}</p>
+                    <p className="mt-0.5 text-[10px] font-black uppercase tracking-widest text-white/75">Total</p>
+                  </div>
+                  <div className="relative flex items-center gap-1.5">
+                    <span className="text-[17px] font-extrabold text-white">{placing ? "Placing..." : "Place Order"}</span>
+                    <ChevronRight className="h-5 w-5 text-white/85" strokeWidth={3} />
+                  </div>
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {checkoutOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[900] flex items-end bg-black/45 px-3 pb-3 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 280, damping: 30 }}
+              className="mx-auto flex max-h-[90dvh] w-full max-w-3xl flex-col overflow-hidden rounded-t-[32px] bg-white shadow-2xl md:rounded-[32px]"
+            >
+              <div className="border-b border-gray-100 bg-white px-4 pb-4 pt-3">
+                <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-gray-200" />
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[18px] font-extrabold text-gray-950">Delivery details</p>
+                    <p className="text-[12px] font-semibold text-gray-500">
+                      One easy step at a time — no long form stress.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCheckoutOpen(false)}
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-600"
+                    aria-label="Close"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  {CHECKOUT_STEPS.map((step, index) => {
+                    const active = index === checkoutStepIndex;
+                    const complete = index < checkoutStepIndex;
+                    return (
+                      <button
+                        key={step.id}
+                        type="button"
+                        onClick={() => {
+                          if (index <= checkoutStepIndex) setCheckoutStep(step.id);
+                        }}
+                        className="relative rounded-2xl border border-gray-100 bg-gray-50 px-2.5 py-2 text-left disabled:cursor-default"
+                        disabled={index > checkoutStepIndex}
+                      >
+                        {index > 0 && (
+                          <span
+                            aria-hidden
+                            className={`absolute -left-2 top-5 h-0.5 w-4 ${index <= checkoutStepIndex ? "bg-brand-orange" : "bg-gray-200"}`}
+                          />
+                        )}
+                        <span className={`mb-1 flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-black ${complete ? "bg-green-500 text-white" : active ? "bg-brand-orange text-white" : "bg-white text-gray-400"}`}>
+                          {complete ? <CheckCircle2 className="h-3.5 w-3.5" strokeWidth={3} /> : index + 1}
+                        </span>
+                        <span className={`block text-[11px] font-extrabold ${active ? "text-gray-950" : "text-gray-500"}`}>
+                          {step.label}
+                        </span>
+                        <span className="hidden text-[9px] font-semibold text-gray-400 sm:block">{step.helper}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-4 py-4">
+                <AnimatePresence mode="wait" initial={false}>
+                  {checkoutStep === "contact" && (
+                    <motion.div
+                      key="contact-step"
+                      initial={{ opacity: 0, x: 18 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -18 }}
+                      transition={{ duration: 0.2 }}
+                      className="space-y-4"
+                    >
+                      <div className="rounded-3xl bg-gradient-to-br from-orange-50 to-amber-50 p-4">
+                        <p className="text-[17px] font-extrabold text-gray-950">Who should we call?</p>
+                        <p className="mt-1 text-[12px] font-semibold text-gray-500">
+                          We only need this to coordinate delivery smoothly.
+                        </p>
+                      </div>
+
+                <FieldCard label="Full name" icon={<User className="h-3.5 w-3.5" />} error={errors.name}>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(event) => { setName(event.target.value); setErrors((previous) => ({ ...previous, name: "" })); }}
+                    placeholder="Your name"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-[16px] focus:border-brand-orange focus:outline-none focus:ring-2 focus:ring-brand-orange/20"
+                  />
+                </FieldCard>
+
+                <FieldCard label="Mobile number" icon={<Phone className="h-3.5 w-3.5" />} error={errors.phone}>
+                  <div className="flex overflow-hidden rounded-xl border border-gray-200 focus-within:border-brand-orange focus-within:ring-2 focus-within:ring-brand-orange/20">
+                    <span className="flex items-center border-r border-gray-200 bg-gray-50 px-3 text-[14px] font-semibold text-gray-500">+91</span>
+                    <input
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength={10}
+                      value={phone}
+                      onChange={(event) => { setPhone(event.target.value.replace(/\D/g, "")); setErrors((previous) => ({ ...previous, phone: "" })); }}
+                      placeholder="10-digit number"
+                      className="flex-1 px-4 py-3 text-[16px] focus:outline-none"
+                    />
+                  </div>
+                </FieldCard>
+
+                    </motion.div>
+                  )}
+
+                  {checkoutStep === "address" && (
+                    <motion.div
+                      key="address-fields-step"
+                      initial={{ opacity: 0, x: 18 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -18 }}
+                      transition={{ duration: 0.2 }}
+                      className="space-y-4"
+                    >
+
+                {saved.length > 0 && (
+                  <div>
+                    <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-gray-500">Saved addresses</p>
+                    <div className="hide-scrollbar flex gap-2 overflow-x-auto pb-1">
+                      {saved.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            setAddress(item.address);
+                            setLandmark(item.landmark || "");
+                            setSaveAddress(false);
+                            setErrors((previous) => ({ ...previous, address: "", location: "" }));
+                            if (item.lat !== null && item.lng !== null) {
+                              setDeliveryLocation({
+                                lat: item.lat,
+                                lng: item.lng,
+                                accuracyM: item.accuracyM,
+                                capturedAt: item.locationCapturedAt ?? new Date().toISOString(),
+                              });
+                            } else {
+                              setDeliveryLocation(null);
+                            }
+                          }}
+                          className={`shrink-0 rounded-2xl border px-3 py-2 text-left text-[12px] ${address === item.address ? "border-brand-orange bg-orange-50" : "border-gray-200 bg-white"}`}
+                        >
+                          {item.label && <span className="block font-bold text-gray-900">{item.label}</span>}
+                          <span className="block max-w-[180px] truncate text-gray-500">{item.address}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <FieldCard label="Delivery address" icon={<MapPin className="h-3.5 w-3.5" />} error={errors.address}>
+                  <textarea
+                    rows={3}
+                    value={address}
+                    onChange={(event) => { setAddress(event.target.value); setErrors((previous) => ({ ...previous, address: "" })); }}
+                    placeholder="House no., street, area, Deoghar"
+                    className="w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-[16px] focus:border-brand-orange focus:outline-none focus:ring-2 focus:ring-brand-orange/20"
+                  />
+                </FieldCard>
+
+                <div className={`rounded-2xl border px-4 py-3 ${errors.location ? "border-red-200 bg-red-50" : deliveryLocation ? "border-green-200 bg-green-50" : "border-orange-100 bg-orange-50"}`}>
+                  <div className="flex items-start gap-3">
+                    <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${errors.location ? "bg-red-100 text-red-600" : deliveryLocation ? "bg-green-100 text-green-700" : "bg-white text-brand-orange"}`}>
+                      {errors.location ? <AlertCircle className="h-4 w-4" /> : <LocateFixed className="h-4 w-4" />}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-[13px] font-extrabold ${errors.location ? "text-red-700" : deliveryLocation ? "text-green-800" : "text-orange-800"}`}>
+                        {deliveryLocation ? "Current location captured" : "Get current location"}
+                      </p>
+                      <p className={`mt-0.5 text-[12px] ${errors.location ? "text-red-600" : deliveryLocation ? "text-green-700" : "text-orange-700"}`}>
+                        {errors.location || (deliveryLocation ? `Delivery in ${deliveryEta.min}-${deliveryEta.max} minutes` : "Required for live ETA and rider directions")}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={captureCurrentLocation}
+                      disabled={locating}
+                      className="shrink-0 rounded-full bg-white px-3 py-1.5 text-[11px] font-bold text-brand-orange shadow-sm ring-1 ring-orange-100 disabled:opacity-60"
+                    >
+                      {locating ? "Fetching..." : deliveryLocation ? "Refresh" : "Get current location"}
+                    </button>
                   </div>
                 </div>
 
-                <div className="relative flex items-center gap-1">
-                  <span className="text-[15px] font-extrabold text-white">{formatInr(grand)}</span>
-                  <motion.span
-                    animate={{ x: [0, 3, 0] }}
-                    transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+                <FieldCard label="Landmark" icon={<Landmark className="h-3.5 w-3.5" />}>
+                  <input
+                    type="text"
+                    value={landmark}
+                    onChange={(event) => setLandmark(event.target.value)}
+                    placeholder="Near temple, school, etc."
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-[16px] focus:border-brand-orange focus:outline-none focus:ring-2 focus:ring-brand-orange/20"
+                  />
+                </FieldCard>
+
+                <label className="flex cursor-pointer items-center gap-2.5">
+                  <input type="checkbox" checked={saveAddress} onChange={(event) => setSaveAddress(event.target.checked)} className="h-4 w-4 accent-brand-orange" />
+                  <span className="text-[13px] font-medium text-gray-600">Save this address for next time</span>
+                </label>
+
+                    </motion.div>
+                  )}
+
+                  {checkoutStep === "review" && (
+                    <motion.div
+                      key="review-step"
+                      initial={{ opacity: 0, x: 18 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -18 }}
+                      transition={{ duration: 0.2 }}
+                      className="space-y-3"
+                    >
+                      <div className="rounded-3xl border border-green-100 bg-green-50 p-4">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="h-5 w-5 text-green-600" strokeWidth={2.5} />
+                          <p className="text-[16px] font-extrabold text-green-900">Ready to place</p>
+                        </div>
+                        <p className="mt-1 text-[12px] font-semibold text-green-700">
+                          Delivery in {deliveryEta.min}-{deliveryEta.max} minutes · {paymentMode === "cod" ? "Cash on delivery" : "UPI selected"}
+                        </p>
+                      </div>
+
+                      <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                        <p className="text-[11px] font-black uppercase tracking-widest text-gray-400">Contact</p>
+                        <p className="mt-1 text-[14px] font-extrabold text-gray-950">{name}</p>
+                        <p className="text-[12px] font-semibold text-gray-500">+91 {phone}</p>
+                      </div>
+
+                      <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                        <p className="text-[11px] font-black uppercase tracking-widest text-gray-400">Deliver to</p>
+                        <p className="mt-1 text-[14px] font-extrabold leading-snug text-gray-950">{address}</p>
+                        {landmark && <p className="mt-1 text-[12px] font-semibold text-gray-500">Landmark: {landmark}</p>}
+                      </div>
+
+                      <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[13px] font-bold text-gray-600">{qty} item{qty > 1 ? "s" : ""} total</span>
+                          <span className="price-text text-[20px] font-black text-brand-orange">{formatInr(grand)}</span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {errors.submit && (
+                  <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-center text-[13px] font-semibold text-red-500">{errors.submit}</p>
+                )}
+              </div>
+
+              <div
+                className="border-t border-gray-100 bg-white px-4 py-3"
+                style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
+              >
+                <div className="flex items-center gap-3">
+                  {checkoutStep !== "contact" && (
+                    <button
+                      type="button"
+                      onClick={goToPreviousCheckoutStep}
+                      disabled={placing || locating}
+                      className="rounded-2xl border border-gray-200 px-4 py-3 text-[13px] font-extrabold text-gray-700 disabled:opacity-50"
+                    >
+                      Back
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={goToNextCheckoutStep}
+                    disabled={placing || locating}
+                    className="flex flex-1 items-center justify-between rounded-2xl bg-gradient-to-r from-brand-orange to-brand-gold px-5 py-4 text-white shadow-[0_8px_28px_rgba(232,93,4,0.35)] disabled:opacity-70"
                   >
-                    <ChevronRight className="h-5 w-5 text-white/80" strokeWidth={3} />
-                  </motion.span>
+                    <span className="text-[14px] font-extrabold">{checkoutPrimaryLabel}</span>
+                    <span className="price-text text-[16px] font-black">{formatInr(grand)}</span>
+                  </button>
                 </div>
-              </button>
-            </div>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -396,7 +974,7 @@ function CartRow({
       {/* Info */}
       <div className="min-w-0 flex-1">
         <p className="truncate text-[13px] font-bold text-gray-900">{line.name}</p>
-        <p className="text-[11px] text-gray-400">{formatInr(line.unitPrice)} each</p>
+        <p className="price-text text-[11px] text-gray-400">{formatInr(line.unitPrice)} each</p>
       </div>
 
       {/* Stepper */}
@@ -422,7 +1000,7 @@ function CartRow({
 
       {/* Line total + delete */}
       <div className="w-[52px] text-right">
-        <p className="text-[13px] font-extrabold text-gray-900">{formatInr(line.unitPrice * line.qty)}</p>
+        <p className="price-text text-[13px] font-black text-gray-900">{formatInr(line.unitPrice * line.qty)}</p>
         <button
           type="button"
           onClick={onRemove}
@@ -448,3 +1026,58 @@ function BillRow({ label, value, hint, green }: { label: string; value: string; 
     </div>
   );
 }
+
+function PaymentSelector({
+  paymentMode,
+  onChange,
+}: {
+  paymentMode: PaymentMode;
+  onChange: (mode: PaymentMode) => void;
+}) {
+  return (
+    <div className="min-w-[135px] rounded-2xl bg-white/5 px-1 py-1 ring-1 ring-white/10">
+      <p className="px-2 pt-1 text-[9px] font-black uppercase tracking-widest text-white/45">Pay using</p>
+      <div className="mt-1 grid grid-cols-2 gap-1">
+        <button
+          type="button"
+          onClick={() => onChange("cod")}
+          className={`flex items-center justify-center gap-1 rounded-xl px-2 py-2 text-[11px] font-extrabold transition-colors ${paymentMode === "cod" ? "bg-white text-gray-950" : "text-white/65"}`}
+        >
+          <Banknote className="h-3.5 w-3.5" />
+          COD
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange("upi")}
+          className={`flex items-center justify-center gap-1 rounded-xl px-2 py-2 text-[11px] font-extrabold transition-colors ${paymentMode === "upi" ? "bg-white text-gray-950" : "text-white/65"}`}
+        >
+          <CreditCard className="h-3.5 w-3.5" />
+          UPI
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function FieldCard({
+  children,
+  error,
+  icon,
+  label,
+}: {
+  children: React.ReactNode;
+  error?: string;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+      <label className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-500">
+        {icon} {label}
+      </label>
+      {children}
+      {error && <p className="mt-1 text-[12px] font-semibold text-red-500">{error}</p>}
+    </div>
+  );
+}
+// comment to force new compression stream
