@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   LogOut, RefreshCw, Users, ShoppingBag, MapPinned, Navigation,
   Bell, BellOff, Clock, Phone, ChevronRight, CheckCircle2, XCircle,
-  Bike, UtensilsCrossed, PackageCheck, AlertCircle, Star, Tag,
+  Bike, UtensilsCrossed, PackageCheck, AlertCircle, Star, Tag, LayoutGrid,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { formatInr } from "@/data/menu";
@@ -35,6 +35,7 @@ type AdminOrder = {
   deliveryRating: number | null;
   ratingComment: string | null;
   ratedAt: string | null;
+  specialInstructions: string | null;
 };
 
 const FILTERS: { label: string; value: OrderStatus | "all"; icon: React.ReactNode }[] = [
@@ -303,6 +304,11 @@ export default function AdminOrdersPage() {
     await updateStatus(order.id, "preparing");
   }
 
+  /* ── Reset known IDs on filter change so first poll is always silent ── */
+  useEffect(() => {
+    prevOrderIds.current = new Set();
+  }, [filter]);
+
   /* ── Load / poll orders ── */
   const load = useCallback(async () => {
     try {
@@ -323,7 +329,7 @@ export default function AdminOrdersPage() {
         }
       }
       prevOrderIds.current = new Set(incoming.map((o) => o.id));
-      setOrders(incoming);
+      setOrders(incoming.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load orders.");
     }
@@ -434,6 +440,13 @@ export default function AdminOrdersPage() {
               <RefreshCw className="h-4 w-4" strokeWidth={2.5} />
             </button>
 
+            <Link
+              href="/admin/menu"
+              className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[12px] font-semibold text-gray-400 hover:text-white transition-colors"
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Menu</span>
+            </Link>
             <Link
               href="/admin/coupons"
               className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[12px] font-semibold text-gray-400 hover:text-white transition-colors"
@@ -591,6 +604,14 @@ export default function AdminOrdersPage() {
                         </span>
                       ))}
                     </div>
+
+                    {/* Special instructions */}
+                    {o.specialInstructions && (
+                      <div className="mt-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[12px]">
+                        <p className="text-[10px] font-extrabold uppercase tracking-widest text-amber-400 mb-0.5">📝 Instructions</p>
+                        <p className="text-amber-200">{o.specialInstructions}</p>
+                      </div>
+                    )}
 
                     {/* Delivery */}
                     <div className="mt-3 rounded-xl bg-black/20 px-3 py-2.5 text-[12px]">

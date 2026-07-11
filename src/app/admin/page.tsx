@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { LogOut, Users, ShoppingBag, Phone, Wallet, TrendingUp, Calendar, Tag } from "lucide-react";
+import { LogOut, Users, ShoppingBag, Phone, Wallet, TrendingUp, Calendar, Tag, LayoutGrid } from "lucide-react";
 import { motion } from "framer-motion";
 import { formatInr } from "@/data/menu";
 
@@ -82,6 +82,13 @@ export default function AdminUsersPage() {
             >
               <ShoppingBag className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Orders</span>
+            </Link>
+            <Link
+              href="/admin/menu"
+              className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[12px] font-semibold text-gray-400 transition-colors hover:text-white"
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Menu</span>
             </Link>
             <Link
               href="/admin/coupons"

@@ -73,6 +73,8 @@ export async function POST(req: NextRequest) {
     ? requestedPaymentMode
     : "cod";
   const saveAddress = body?.saveAddress === true;
+  const specialInstructions =
+    typeof body?.notes === "string" ? body.notes.trim().slice(0, 500) : null;
   const rawCouponCode =
     typeof body?.couponCode === "string" ? body.couponCode.trim().toUpperCase() : "";
 
@@ -161,6 +163,7 @@ export async function POST(req: NextRequest) {
       coupon_code: couponCode,
       coupon_discount: couponDiscount,
       grand_total: finalGrandTotal,
+      special_instructions: specialInstructions || null,
     })
     .select("id, order_number, created_at")
     .single();

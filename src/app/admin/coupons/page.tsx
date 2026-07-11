@@ -6,7 +6,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LogOut, ShoppingBag, Users, Tag, Plus, ToggleLeft, ToggleRight, Trash2,
-  Percent, Banknote, AlertCircle,
+  Percent, Banknote, AlertCircle, LayoutGrid,
 } from "lucide-react";
 
 type Coupon = {
@@ -121,6 +121,9 @@ export default function AdminCouponsPage() {
           <div className="flex items-center gap-2">
             <Link href="/admin/orders" className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[12px] font-semibold text-gray-400 hover:text-white transition-colors">
               <ShoppingBag className="h-3.5 w-3.5" /><span className="hidden sm:inline">Orders</span>
+            </Link>
+            <Link href="/admin/menu" className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[12px] font-semibold text-gray-400 hover:text-white transition-colors">
+              <LayoutGrid className="h-3.5 w-3.5" /><span className="hidden sm:inline">Menu</span>
             </Link>
             <Link href="/admin" className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[12px] font-semibold text-gray-400 hover:text-white transition-colors">
               <Users className="h-3.5 w-3.5" /><span className="hidden sm:inline">Users</span>

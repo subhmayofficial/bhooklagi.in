@@ -35,6 +35,8 @@ const DIET_OPTIONS: { value: DietFilter; label: string; color: string }[] = [
   { value: "non-veg", label: "🔴 Non-Veg", color: "bg-red-50 text-red-700 border border-red-200" },
 ];
 
+type MenuOverride = { price?: number; imageUrl?: string; isAvailable: boolean };
+
 export function MenuExplorer() {
   const router       = useRouter();
   const params       = useSearchParams();
@@ -50,6 +52,7 @@ export function MenuExplorer() {
   const [showFilter, setShowFilter] = useState(false);
   const [mounted, setMounted]     = useState(false);
   const [openItemId, setOpenItemId] = useState<string | null>(null);
+  const [overrides, setOverrides] = useState<Record<string, MenuOverride>>({});
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const pillsRef    = useRef<HTMLDivElement>(null);
 
@@ -58,6 +61,12 @@ export function MenuExplorer() {
     if (catParam && categories.some((c) => c.id === catParam)) setActive(catParam);
   }, [catParam]);
   useEffect(() => setQuery(qParam), [qParam]);
+  useEffect(() => {
+    fetch("/api/menu-overrides")
+      .then((r) => r.json())
+      .then((d) => setOverrides(d.overrides ?? {}))
+      .catch(() => {});
+  }, []);
 
   /* ── Filtered items ── */
   const filtered = useMemo(() => {
@@ -254,38 +263,48 @@ export function MenuExplorer() {
         {/* ── Mobile horizontal category pills ── */}
         <div
           ref={pillsRef}
-          className="hide-scrollbar sticky top-[56px] z-40 -mx-4 mb-4 flex gap-2 overflow-x-auto border-b border-gray-100 bg-white/95 px-4 py-2.5 backdrop-blur-md md:hidden"
+          className="hide-scrollbar sticky top-[56px] z-40 -mx-4 mb-4 flex gap-1.5 overflow-x-auto border-b border-gray-100 bg-white/95 px-4 py-2 backdrop-blur-md md:hidden"
         >
-          {/* All pill */}
+          {/* All card */}
           <button
             data-cat="all"
             type="button"
             onClick={() => selectCategory("all")}
             className={cn(
-              "flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-bold transition-all",
-              active === "all"
-                ? "bg-brand-orange text-white shadow-sm shadow-brand-orange/30"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              "flex shrink-0 flex-col items-center gap-1 rounded-2xl p-2 min-w-[58px] transition-all",
+              active === "all" ? "bg-brand-orange/10" : "hover:bg-gray-50"
             )}
           >
-            🍽️ All
+            <span className={cn("flex h-10 w-10 items-center justify-center rounded-xl text-[22px]", active === "all" ? "bg-brand-orange/20" : "bg-gray-100")}>🍽️</span>
+            <span className={cn("text-[10px] font-bold leading-tight", active === "all" ? "text-brand-orange" : "text-gray-600")}>All</span>
+            {active === "all" && <span className="h-1 w-4 rounded-full bg-brand-orange" />}
           </button>
-          {categories.map((c) => (
-            <button
-              key={c.id}
-              data-cat={c.id}
-              type="button"
-              onClick={() => selectCategory(c.id)}
-              className={cn(
-                "flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-bold transition-all",
-                active === c.id
-                  ? "bg-brand-orange text-white shadow-sm shadow-brand-orange/30"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              )}
-            >
-              {c.emoji} {c.label}
-            </button>
-          ))}
+          {categories.map((c) => {
+            const img = CAT_IMAGES[c.id];
+            return (
+              <button
+                key={c.id}
+                data-cat={c.id}
+                type="button"
+                onClick={() => selectCategory(c.id)}
+                className={cn(
+                  "flex shrink-0 flex-col items-center gap-1 rounded-2xl p-2 min-w-[58px] transition-all",
+                  active === c.id ? "bg-brand-orange/10" : "hover:bg-gray-50"
+                )}
+              >
+                <div className={cn("relative h-10 w-10 overflow-hidden rounded-xl", active === c.id ? "ring-2 ring-brand-orange" : "")}>
+                  {img
+                    ? <Image src={img} alt={c.label} fill sizes="40px" className="object-cover" />
+                    : <span className="flex h-full w-full items-center justify-center bg-gray-100 text-[22px]">{c.emoji}</span>
+                  }
+                </div>
+                <span className={cn("text-[10px] font-bold leading-tight text-center", active === c.id ? "text-brand-orange" : "text-gray-600")}>
+                  {c.label}
+                </span>
+                {active === c.id && <span className="h-1 w-4 rounded-full bg-brand-orange" />}
+              </button>
+            );
+          })}
         </div>
 
         {/* ── Bestsellers quick-scroll strip (only on "All" with no search) ── */}
@@ -326,7 +345,7 @@ export function MenuExplorer() {
                   >
                     <CategorySectionHeader cat={cat} count={items.length} />
                     <div className="rounded-2xl border border-gray-100 bg-white px-4 shadow-sm">
-                      {items.map((item, i) => <DishCard key={item.id} item={item} index={i} onOpen={() => setOpenItemId(item.id)} />)}
+                      {items.map((item, i) => <DishCardWithOverride key={item.id} item={item} index={i} override={overrides[item.id]} onOpen={() => setOpenItemId(item.id)} />)}
                     </div>
                   </div>
                 );
@@ -334,7 +353,7 @@ export function MenuExplorer() {
             ) : (
               /* Single category view */
               <div className="rounded-2xl border border-gray-100 bg-white px-4 shadow-sm">
-                {filtered.map((item, i) => <DishCard key={item.id} item={item} index={i} onOpen={() => setOpenItemId(item.id)} />)}
+                {filtered.map((item, i) => <DishCardWithOverride key={item.id} item={item} index={i} override={overrides[item.id]} onOpen={() => setOpenItemId(item.id)} />)}
               </div>
             )}
           </motion.div>
@@ -393,6 +412,36 @@ export function MenuExplorer() {
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+/* ── Dish card wrapper with override support ──────────────────────── */
+function DishCardWithOverride({
+  item, index, override, onOpen,
+}: {
+  item: typeof menuItems[number];
+  index: number;
+  override?: MenuOverride;
+  onOpen: () => void;
+}) {
+  const isAvailable = override?.isAvailable !== false;
+  const resolvedItem = override
+    ? { ...item, price: override.price ?? item.price, image: override.imageUrl ?? item.image }
+    : item;
+  return (
+    <div className="relative">
+      <DishCard item={resolvedItem} index={index} onOpen={isAvailable ? onOpen : undefined} />
+      {!isAvailable && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-end pr-4">
+          <span className="rounded-full bg-gray-800/90 px-3 py-1 text-[11px] font-extrabold text-white shadow">
+            Sold out
+          </span>
+        </div>
+      )}
+      {!isAvailable && (
+        <div className="pointer-events-none absolute inset-0 rounded-2xl bg-white/60" />
+      )}
     </div>
   );
 }

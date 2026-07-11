@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { MenuExplorer } from "@/components/menu/MenuExplorer";
-import { Clock, Bike, ShieldCheck } from "lucide-react";
+import { Clock, Bike, ShieldCheck, Phone, MessageCircle } from "lucide-react";
+import { WHATSAPP_NUMBER } from "@/lib/whatsapp";
 
 /* ── Skeleton ───────────────────────────────────────────────── */
 function MenuFallback() {
@@ -75,7 +76,7 @@ export default function MenuPage() {
           </div>
 
           {/* Info pills */}
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             {[
               { Icon: Clock,       text: "Live ETA" },
               { Icon: Bike,        text: "Free delivery" },
@@ -89,6 +90,23 @@ export default function MenuPage() {
                 {text}
               </span>
             ))}
+            {/* Contact buttons */}
+            <a
+              href="tel:+919296834048"
+              className="flex items-center gap-1.5 rounded-full bg-white/25 px-3 py-1.5 text-[11px] font-bold text-white backdrop-blur-sm hover:bg-white/35 transition-colors"
+            >
+              <Phone className="h-3.5 w-3.5" strokeWidth={2.5} />
+              Call us
+            </a>
+            <a
+              href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hi Bhook Lagi! I have a question 🙏")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 rounded-full bg-[#25D366]/80 px-3 py-1.5 text-[11px] font-bold text-white backdrop-blur-sm hover:bg-[#25D366] transition-colors"
+            >
+              <MessageCircle className="h-3.5 w-3.5" strokeWidth={2.5} />
+              WhatsApp
+            </a>
           </div>
         </div>
 

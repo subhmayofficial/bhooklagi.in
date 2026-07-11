@@ -8,7 +8,7 @@ import {
   Minus, Plus, Trash2, ChevronRight, ShoppingBag,
   ArrowLeft, Clock, Shield, Bike, Sparkles, CheckCircle2,
   ChevronDown, ChevronUp, MapPin, Phone, User, Landmark,
-  LocateFixed, AlertCircle, CreditCard, Banknote, X,
+  LocateFixed, AlertCircle, CreditCard, Banknote, X, Pencil, Tag,
 } from "lucide-react";
 
 import { useCartStore, cartTotals, type CartLine } from "@/stores/cart-store";
@@ -58,7 +58,7 @@ export default function CartPage() {
   const { subtotal, qty } = cartTotals(lines);
 
   const deliveryFee    = subtotal >= 299 || subtotal === 0 ? 0 : 49;
-  const gst            = Math.round(subtotal * 0.05);
+  const gst            = 0;
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<{
     code: string;
@@ -82,6 +82,8 @@ export default function CartPage() {
   const [locating, setLocating] = useState(false);
   const [placing, setPlacing] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [orderNotes, setOrderNotes] = useState("");
+  const [notesOpen, setNotesOpen] = useState(false);
   const [cartReady, setCartReady] = useState(false);
   const couponDiscount = appliedCoupon
     ? appliedCoupon.discountType === "percent"
@@ -348,6 +350,7 @@ export default function CartPage() {
           saveAddress,
           paymentMode,
           couponCode: appliedCoupon?.code,
+          notes: orderNotes.trim() || undefined,
         }),
       });
       const payload = await response.json();
@@ -500,74 +503,142 @@ export default function CartPage() {
               </div>
 
               {/* ── Coupon code ── */}
-              <div className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
-                <div className="mb-3 flex items-center justify-between gap-2">
-                  <div>
-                    <p className="text-[16px] font-extrabold text-gray-950">
-                      {appliedCoupon ? `${appliedCoupon.code} applied 🎉` : "Have a coupon?"}
-                    </p>
-                    <p className="text-[11px] font-semibold text-blue-500">
-                      {paymentMode === "upi" ? "💡 Use UPI5 for 5% off on UPI payment" : "Try BHOOK20 for ₹80 off on orders ₹299+"}
-                    </p>
+              <div className="relative overflow-hidden rounded-2xl border-2 border-dashed border-orange-200 bg-white shadow-sm">
+                {/* Ticket notches */}
+                <div className="pointer-events-none absolute -left-3 top-1/2 h-6 w-6 -translate-y-1/2 rounded-full bg-[#f7f2ee]" />
+                <div className="pointer-events-none absolute -right-3 top-1/2 h-6 w-6 -translate-y-1/2 rounded-full bg-[#f7f2ee]" />
+                <div className="p-4">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-orange/10">
+                        <Tag className="h-4 w-4 text-brand-orange" strokeWidth={2} />
+                      </span>
+                      <div>
+                        <p className="text-[14px] font-extrabold text-gray-950">
+                          {appliedCoupon ? "Coupon applied 🎉" : "Apply coupon"}
+                        </p>
+                        <p className="text-[11px] font-semibold text-orange-500">
+                          {paymentMode === "upi" ? "💡 UPI5 — 5% off on UPI" : "💡 BHOOK20 — ₹80 off on ₹299+"}
+                        </p>
+                      </div>
+                    </div>
+                    {appliedCoupon && (
+                      <button
+                        type="button"
+                        onClick={() => { setAppliedCoupon(null); setCouponInput(""); setCouponError(""); }}
+                        className="rounded-lg border border-red-200 bg-red-50 px-3 py-1 text-[11px] font-extrabold text-red-500 hover:bg-red-100 transition-colors"
+                      >
+                        Remove
+                      </button>
+                    )}
                   </div>
-                  {appliedCoupon && (
-                    <button
-                      type="button"
-                      onClick={() => { setAppliedCoupon(null); setCouponInput(""); setCouponError(""); }}
-                      className="text-[12px] font-extrabold text-red-500"
-                    >
-                      Remove
-                    </button>
-                  )}
+
+                  <AnimatePresence mode="wait">
+                    {appliedCoupon ? (
+                      <motion.div
+                        key="applied"
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -6 }}
+                        className="flex items-center gap-2 rounded-xl bg-green-50 px-3 py-2.5"
+                      >
+                        <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-green-600" strokeWidth={2.5} />
+                        <div>
+                          <p className="text-[13px] font-extrabold text-green-800">{appliedCoupon.code}</p>
+                          <p className="text-[11px] font-semibold text-green-600">
+                            {appliedCoupon.discountType === "percent"
+                              ? `${appliedCoupon.discountValue}% off — ${formatInr(couponDiscount)} saved!`
+                              : `${formatInr(appliedCoupon.discountValue)} off!`}
+                          </p>
+                        </div>
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="input"
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -6 }}
+                        className="flex gap-2"
+                      >
+                        <input
+                          type="text"
+                          value={couponInput}
+                          onChange={(e) => { setCouponInput(e.target.value.toUpperCase()); setCouponError(""); }}
+                          onKeyDown={(e) => { if (e.key === "Enter") applyCoupon(); }}
+                          placeholder="Enter coupon code"
+                          className="flex-1 rounded-xl border-2 border-gray-200 bg-gray-50 px-3 py-2.5 text-[13px] font-bold text-gray-900 uppercase tracking-wider placeholder:text-gray-400 placeholder:normal-case placeholder:tracking-normal focus:border-brand-orange focus:outline-none focus:ring-2 focus:ring-brand-orange/20 transition-all"
+                        />
+                        <button
+                          type="button"
+                          onClick={applyCoupon}
+                          disabled={!couponInput || couponLoading}
+                          className="rounded-xl bg-brand-orange px-5 py-2.5 text-[13px] font-extrabold text-white disabled:opacity-40 hover:bg-brand-orange-dark active:scale-95 transition-all"
+                        >
+                          {couponLoading ? "…" : "Apply"}
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <AnimatePresence>
+                    {couponError && (
+                      <motion.p
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="mt-2 text-[12px] font-semibold text-red-500"
+                      >
+                        ⚠ {couponError}
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
                 </div>
+              </div>
 
-                {!appliedCoupon && (
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={couponInput}
-                      onChange={(e) => { setCouponInput(e.target.value.toUpperCase()); setCouponError(""); }}
-                      onKeyDown={(e) => { if (e.key === "Enter") applyCoupon(); }}
-                      placeholder="Enter promo code"
-                      className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-[13px] font-medium text-gray-900 placeholder:text-gray-400 focus:border-brand-orange focus:outline-none focus:ring-2 focus:ring-brand-orange/20"
-                    />
-                    <button
-                      type="button"
-                      onClick={applyCoupon}
-                      disabled={!couponInput || couponLoading}
-                      className="rounded-xl bg-brand-orange px-5 py-2.5 text-[13px] font-extrabold text-white disabled:opacity-40 hover:bg-brand-orange-dark transition-colors"
-                    >
-                      {couponLoading ? "…" : "Apply"}
-                    </button>
+              {/* ── Order instructions ── */}
+              <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setNotesOpen((v) => !v)}
+                  className="flex w-full items-center justify-between px-4 py-3.5"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Pencil className="h-4 w-4 text-gray-500" strokeWidth={2} />
+                    <span className="text-[14px] font-bold text-gray-800">
+                      {orderNotes ? "Instructions added" : "Add cooking instructions"}
+                    </span>
+                    {orderNotes && (
+                      <span className="rounded-full bg-brand-orange/10 px-2 py-0.5 text-[10px] font-bold text-brand-orange">
+                        Added
+                      </span>
+                    )}
                   </div>
-                )}
-
-                <AnimatePresence>
-                  {appliedCoupon && (
+                  {notesOpen
+                    ? <ChevronUp className="h-4 w-4 text-gray-400" strokeWidth={2.5} />
+                    : <ChevronDown className="h-4 w-4 text-gray-400" strokeWidth={2.5} />
+                  }
+                </button>
+                <AnimatePresence initial={false}>
+                  {notesOpen && (
                     <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="mt-2 flex items-center gap-1.5"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
                     >
-                      <CheckCircle2 className="h-3.5 w-3.5 text-green-600" strokeWidth={2.5} />
-                      <p className="text-[12px] font-semibold text-green-600">
-                        {appliedCoupon.code} applied —{" "}
-                        {appliedCoupon.discountType === "percent"
-                          ? `${appliedCoupon.discountValue}% off (${formatInr(couponDiscount)} saved)`
-                          : `${formatInr(appliedCoupon.discountValue)} off`}!
-                      </p>
+                      <div className="border-t border-gray-100 px-4 pb-4 pt-3">
+                        <textarea
+                          rows={3}
+                          value={orderNotes}
+                          onChange={(e) => setOrderNotes(e.target.value)}
+                          placeholder="E.g. Less spicy, no onion, extra sauce…"
+                          maxLength={500}
+                          className="w-full resize-none rounded-xl border border-gray-200 px-3 py-2.5 text-[13px] text-gray-800 placeholder:text-gray-400 focus:border-brand-orange focus:outline-none focus:ring-2 focus:ring-brand-orange/20 transition-all"
+                        />
+                        <p className="mt-1 text-right text-[10px] text-gray-400">{orderNotes.length}/500</p>
+                      </div>
                     </motion.div>
-                  )}
-                  {couponError && (
-                    <motion.p
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="mt-2 text-[12px] font-semibold text-red-500"
-                    >
-                      {couponError}
-                    </motion.p>
                   )}
                 </AnimatePresence>
               </div>
@@ -610,7 +681,6 @@ export default function CartPage() {
                           hint={deliveryFee > 0 ? "Free above ₹299" : undefined}
                           green={deliveryFee === 0}
                         />
-                        <BillRow label="GST & charges" value={formatInr(gst)} hint="5% on food items" />
                         {appliedCoupon && (
                           <BillRow label={`Coupon (${appliedCoupon.code})`} value={`-${formatInr(couponDiscount)}`} green />
                         )}
