@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -15,11 +15,14 @@ import {
   X,
   Clock,
   Loader2,
+  TrendingUp,
+  Plus,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useCartStore } from "@/stores/cart-store";
 import { menuItems, formatInr } from "@/data/menu";
 import { estimateDeliveryMinutes, type Coords } from "@/lib/location";
+import { NotificationCenter } from "@/components/home/NotificationCenter";
 
 type LastOrder = {
   orderNumber: string;
@@ -40,7 +43,8 @@ const QUICK_CATS = [
   { label: "Beverages",  emoji: "🧃", q: "beverages" },
 ];
 
-// Decorative background accents — purely visual, don't affect layout flow.
+const TRENDING_SEARCHES = ["cheese maggi", "chicken burger", "egg roll", "peri peri fries", "cold coffee"];
+
 const FLOATERS: { emoji: string; className: string; delay: number; duration: number }[] = [
   { emoji: "🍔", className: "left-[6%] top-[14%] text-2xl", delay: 0,   duration: 3.4 },
   { emoji: "🍟", className: "right-[10%] top-[10%] text-xl", delay: 0.4, duration: 3.0 },
@@ -54,6 +58,12 @@ function greeting(): string {
   if (hour < 17) return "Good afternoon";
   return "Good evening";
 }
+
+const DIET_DOT: Record<string, string> = {
+  veg:     "bg-green-500",
+  "non-veg": "bg-red-500",
+  egg:     "bg-amber-500",
+};
 
 export function AppHomeHero() {
   const router = useRouter();
@@ -74,6 +84,12 @@ export function AppHomeHero() {
   const [locating, setLocating] = useState(false);
   const [locationErrorMsg, setLocationErrorMsg] = useState<string | null>(null);
 
+  // Search dropdown
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [isListening, setIsListening] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     setMounted(true);
     const cached = localStorage.getItem("bl_location_label");
@@ -85,7 +101,35 @@ export function AppHomeHero() {
         if (Number.isFinite(parsed.lat) && Number.isFinite(parsed.lng)) setCustomerCoords(parsed);
       } catch {}
     }
+    try {
+      const storedSearches = JSON.parse(localStorage.getItem("bl_recent_searches") ?? "[]");
+      setRecentSearches(Array.isArray(storedSearches) ? storedSearches.slice(0, 5) : []);
+    } catch {}
   }, []);
+
+  // Close search dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (!searchContainerRef.current?.contains(e.target as Node)) {
+        setSearchFocused(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  // Live search results from menu
+  const searchResults = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q || q.length < 2) return [];
+    return menuItems
+      .filter((m) =>
+        m.name.toLowerCase().includes(q) ||
+        m.description?.toLowerCase().includes(q) ||
+        m.categoryId.toLowerCase().includes(q)
+      )
+      .slice(0, 7);
+  }, [query]);
 
   function flashLocationError(msg: string) {
     setLocationErrorMsg(msg);
@@ -94,10 +138,7 @@ export function AppHomeHero() {
 
   function detectLocation() {
     if (locating) return;
-    if (!("geolocation" in navigator)) {
-      flashLocationError("Location not supported");
-      return;
-    }
+    if (!("geolocation" in navigator)) { flashLocationError("Location not supported"); return; }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
@@ -112,43 +153,28 @@ export function AppHomeHero() {
           );
           const data = await res.json();
           const addr: Record<string, string> = data?.address ?? {};
-          const rough =
-            addr.suburb || addr.neighbourhood || addr.village || addr.hamlet || addr.city_district;
+          const rough = addr.suburb || addr.neighbourhood || addr.village || addr.hamlet || addr.city_district;
           const city = addr.town || addr.city || addr.county || "Deoghar";
           const label = rough ? `${rough}, ${city}` : `${city}, Jharkhand`;
           setLocationLabel(label);
           localStorage.setItem("bl_location_label", label);
-        } catch {
-          flashLocationError("Couldn't fetch address");
-        } finally {
-          setLocating(false);
-        }
+        } catch { flashLocationError("Couldn't fetch address"); }
+        finally { setLocating(false); }
       },
       (err) => {
         setLocating(false);
-        flashLocationError(
-          err.code === err.PERMISSION_DENIED ? "Permission denied" : "Couldn't get location",
-        );
+        flashLocationError(err.code === err.PERMISSION_DENIED ? "Permission denied" : "Couldn't get location");
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
     );
   }
 
   useEffect(() => {
-    if (status !== "authenticated") {
-      setLastOrderStatus("idle");
-      return;
-    }
-    // Reserve the reorder slot immediately (skeleton) so it never pops in and
-    // shifts the layout once the real order data arrives.
+    if (status !== "authenticated") { setLastOrderStatus("idle"); return; }
     setLastOrderStatus("loading");
     fetch("/api/orders/mine")
       .then((r) => r.json())
-      .then((d) => {
-        const o = d.orders?.[0] ?? null;
-        setLastOrder(o);
-        setLastOrderStatus(o ? "ready" : "empty");
-      })
+      .then((d) => { const o = d.orders?.[0] ?? null; setLastOrder(o); setLastOrderStatus(o ? "ready" : "empty"); })
       .catch(() => setLastOrderStatus("empty"));
     fetch("/api/account")
       .then((r) => r.json())
@@ -157,17 +183,62 @@ export function AppHomeHero() {
   }, [status]);
 
   useEffect(() => {
-    const t = setInterval(
-      () => setSuggestionIndex((i) => (i + 1) % SEARCH_SUGGESTIONS.length),
-      2200,
-    );
+    const t = setInterval(() => setSuggestionIndex((i) => (i + 1) % SEARCH_SUGGESTIONS.length), 2200);
     return () => clearInterval(t);
   }, []);
 
-  function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
-    const q = query.trim();
+  function saveSearch(q: string) {
+    if (!q) return;
+    const updated = [q, ...recentSearches.filter((s) => s !== q)].slice(0, 5);
+    setRecentSearches(updated);
+    localStorage.setItem("bl_recent_searches", JSON.stringify(updated));
+  }
+
+  function removeRecentSearch(term: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    const updated = recentSearches.filter((s) => s !== term);
+    setRecentSearches(updated);
+    localStorage.setItem("bl_recent_searches", JSON.stringify(updated));
+  }
+
+  function handleSearch(e?: React.FormEvent, overrideQuery?: string) {
+    e?.preventDefault();
+    const q = (overrideQuery ?? query).trim();
+    saveSearch(q);
+    setSearchFocused(false);
     router.push(q ? `/menu?q=${encodeURIComponent(q)}` : "/menu");
+  }
+
+  function handleResultClick(itemName: string) {
+    saveSearch(itemName);
+    setSearchFocused(false);
+    router.push(`/menu?q=${encodeURIComponent(itemName)}`);
+  }
+
+  function handleQuickAdd(item: typeof menuItems[0]) {
+    addItem(item);
+    setSearchFocused(false);
+  }
+
+  function startVoiceSearch() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) return;
+    const recognition = new SR();
+    recognition.lang = "en-IN";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    setIsListening(true);
+    setSearchFocused(true);
+    recognition.start();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onresult = (event: any) => {
+      const transcript: string = event.results[0][0].transcript;
+      setQuery(transcript);
+      setIsListening(false);
+    };
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => setIsListening(false);
   }
 
   function reorder() {
@@ -185,27 +256,30 @@ export function AppHomeHero() {
   }
 
   const eta = estimateDeliveryMinutes(customerCoords);
+  const showDropdown = searchFocused && (searchResults.length > 0 || query.length === 0);
 
   return (
+    // section has no overflow-hidden so the search dropdown isn't clipped
     <section
-      className="relative overflow-hidden bg-gradient-to-br from-brand-orange via-brand-orange-dark to-brand-gold px-4 pb-4 md:pb-5"
+      className="relative bg-gradient-to-br from-brand-orange via-brand-orange-dark to-brand-gold px-4 pb-4 md:pb-5"
       style={{ paddingTop: "calc(0.75rem + env(safe-area-inset-top))" }}
     >
-      {/* Floating food accents */}
-      {FLOATERS.map((f, i) => (
-        <motion.span
-          key={i}
-          aria-hidden
-          animate={{ y: [0, -10, 0] }}
-          transition={{ duration: f.duration, repeat: Infinity, ease: "easeInOut", delay: f.delay }}
-          className={`pointer-events-none absolute select-none opacity-[0.15] drop-shadow ${f.className}`}
-        >
-          {f.emoji}
-        </motion.span>
-      ))}
+      {/* Floaters clipped inside their own layer — keep visual overflow off section */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+        {FLOATERS.map((f, i) => (
+          <motion.span
+            key={i}
+            animate={{ y: [0, -10, 0] }}
+            transition={{ duration: f.duration, repeat: Infinity, ease: "easeInOut", delay: f.delay }}
+            className={`absolute select-none opacity-[0.15] drop-shadow ${f.className}`}
+          >
+            {f.emoji}
+          </motion.span>
+        ))}
+      </div>
 
       <div className="relative mx-auto max-w-6xl">
-        {/* App-style top row: location + quick icons (no website nav bar) */}
+        {/* ── Top row: location + icons ── */}
         <div className="mb-3 flex items-center justify-between gap-2">
           <button
             type="button"
@@ -213,12 +287,11 @@ export function AppHomeHero() {
             disabled={locating}
             className="flex min-w-0 items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-[12px] font-semibold text-white backdrop-blur-sm disabled:opacity-80"
           >
-            {locating ? (
-              <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" strokeWidth={2.5} />
-            ) : (
-              <MapPin className="h-3.5 w-3.5 shrink-0" strokeWidth={2.5} />
-            )}
-            <span className="max-w-[150px] truncate">
+            {locating
+              ? <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" strokeWidth={2.5} />
+              : <MapPin className="h-3.5 w-3.5 shrink-0" strokeWidth={2.5} />
+            }
+            <span className="max-w-[140px] truncate">
               {locating ? "Locating..." : locationErrorMsg ?? (customerCoords ? locationLabel : "Get current location")}
             </span>
             <ChevronDown className="h-3 w-3 shrink-0 opacity-80" strokeWidth={2.5} />
@@ -235,6 +308,9 @@ export function AppHomeHero() {
                 {formatInr(walletBalance ?? 0)}
               </button>
             )}
+            {/* Notification bell */}
+            <NotificationCenter />
+            {/* Profile */}
             <button
               type="button"
               onClick={handleProfileTap}
@@ -246,7 +322,7 @@ export function AppHomeHero() {
           </div>
         </div>
 
-        {/* Delivery ETA block — a proper card, not just a thin pill */}
+        {/* ── ETA card ── */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -274,35 +350,38 @@ export function AppHomeHero() {
             🔥 ₹80 OFF
           </span>
         </motion.div>
+
         <p className="mt-2 text-[13px] font-medium text-white/85">
           {greeting()}{user?.name ? `, ${user.name.split(" ")[0]}` : ""} — bhook lagi? 👋
         </p>
 
-        {/* ── Enhanced Search ── */}
+        {/* ── Advanced Search ── */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, delay: 0.08 }}
-          className="mt-3 space-y-2"
+          className="relative mt-3 space-y-2"
+          ref={searchContainerRef}
         >
-          {/* Search input row */}
+          {/* Search bar */}
           <form onSubmit={handleSearch} className="relative">
-            {/* Glass container */}
-            <div className="relative flex items-center overflow-hidden rounded-2xl bg-white shadow-[0_8px_32px_rgba(0,0,0,0.18)] ring-2 ring-white/60 transition-shadow focus-within:shadow-[0_8px_40px_rgba(0,0,0,0.28)] focus-within:ring-brand-orange/30">
+            <div className={`relative flex items-center overflow-hidden rounded-2xl bg-white shadow-[0_8px_32px_rgba(0,0,0,0.18)] ring-2 transition-all duration-200 ${searchFocused ? "ring-brand-orange/40 shadow-[0_8px_40px_rgba(0,0,0,0.28)]" : "ring-white/60"}`}>
               {/* Search icon */}
               <div className="flex h-full items-center pl-4 pr-2">
-                <Search className="h-[18px] w-[18px] text-gray-400" strokeWidth={2.5} />
+                <Search className={`h-[18px] w-[18px] transition-colors ${searchFocused ? "text-brand-orange" : "text-gray-400"}`} strokeWidth={2.5} />
               </div>
 
               {/* Input */}
               <input
                 type="text"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => { setQuery(e.target.value); setSearchFocused(true); }}
+                onFocus={() => setSearchFocused(true)}
                 className="flex-1 bg-transparent py-3.5 pr-2 text-[14px] font-medium text-gray-900 placeholder-transparent focus:outline-none"
+                autoComplete="off"
               />
 
-              {/* Animated placeholder (when empty) */}
+              {/* Animated placeholder */}
               {!query && (
                 <div className="pointer-events-none absolute left-[52px] top-1/2 flex -translate-y-1/2 items-center gap-1.5 text-[14px] text-gray-400">
                   <span className="font-normal">Search for</span>
@@ -321,7 +400,7 @@ export function AppHomeHero() {
                 </div>
               )}
 
-              {/* Clear button (when typing) */}
+              {/* Clear */}
               <AnimatePresence>
                 {query && (
                   <motion.button
@@ -330,7 +409,7 @@ export function AppHomeHero() {
                     exit={{ opacity: 0, scale: 0.7 }}
                     transition={{ duration: 0.15 }}
                     type="button"
-                    onClick={() => setQuery("")}
+                    onClick={() => { setQuery(""); setSearchFocused(true); }}
                     className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 hover:text-gray-600"
                   >
                     <X className="h-4 w-4" strokeWidth={2.5} />
@@ -338,11 +417,18 @@ export function AppHomeHero() {
                 )}
               </AnimatePresence>
 
-              {/* Mic icon */}
+              {/* Mic */}
               <div className="pr-1">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-50 text-gray-400">
-                  <Mic className="h-4 w-4" strokeWidth={2} />
-                </span>
+                <button
+                  type="button"
+                  onClick={startVoiceSearch}
+                  className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${isListening ? "bg-red-50 text-red-500" : "bg-gray-50 text-gray-400 hover:bg-gray-100"}`}
+                >
+                  {isListening
+                    ? <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" /><span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" /></span>
+                    : <Mic className="h-4 w-4" strokeWidth={2} />
+                  }
+                </button>
               </div>
 
               {/* Search CTA */}
@@ -355,6 +441,142 @@ export function AppHomeHero() {
               </button>
             </div>
           </form>
+
+          {/* ── Live search dropdown ── */}
+          <AnimatePresence>
+            {showDropdown && (
+              <motion.div
+                initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                transition={{ duration: 0.17, ease: "easeOut" }}
+                className="absolute left-0 right-0 top-[calc(100%+4px)] z-50 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-2xl"
+              >
+                {/* Live results */}
+                {searchResults.length > 0 ? (
+                  <>
+                    <div className="px-4 pb-1 pt-3">
+                      <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Results</span>
+                    </div>
+                    <ul>
+                      {searchResults.map((item) => (
+                        <li key={item.id} className="border-b border-gray-50 last:border-0">
+                          <div className="flex items-center gap-3 px-4 py-2.5">
+                            {/* Emoji/image */}
+                            <button
+                              type="button"
+                              onClick={() => handleResultClick(item.name)}
+                              className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gray-50 text-[22px]"
+                            >
+                              {item.image
+                                // eslint-disable-next-line @next/next/no-img-element
+                                ? <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
+                                : item.emoji
+                              }
+                            </button>
+
+                            {/* Name + description */}
+                            <button
+                              type="button"
+                              onClick={() => handleResultClick(item.name)}
+                              className="min-w-0 flex-1 text-left"
+                            >
+                              <div className="flex items-center gap-1.5">
+                                {item.diet && (
+                                  <span className={`h-2 w-2 shrink-0 rounded-sm ${DIET_DOT[item.diet] ?? "bg-gray-300"}`} />
+                                )}
+                                <span className="truncate text-[13px] font-bold text-gray-900">{item.name}</span>
+                              </div>
+                              {item.description && (
+                                <p className="mt-0.5 truncate text-[11px] text-gray-500">{item.description}</p>
+                              )}
+                            </button>
+
+                            {/* Price + quick add */}
+                            <div className="flex shrink-0 items-center gap-2">
+                              <span className="text-[13px] font-bold text-gray-800">{formatInr(item.price)}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleQuickAdd(item)}
+                                className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-orange text-white shadow-sm transition-transform active:scale-90"
+                              >
+                                <Plus className="h-3.5 w-3.5" strokeWidth={3} />
+                              </button>
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                    <button
+                      type="button"
+                      onClick={() => handleSearch(undefined, query)}
+                      className="flex w-full items-center justify-center gap-1.5 py-3 text-[12px] font-bold text-brand-orange hover:bg-orange-50"
+                    >
+                      <Search className="h-3.5 w-3.5" strokeWidth={2.5} />
+                      See all results for &ldquo;{query}&rdquo;
+                    </button>
+                  </>
+                ) : query.length >= 2 ? (
+                  <div className="px-4 py-5 text-center text-[13px] text-gray-400">
+                    No items found for &ldquo;{query}&rdquo;
+                  </div>
+                ) : (
+                  /* Empty state: recents + trending */
+                  <div className="p-2">
+                    {recentSearches.length > 0 && (
+                      <>
+                        <p className="px-2 pb-1.5 pt-2 text-[10px] font-extrabold uppercase tracking-widest text-gray-400">
+                          Recent
+                        </p>
+                        <ul>
+                          {recentSearches.map((term) => (
+                            <li key={term}>
+                              <div className="flex items-center gap-2 rounded-xl px-2 py-2 hover:bg-gray-50">
+                                <Clock className="h-3.5 w-3.5 shrink-0 text-gray-300" strokeWidth={2} />
+                                <button
+                                  type="button"
+                                  onClick={() => { setQuery(term); handleSearch(undefined, term); }}
+                                  className="flex-1 text-left text-[13px] font-medium text-gray-700"
+                                >
+                                  {term}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => removeRecentSearch(term, e)}
+                                  className="flex h-5 w-5 items-center justify-center rounded-full text-gray-300 hover:bg-gray-200 hover:text-gray-500"
+                                >
+                                  <X className="h-3 w-3" strokeWidth={2.5} />
+                                </button>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                        <div className="my-2 border-t border-gray-100" />
+                      </>
+                    )}
+
+                    <p className="px-2 pb-1.5 text-[10px] font-extrabold uppercase tracking-widest text-gray-400">
+                      Trending
+                    </p>
+                    <ul className="flex flex-wrap gap-2 px-2 pb-2">
+                      {TRENDING_SEARCHES.map((term) => (
+                        <li key={term}>
+                          <button
+                            type="button"
+                            onClick={() => { setQuery(term); handleSearch(undefined, term); }}
+                            className="flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-[12px] font-medium text-gray-600 transition-colors hover:border-brand-orange/40 hover:bg-orange-50 hover:text-brand-orange"
+                          >
+                            <TrendingUp className="h-3 w-3 text-brand-orange" strokeWidth={2.5} />
+                            {term}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Quick category pills */}
           <div className="hide-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5">
@@ -375,8 +597,7 @@ export function AppHomeHero() {
           </div>
         </motion.div>
 
-        {/* Reorder card — skeleton reserves the space, then crossfades to real
-            content, so there's no sudden height jump once data arrives. */}
+        {/* ── Reorder card ── */}
         <AnimatePresence initial={false}>
           {(lastOrderStatus === "loading" || lastOrderStatus === "ready") && (
             <motion.div
