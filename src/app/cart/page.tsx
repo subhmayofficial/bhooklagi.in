@@ -17,7 +17,6 @@ import { estimateDeliveryMinutes } from "@/lib/location";
 import { useAuthStore } from "@/stores/auth-store";
 import { useEffect, useState } from "react";
 
-const VALID_PROMO = "BHOOK20";
 const MAX_LOCATION_ACCURACY_M = 250;
 
 type PaymentMode = "cod" | "upi";
@@ -60,9 +59,15 @@ export default function CartPage() {
 
   const deliveryFee    = subtotal >= 299 || subtotal === 0 ? 0 : 49;
   const gst            = Math.round(subtotal * 0.05);
-  const [promoInput, setPromoInput]     = useState("");
-  const [promoApplied, setPromoApplied] = useState(false);
-  const [promoError, setPromoError]     = useState("");
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    discountType: "percent" | "flat";
+    discountValue: number;
+    paymentModeRequired: string | null;
+  } | null>(null);
+  const [couponError, setCouponError] = useState("");
+  const [couponLoading, setCouponLoading] = useState(false);
   const [showBillDetails, setShowBillDetails] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>("contact");
@@ -78,8 +83,12 @@ export default function CartPage() {
   const [placing, setPlacing] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [cartReady, setCartReady] = useState(false);
-  const promoDiscount = promoApplied ? 80 : 0;
-  const grand = Math.max(0, subtotal + deliveryFee + gst - promoDiscount);
+  const couponDiscount = appliedCoupon
+    ? appliedCoupon.discountType === "percent"
+      ? Math.round(subtotal * appliedCoupon.discountValue / 100)
+      : appliedCoupon.discountValue
+    : 0;
+  const grand = Math.max(0, subtotal + deliveryFee + gst - couponDiscount);
   const freeDeliveryAt = 299;
   const progress = Math.min((subtotal / freeDeliveryAt) * 100, 100);
   const deliveryEta = estimateDeliveryMinutes(deliveryLocation);
@@ -134,20 +143,41 @@ export default function CartPage() {
       .catch(() => {});
   }, [authStatus]);
 
-  function applyPromo() {
-    if (promoInput.trim().toUpperCase() === VALID_PROMO) {
-      if (subtotal < 299) {
-        setPromoError("Minimum order ₹299 required for this code.");
-        setPromoApplied(false);
-      } else {
-        setPromoApplied(true);
-        setPromoError("");
-      }
-    } else {
-      setPromoError("Invalid promo code. Try BHOOK20");
-      setPromoApplied(false);
+  async function applyCoupon() {
+    const code = couponInput.trim().toUpperCase();
+    if (!code) return;
+    setCouponLoading(true);
+    setCouponError("");
+    try {
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, paymentMode, subtotal }),
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload?.error || "Invalid coupon.");
+      setAppliedCoupon({
+        code: payload.code,
+        discountType: payload.discountType,
+        discountValue: payload.discountValue,
+        paymentModeRequired: payload.paymentModeRequired ?? null,
+      });
+    } catch (e) {
+      setCouponError(e instanceof Error ? e.message : "Invalid coupon.");
+      setAppliedCoupon(null);
+    } finally {
+      setCouponLoading(false);
     }
   }
+
+  // Auto-clear coupon if payment mode changes and coupon requires a different mode
+  useEffect(() => {
+    if (appliedCoupon?.paymentModeRequired && appliedCoupon.paymentModeRequired !== paymentMode) {
+      setAppliedCoupon(null);
+      setCouponError(`Coupon ${appliedCoupon.code} requires ${appliedCoupon.paymentModeRequired.toUpperCase()} payment.`);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paymentMode]);
 
   function validateDelivery(currentLocation = deliveryLocation) {
     const nextErrors: Record<string, string> = {};
@@ -316,8 +346,8 @@ export default function CartPage() {
             location: currentLocation,
           },
           saveAddress,
-          paymentMode: paymentMode === "upi" ? "online" : "cod",
-          promoCode: promoApplied ? VALID_PROMO : undefined,
+          paymentMode,
+          couponCode: appliedCoupon?.code,
         }),
       });
       const payload = await response.json();
@@ -469,46 +499,51 @@ export default function CartPage() {
                 </AnimatePresence>
               </div>
 
-              {/* ── Promo code ── */}
+              {/* ── Coupon code ── */}
               <div className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <div>
                     <p className="text-[16px] font-extrabold text-gray-950">
-                      {promoApplied ? "You saved ₹80 with BHOOK20" : "Save more on this order"}
+                      {appliedCoupon ? `${appliedCoupon.code} applied 🎉` : "Have a coupon?"}
                     </p>
-                    <p className="text-[12px] font-semibold text-blue-500">View all coupons</p>
+                    <p className="text-[11px] font-semibold text-blue-500">
+                      {paymentMode === "upi" ? "💡 Use UPI5 for 5% off on UPI payment" : "Try BHOOK20 for ₹80 off on orders ₹299+"}
+                    </p>
                   </div>
-                  {promoApplied && (
-                    <button type="button" onClick={() => setPromoApplied(false)} className="text-[12px] font-extrabold text-red-500">
+                  {appliedCoupon && (
+                    <button
+                      type="button"
+                      onClick={() => { setAppliedCoupon(null); setCouponInput(""); setCouponError(""); }}
+                      className="text-[12px] font-extrabold text-red-500"
+                    >
                       Remove
                     </button>
                   )}
                 </div>
 
-                {!promoApplied && <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={promoInput}
-                    onChange={(e) => {
-                      setPromoInput(e.target.value.toUpperCase());
-                      setPromoError("");
-                      if (promoApplied) setPromoApplied(false);
-                    }}
-                    placeholder="Enter promo code"
-                    className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-[13px] font-medium text-gray-900 placeholder:text-gray-400 focus:border-brand-orange focus:outline-none focus:ring-2 focus:ring-brand-orange/20"
-                  />
-                  <button
-                    type="button"
-                    onClick={applyPromo}
-                    disabled={!promoInput}
-                    className="rounded-xl bg-brand-orange px-5 py-2.5 text-[13px] font-extrabold text-white disabled:opacity-40 hover:bg-brand-orange-dark transition-colors"
-                  >
-                    Apply
-                  </button>
-                </div>}
+                {!appliedCoupon && (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={couponInput}
+                      onChange={(e) => { setCouponInput(e.target.value.toUpperCase()); setCouponError(""); }}
+                      onKeyDown={(e) => { if (e.key === "Enter") applyCoupon(); }}
+                      placeholder="Enter promo code"
+                      className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-[13px] font-medium text-gray-900 placeholder:text-gray-400 focus:border-brand-orange focus:outline-none focus:ring-2 focus:ring-brand-orange/20"
+                    />
+                    <button
+                      type="button"
+                      onClick={applyCoupon}
+                      disabled={!couponInput || couponLoading}
+                      className="rounded-xl bg-brand-orange px-5 py-2.5 text-[13px] font-extrabold text-white disabled:opacity-40 hover:bg-brand-orange-dark transition-colors"
+                    >
+                      {couponLoading ? "…" : "Apply"}
+                    </button>
+                  </div>
+                )}
 
                 <AnimatePresence>
-                  {promoApplied && (
+                  {appliedCoupon && (
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
@@ -516,17 +551,22 @@ export default function CartPage() {
                       className="mt-2 flex items-center gap-1.5"
                     >
                       <CheckCircle2 className="h-3.5 w-3.5 text-green-600" strokeWidth={2.5} />
-                      <p className="text-[12px] font-semibold text-green-600">BHOOK20 applied — ₹80 off!</p>
+                      <p className="text-[12px] font-semibold text-green-600">
+                        {appliedCoupon.code} applied —{" "}
+                        {appliedCoupon.discountType === "percent"
+                          ? `${appliedCoupon.discountValue}% off (${formatInr(couponDiscount)} saved)`
+                          : `${formatInr(appliedCoupon.discountValue)} off`}!
+                      </p>
                     </motion.div>
                   )}
-                  {promoError && (
+                  {couponError && (
                     <motion.p
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
                       exit={{ opacity: 0, height: 0 }}
                       className="mt-2 text-[12px] font-semibold text-red-500"
                     >
-                      {promoError}
+                      {couponError}
                     </motion.p>
                   )}
                 </AnimatePresence>
@@ -542,10 +582,10 @@ export default function CartPage() {
                   <div className="flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-brand-orange" strokeWidth={2} />
                     <span className="text-[16px] font-extrabold text-gray-950">
-                      Total Bill <span className="price-text text-gray-400 line-through">{promoApplied ? formatInr(subtotal + deliveryFee + gst) : ""}</span>{" "}
+                      Total Bill <span className="price-text text-gray-400 line-through">{appliedCoupon ? formatInr(subtotal + deliveryFee + gst) : ""}</span>{" "}
                       <span className="price-text">{formatInr(grand)}</span>
                     </span>
-                    {promoApplied && <span className="rounded-md bg-blue-50 px-2 py-1 text-[11px] font-bold text-blue-600">You saved ₹80</span>}
+                    {appliedCoupon && <span className="rounded-md bg-blue-50 px-2 py-1 text-[11px] font-bold text-blue-600">Saved {formatInr(couponDiscount)}</span>}
                   </div>
                   {showBillDetails
                     ? <ChevronUp className="h-4 w-4 text-gray-400" strokeWidth={2.5} />
@@ -571,8 +611,8 @@ export default function CartPage() {
                           green={deliveryFee === 0}
                         />
                         <BillRow label="GST & charges" value={formatInr(gst)} hint="5% on food items" />
-                        {promoApplied && (
-                          <BillRow label="Promo discount (BHOOK20)" value={`-${formatInr(promoDiscount)}`} green />
+                        {appliedCoupon && (
+                          <BillRow label={`Coupon (${appliedCoupon.code})`} value={`-${formatInr(couponDiscount)}`} green />
                         )}
                         <div className="my-1 h-px bg-gray-200" />
                         <div className="flex items-center justify-between pt-1">

@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   LogOut, RefreshCw, Users, ShoppingBag, MapPinned, Navigation,
   Bell, BellOff, Clock, Phone, ChevronRight, CheckCircle2, XCircle,
-  Bike, UtensilsCrossed, PackageCheck, AlertCircle, Star,
+  Bike, UtensilsCrossed, PackageCheck, AlertCircle, Star, Tag,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { formatInr } from "@/data/menu";
@@ -434,6 +434,13 @@ export default function AdminOrdersPage() {
               <RefreshCw className="h-4 w-4" strokeWidth={2.5} />
             </button>
 
+            <Link
+              href="/admin/coupons"
+              className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[12px] font-semibold text-gray-400 hover:text-white transition-colors"
+            >
+              <Tag className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Coupons</span>
+            </Link>
             <Link
               href="/admin"
               className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[12px] font-semibold text-gray-400 hover:text-white transition-colors"

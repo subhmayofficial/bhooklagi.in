@@ -9,6 +9,7 @@ import { ScrollProgress } from "@/components/layout/ScrollProgress";
 import { CartRehydrate } from "@/components/providers/CartRehydrate";
 import { AuthRehydrate } from "@/components/providers/AuthRehydrate";
 import { OtpLoginModal } from "@/components/auth/OtpLoginModal";
+import { RatingPopup } from "@/components/layout/RatingPopup";
 import { MSG91_SCRIPT_SRC } from "@/lib/msg91/widget";
 
 const bebas = Bebas_Neue({
@@ -113,6 +114,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         <BottomNav />
         <WhatsAppFloatButton />
         <OtpLoginModal />
+        <RatingPopup />
         <Script src={MSG91_SCRIPT_SRC} strategy="afterInteractive" />
 
         {/* Google Analytics (via GTM — kept for direct GA4 events too) */}

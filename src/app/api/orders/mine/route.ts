@@ -9,7 +9,7 @@ export async function GET() {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("orders")
-    .select("order_number, items, status, payment_mode, grand_total, created_at")
+    .select("order_number, items, status, payment_mode, grand_total, created_at, rated_at")
     .eq("customer_id", session.customerId)
     .order("created_at", { ascending: false });
 
@@ -24,6 +24,7 @@ export async function GET() {
     paymentMode: o.payment_mode as string,
     grandTotal: o.grand_total as number,
     createdAt: o.created_at as string,
+    ratedAt: (o.rated_at as string | null) ?? null,
   }));
 
   return NextResponse.json({ orders });

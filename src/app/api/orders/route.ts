@@ -6,7 +6,7 @@ import type { CartLine } from "@/stores/cart-store";
 
 const PHONE_RE = /^[6-9]\d{9}$/;
 const MAX_LOCATION_ACCURACY_M = 250;
-const VALID_PROMO = "BHOOK20";
+const VALID_PAYMENT_MODES = ["cod", "upi", "online", "wallet"] as const;
 
 type DeliveryLocation = {
   lat: number;
@@ -56,17 +56,10 @@ function parseDeliveryLocation(value: unknown): DeliveryLocation | null {
   if (accuracyM !== null && (!Number.isFinite(accuracyM) || accuracyM < 0)) return null;
   if (Number.isNaN(Date.parse(capturedAt))) return null;
 
-  return {
-    lat,
-    lng,
-    accuracyM,
-    source: "browser_gps",
-    capturedAt,
-  };
+  return { lat, lng, accuracyM, source: "browser_gps", capturedAt };
 }
 
 export async function POST(req: NextRequest) {
-  // Ordering requires login so every order is tied to a customer.
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ error: "Please log in to place an order." }, { status: 401 });
@@ -76,8 +69,12 @@ export async function POST(req: NextRequest) {
   const lines = body?.lines;
   const delivery = body?.delivery ?? {};
   const requestedPaymentMode = typeof body?.paymentMode === "string" ? body.paymentMode : "cod";
-  const paymentMode = requestedPaymentMode === "online" || requestedPaymentMode === "upi" ? "online" : "cod";
+  const paymentMode = (VALID_PAYMENT_MODES as readonly string[]).includes(requestedPaymentMode)
+    ? requestedPaymentMode
+    : "cod";
   const saveAddress = body?.saveAddress === true;
+  const rawCouponCode =
+    typeof body?.couponCode === "string" ? body.couponCode.trim().toUpperCase() : "";
 
   if (!isValidLines(lines)) {
     return NextResponse.json({ error: "Cart is empty or invalid." }, { status: 400 });
@@ -106,9 +103,41 @@ export async function POST(req: NextRequest) {
   }
 
   const totals = computeOrderTotals(lines);
-  const promoCode = typeof body?.promoCode === "string" ? body.promoCode.trim().toUpperCase() : "";
-  const promoDiscount = promoCode === VALID_PROMO && totals.subtotal >= 299 ? 80 : 0;
   const supabase = getSupabaseAdminClient();
+
+  // Validate coupon from DB
+  let couponCode: string | null = null;
+  let couponDiscount = 0;
+
+  if (rawCouponCode) {
+    const { data: coupon } = await supabase
+      .from("coupons")
+      .select("id, discount_type, discount_value, min_order, payment_mode_required, max_uses, used_count")
+      .eq("code", rawCouponCode)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (
+      coupon &&
+      (!coupon.payment_mode_required || coupon.payment_mode_required === paymentMode) &&
+      totals.subtotal >= coupon.min_order &&
+      (coupon.max_uses === null || coupon.used_count < coupon.max_uses)
+    ) {
+      couponCode = rawCouponCode;
+      couponDiscount =
+        coupon.discount_type === "percent"
+          ? Math.round((totals.subtotal * coupon.discount_value) / 100)
+          : coupon.discount_value;
+
+      // Increment used_count (best-effort, don't fail the order)
+      await supabase
+        .from("coupons")
+        .update({ used_count: coupon.used_count + 1 })
+        .eq("id", coupon.id);
+    }
+  }
+
+  const finalGrandTotal = Math.max(0, totals.grandTotal - couponDiscount);
 
   const { data: order, error } = await supabase
     .from("orders")
@@ -129,7 +158,9 @@ export async function POST(req: NextRequest) {
       subtotal: totals.subtotal,
       delivery_fee: totals.deliveryFee,
       gst: totals.gst,
-      grand_total: Math.max(0, totals.grandTotal - promoDiscount),
+      coupon_code: couponCode,
+      coupon_discount: couponDiscount,
+      grand_total: finalGrandTotal,
     })
     .select("id, order_number, created_at")
     .single();
@@ -138,22 +169,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Could not place order. Try again." }, { status: 500 });
   }
 
-  // Seed the status timeline. Best-effort: don't fail the order if this errors.
   await supabase.from("order_events").insert({ order_id: order.id, status: "placed" });
 
   if (saveAddress) {
-    await supabase
-      .from("saved_addresses")
-      .insert({
-        customer_id: session.customerId,
-        address,
-        landmark: landmark || null,
-        lat: location.lat,
-        lng: location.lng,
-        accuracy_m: location.accuracyM,
-        location_source: location.source,
-        location_captured_at: location.capturedAt,
-      });
+    await supabase.from("saved_addresses").insert({
+      customer_id: session.customerId,
+      address,
+      landmark: landmark || null,
+      lat: location.lat,
+      lng: location.lng,
+      accuracy_m: location.accuracyM,
+      location_source: location.source,
+      location_captured_at: location.capturedAt,
+    });
   }
 
   return NextResponse.json({
@@ -162,7 +190,8 @@ export async function POST(req: NextRequest) {
       orderNumber: order.order_number as string,
       createdAt: order.created_at as string,
       ...totals,
-      grandTotal: Math.max(0, totals.grandTotal - promoDiscount),
+      grandTotal: finalGrandTotal,
+      couponDiscount,
     },
   });
 }

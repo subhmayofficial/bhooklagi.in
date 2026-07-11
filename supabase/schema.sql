@@ -42,6 +42,8 @@ create table if not exists public.orders (
   delivery_rating smallint check (delivery_rating between 1 and 5),
   rating_comment text,
   rated_at timestamptz,
+  coupon_code text,
+  coupon_discount integer not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -97,3 +99,25 @@ create table if not exists public.order_events (
 create index if not exists order_events_order_id_idx on public.order_events(order_id);
 
 alter table public.order_events enable row level security;
+
+-- Coupon / promo codes
+create table if not exists public.coupons (
+  id uuid primary key default gen_random_uuid(),
+  code text not null unique,
+  discount_type text not null check (discount_type in ('percent', 'flat')),
+  discount_value integer not null check (discount_value > 0),
+  min_order integer not null default 0,
+  payment_mode_required text check (payment_mode_required in ('cod', 'upi', 'online')),
+  is_active boolean not null default true,
+  max_uses integer,
+  used_count integer not null default 0,
+  created_at timestamptz not null default now()
+);
+create index if not exists coupons_code_idx on public.coupons(code) where is_active = true;
+alter table public.coupons enable row level security;
+
+-- Seed coupons (run once)
+-- insert into public.coupons (code, discount_type, discount_value, min_order, payment_mode_required) values
+--   ('BHOOK20', 'flat', 80, 299, null),
+--   ('UPI5', 'percent', 5, 0, 'upi')
+-- on conflict (code) do nothing;
