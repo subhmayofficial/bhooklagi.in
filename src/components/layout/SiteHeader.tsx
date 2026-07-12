@@ -8,7 +8,7 @@ import { MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
-  { href: "/home",   label: "Home" },
+  { href: "/",       label: "Home" },
   { href: "/menu",   label: "Menu" },
   { href: "/offers", label: "Offers" },
 ];
@@ -27,9 +27,8 @@ export function SiteHeader() {
       )}
     >
       <div className="mx-auto flex h-full max-w-6xl items-center justify-between px-4 md:px-6">
-        {/* Logo + location */}
         <div className="flex items-center gap-3">
-          <Link href="/home" className="flex items-center gap-2.5">
+          <Link href="/" className="flex items-center gap-2.5">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-orange text-white shadow-sm">
               <span className="font-display text-[18px] leading-none tracking-wide">BL</span>
             </span>
@@ -46,20 +45,23 @@ export function SiteHeader() {
 
         {/* Desktop nav */}
         <nav className="hidden items-center gap-6 md:flex">
-          {navLinks.map(({ href, label }) => (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                "text-[13px] font-semibold transition-colors",
-                pathname.startsWith(href)
-                  ? "text-brand-orange"
-                  : "text-gray-600 hover:text-gray-900",
-              )}
-            >
-              {label}
-            </Link>
-          ))}
+          {navLinks.map(({ href, label }) => {
+            const active = (href === "/" || href === "/home") ? (pathname === "/" || pathname === "/home") : pathname.startsWith(href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={cn(
+                  "text-[13px] font-semibold transition-colors",
+                  active
+                    ? "text-brand-orange"
+                    : "text-gray-600 hover:text-gray-900",
+                )}
+              >
+                {label}
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="h-8 w-8" />

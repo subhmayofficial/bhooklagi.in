@@ -100,6 +100,7 @@ export const menuItems: MenuItem[] = [
     description: "Go big with your crew — 2 Chicken Cheese Rolls, 2 Chicken Cheese Burgers, 2 Peri Peri Fries, 2 Masala Cold Drinks. For when the whole gang is hungry.",
     price: 699,
     emoji: "🎉",
+    image: "https://b.zmtcdn.com/data/dish_photos/350/fbf1b3293a79314f77e1cc6dd2420350.jpeg",
     categoryId: "meals",
     diet: "non-veg",
     bestseller: false,

@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
-import { Bebas_Neue, Playfair_Display, Inter } from "next/font/google";
+import { Bebas_Neue, Playfair_Display, Inter, Lilita_One } from "next/font/google";
 import "./globals.css";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { MainContentWrapper } from "@/components/layout/MainContentWrapper";
@@ -19,6 +19,13 @@ const bebas = Bebas_Neue({
   display: "swap",
 });
 
+const lilita = Lilita_One({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-lilita",
+  display: "swap",
+});
+
 const playfair = Playfair_Display({
   subsets: ["latin"],
   variable: "--font-playfair",
@@ -34,32 +41,40 @@ const inter = Inter({
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.bhooklagi.in"),
   title: {
-    default: "Bhook Lagi? | Order Food in Deoghar",
+    default: "Bhook Lagi? | Best Food Delivery in Deoghar",
     template: "%s | Bhook Lagi?",
   },
   description:
-    "Deoghar's craving kitchen — burgers, rolls, maggi, Chinese, pasta, fries & more. Order online with launch offers.",
+    "Deoghar's premium cloud kitchen! Order delicious burgers, rolls, maggi, Chinese, pasta & fries online. Fast delivery near Baba Baidyanath Dham & across Deoghar.",
   keywords: [
     "Bhook Lagi",
     "food delivery Deoghar",
-    "cloud kitchen Deoghar",
     "order food online Deoghar",
+    "best restaurants in Deoghar",
+    "Baidyanath Dham food delivery",
+    "cloud kitchen Deoghar",
+    "online food ordering Deoghar",
+    "Deoghar food",
+    "late night food Deoghar",
+    "burgers Deoghar",
+    "chinese food Deoghar",
+    "Jharkhand food delivery"
   ],
-  authors: [{ name: "Bhook Lagi?" }],
+  authors: [{ name: "Bhook Lagi? Kitchen" }],
   openGraph: {
     type: "website",
     locale: "en_IN",
     siteName: "Bhook Lagi?",
-    title: "Bhook Lagi? Hum Hai Na! | Deoghar",
+    title: "Bhook Lagi? | Best Food Delivery in Deoghar, Jharkhand",
     description:
-      "Order burgers, rolls, maggi, Chinese, pasta & more in Deoghar.",
+      "Order Deoghar's best burgers, rolls, Chinese & pasta online. Fast delivery anywhere in Deoghar!",
     url: "https://www.bhooklagi.in",
   },
   twitter: {
     card: "summary_large_image",
     site: "@bhooklagi",
-    title: "Bhook Lagi? | Deoghar",
-    description: "Order food online — fast delivery & big flavours.",
+    title: "Bhook Lagi? | Food Delivery Deoghar",
+    description: "Order food online in Deoghar — fast delivery & big flavours.",
   },
   icons: {
     icon: "/favicon_io/favicon-32x32.png",
@@ -67,6 +82,32 @@ export const metadata: Metadata = {
     apple: "/favicon_io/apple-touch-icon.png",
   },
   manifest: "/favicon_io/site.webmanifest",
+};
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FoodEstablishment",
+  "name": "Bhook Lagi?",
+  "image": "https://www.bhooklagi.in/apple-touch-icon.png",
+  "@id": "https://www.bhooklagi.in",
+  "url": "https://www.bhooklagi.in",
+  "telephone": "+919296834048",
+  "priceRange": "₹",
+  "menu": "https://www.bhooklagi.in/",
+  "servesCuisine": ["Fast Food", "Chinese", "Indian", "Burgers", "Rolls", "Pasta"],
+  "acceptsReservations": "False",
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "Deoghar",
+    "addressRegion": "Jharkhand",
+    "postalCode": "814112",
+    "addressCountry": "IN"
+  },
+  "geo": {
+    "@type": "GeoCoordinates",
+    "latitude": 24.4820,
+    "longitude": 86.6990
+  }
 };
 
 export const viewport: Viewport = {
@@ -83,8 +124,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en-IN" className="scroll-smooth">
+    <html lang="en" className="scroll-smooth">
       <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
         {/* Google Tag Manager */}
         <Script id="gtm-head" strategy="beforeInteractive">
           {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
@@ -95,7 +140,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         </Script>
       </head>
       <body
-        className={`${inter.className} ${bebas.variable} ${playfair.variable} min-h-dvh bg-gray-50 text-ink antialiased`}
+        className={`${inter.className} ${lilita.variable} ${bebas.variable} ${playfair.variable} min-h-dvh bg-gray-50 text-ink antialiased`}
       >
         {/* Google Tag Manager (noscript) */}
         <noscript>

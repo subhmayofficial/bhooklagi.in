@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { isAdminSession } from "@/lib/auth/admin-session";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { computeDynamicEta } from "@/lib/orders";
+import { estimateDeliveryMinutes } from "@/lib/location";
 
 export async function GET(
   _req: Request,
@@ -38,6 +40,18 @@ export async function GET(
     .eq("order_id", order.id)
     .order("created_at", { ascending: true });
 
+  const customerCoords =
+    order.delivery_lat !== null && order.delivery_lng !== null
+      ? { lat: order.delivery_lat, lng: order.delivery_lng }
+      : null;
+  const baseEta = estimateDeliveryMinutes(customerCoords);
+  const dynamicEta = computeDynamicEta(
+    order.status,
+    order.created_at,
+    events ?? [],
+    baseEta.max
+  );
+
   return NextResponse.json({
     order: {
       id: order.id,
@@ -66,5 +80,6 @@ export async function GET(
       ratedAt: order.rated_at ?? null,
     },
     events: events ?? [],
+    dynamicEta,
   });
 }

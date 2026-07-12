@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSession } from "@/lib/auth/session";
-import { computeOrderTotals } from "@/lib/pricing";
+import { computeFinalServerTotals } from "@/lib/pricing";
 import type { CartLine } from "@/stores/cart-store";
 
 const PHONE_RE = /^[6-9]\d{9}$/;
@@ -104,49 +104,38 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const totals = computeOrderTotals(lines);
   const supabase = getSupabaseAdminClient();
-
-  // Validate coupon from DB
-  let couponCode: string | null = null;
-  let couponDiscount = 0;
-
-  if (rawCouponCode) {
-    const { data: coupon } = await supabase
-      .from("coupons")
-      .select("id, discount_type, discount_value, min_order, payment_mode_required, max_uses, used_count")
-      .eq("code", rawCouponCode)
-      .eq("is_active", true)
-      .maybeSingle();
-
-    if (
-      coupon &&
-      (!coupon.payment_mode_required || coupon.payment_mode_required === paymentMode) &&
-      totals.subtotal >= coupon.min_order &&
-      (coupon.max_uses === null || coupon.used_count < coupon.max_uses)
-    ) {
-      couponCode = rawCouponCode;
-      couponDiscount =
-        coupon.discount_type === "percent"
-          ? Math.round((totals.subtotal * coupon.discount_value) / 100)
-          : coupon.discount_value;
-
-      // Increment used_count (best-effort, don't fail the order)
-      await supabase
-        .from("coupons")
-        .update({ used_count: coupon.used_count + 1 })
-        .eq("id", coupon.id);
-    }
+  let verifiedLines, totals, couponCode, couponDiscount, couponId, usedCount, finalGrandTotal;
+  try {
+    const result = await computeFinalServerTotals(lines, rawCouponCode, paymentMode, supabase);
+    verifiedLines = result.verifiedLines;
+    totals = result.totals;
+    couponCode = result.couponCode;
+    couponDiscount = result.couponDiscount;
+    couponId = result.couponId;
+    usedCount = result.usedCount;
+    finalGrandTotal = result.finalGrandTotal;
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || "Invalid order items." }, { status: 400 });
   }
 
-  const finalGrandTotal = Math.max(0, totals.grandTotal - couponDiscount);
+  if (couponId) {
+    // Increment used_count (best-effort, don't fail the order)
+    await supabase
+      .from("coupons")
+      .update({ used_count: usedCount + 1 })
+      .eq("id", couponId);
+  }
+
+  const dbPaymentMode = paymentMode === "upi" ? "online" : paymentMode;
+  const dbPaymentStatus = body?.paymentStatus === "paid" ? "paid" : "pending";
 
   const { data: order, error } = await supabase
     .from("orders")
     .insert({
       order_number: generateOrderNumber(),
       customer_id: session.customerId,
-      items: lines,
+      items: verifiedLines,
       delivery_name: name,
       delivery_phone: phone,
       delivery_address: address,
@@ -156,7 +145,8 @@ export async function POST(req: NextRequest) {
       delivery_accuracy_m: location.accuracyM,
       delivery_location_source: location.source,
       delivery_location_captured_at: location.capturedAt,
-      payment_mode: paymentMode,
+      payment_mode: dbPaymentMode,
+      payment_status: dbPaymentStatus,
       subtotal: totals.subtotal,
       delivery_fee: totals.deliveryFee,
       gst: totals.gst,
@@ -172,7 +162,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Could not place order. Try again." }, { status: 500 });
   }
 
-  await supabase.from("order_events").insert({ order_id: order.id, status: "placed" });
+  await supabase.from("order_events").insert({
+    order_id: order.id,
+    status: dbPaymentStatus === "paid" ? "paid" : "placed",
+    note: body?.razorpayPaymentId ? `Paid via Razorpay (Payment ID: ${body.razorpayPaymentId})` : null,
+  });
 
   if (saveAddress) {
     await supabase.from("saved_addresses").insert({

@@ -6,8 +6,9 @@ import Link from "next/link";
 import {
   LogOut, RefreshCw, Users, ShoppingBag, MapPinned, Navigation,
   Bell, BellOff, Clock, Phone, ChevronRight, CheckCircle2, XCircle,
-  Bike, UtensilsCrossed, PackageCheck, AlertCircle, Star, Tag, LayoutGrid,
+  Bike, UtensilsCrossed, PackageCheck, AlertCircle, Star, Tag, LayoutGrid, Sun, Moon
 } from "lucide-react";
+import { useAdminStore } from "@/stores/admin-store";
 import { motion, AnimatePresence } from "framer-motion";
 import { formatInr } from "@/data/menu";
 import { KITCHEN_COORDS_QUERY } from "@/lib/location";
@@ -102,7 +103,6 @@ function NewOrderPopup({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm px-4"
-      onClick={onDismiss}
     >
       <motion.div
         initial={{ scale: 0.85, y: -40, opacity: 0 }}
@@ -191,9 +191,10 @@ function NewOrderPopup({
             <button
               type="button"
               onClick={onDismiss}
-              className="flex h-12 flex-1 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-[13px] font-bold text-gray-400 transition-colors hover:text-white"
+              className="flex h-12 flex-1 items-center justify-center gap-1.5 rounded-2xl border border-red-900/40 bg-red-950/40 text-[13px] font-bold text-red-400 transition-colors hover:bg-red-900/60 hover:text-red-300"
             >
-              Later
+              <XCircle className="h-4 w-4" />
+              Reject
             </button>
             <button
               type="button"
@@ -215,6 +216,7 @@ function NewOrderPopup({
    MAIN PAGE
 ══════════════════════════════════════════════════════════════════ */
 export default function AdminOrdersPage() {
+  const { theme, toggleTheme } = useAdminStore();
   const router  = useRouter();
   const [orders, setOrders]       = useState<AdminOrder[] | null>(null);
   const [filter, setFilter]       = useState<OrderStatus | "all">("all");
@@ -297,6 +299,13 @@ export default function AdminOrdersPage() {
     setPendingOrders((prev) => prev.slice(1));
   }
 
+  /* ── Reject order from popup ── */
+  async function rejectFromPopup(order: AdminOrder) {
+    stopRing();
+    setPendingOrders((prev) => prev.slice(1));
+    await updateStatus(order.id, "cancelled");
+  }
+
   /* ── Accept order from popup ── */
   async function acceptFromPopup(order: AdminOrder) {
     stopRing();
@@ -320,12 +329,21 @@ export default function AdminOrdersPage() {
       const incoming: AdminOrder[] = payload.orders;
 
       /* Detect genuinely new orders */
-      if (prevOrderIds.current.size > 0) {
-        const fresh = incoming.filter((o) => !prevOrderIds.current.has(o.id));
+      if (prevOrderIds.current.size === 0) {
+        const placedOrders = incoming.filter(o => o.status === "placed");
+        if (placedOrders.length > 0) {
+          setPendingOrders(placedOrders);
+        }
+      } else {
+        const fresh = incoming.filter((o) => !prevOrderIds.current.has(o.id) && o.status === "placed");
         if (fresh.length > 0) {
           setNewCount((c) => c + fresh.length);
           // Add to popup queue
-          setPendingOrders((prev) => [...prev, ...fresh]);
+          setPendingOrders((prev) => {
+            const arr = [...prev];
+            fresh.forEach(f => { if (!arr.find(x => x.id === f.id)) arr.push(f); });
+            return arr;
+          });
         }
       }
       prevOrderIds.current = new Set(incoming.map((o) => o.id));
@@ -337,7 +355,7 @@ export default function AdminOrdersPage() {
 
   useEffect(() => {
     load();
-    const t = setInterval(load, 12000);
+    const t = setInterval(load, 4000);
     return () => clearInterval(t);
   }, [load]);
 
@@ -367,7 +385,8 @@ export default function AdminOrdersPage() {
   const displayed = orders ?? [];
 
   return (
-    <div className="min-h-dvh bg-gray-950 text-white">
+    <div className={theme === "dark" ? "dark" : ""}>
+      <div className="min-h-dvh bg-gray-50 text-gray-900 transition-colors dark:bg-gray-950 dark:text-white">
 
       {/* ════════ NEW ORDER POPUP ════════ */}
       <AnimatePresence>
@@ -376,19 +395,19 @@ export default function AdminOrdersPage() {
             key={currentPopupOrder.id}
             order={currentPopupOrder}
             onAccept={() => acceptFromPopup(currentPopupOrder)}
-            onDismiss={dismissPopup}
+            onDismiss={() => rejectFromPopup(currentPopupOrder)}
           />
         )}
       </AnimatePresence>
 
       {/* ── Sticky top nav ── */}
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-gray-950/95 backdrop-blur-md">
+      <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur-md dark:border-white/10 dark:bg-gray-950/95">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 md:px-6">
           {/* Logo */}
           <div className="flex items-center gap-3">
             <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-orange text-base shadow-md shadow-brand-orange/40">🍔</span>
             <div>
-              <p className="text-[13px] font-extrabold leading-none text-white">Bhook Lagi Admin</p>
+              <p className="text-[13px] font-extrabold leading-none text-gray-900 dark:text-white">Bhook Lagi Admin</p>
               <p className="text-[10px] text-gray-500">Order management</p>
             </div>
           </div>
@@ -423,7 +442,7 @@ export default function AdminOrdersPage() {
               className={`flex h-9 w-9 items-center justify-center rounded-xl border transition-colors ${
                 soundOn
                   ? "border-brand-orange/30 bg-brand-orange/10 text-brand-orange"
-                  : "border-white/10 bg-white/5 text-gray-500"
+                  : "border-gray-200 bg-white text-gray-400 dark:border-white/10 dark:bg-white/5 dark:text-gray-500"
               }`}
             >
               {soundOn
@@ -432,10 +451,21 @@ export default function AdminOrdersPage() {
               }
             </button>
 
+            <Link href="/admin/settings" className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[12px] font-semibold text-gray-600 hover:text-gray-900 transition-colors dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:text-white">
+              <span className="hidden sm:inline">Settings</span>
+            </Link>
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 transition-colors hover:text-gray-900 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:text-white"
+            >
+              {theme === "dark" ? <Sun className="h-4 w-4" strokeWidth={2.5} /> : <Moon className="h-4 w-4" strokeWidth={2.5} />}
+            </button>
+
             <button
               type="button"
               onClick={load}
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-400 hover:text-white transition-colors"
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 transition-colors hover:text-gray-900 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:text-white"
             >
               <RefreshCw className="h-4 w-4" strokeWidth={2.5} />
             </button>
@@ -713,6 +743,7 @@ export default function AdminOrdersPage() {
           </AnimatePresence>
         </div>
       </main>
+    </div>
     </div>
   );
 }

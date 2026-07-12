@@ -121,3 +121,32 @@ alter table public.coupons enable row level security;
 --   ('BHOOK20', 'flat', 80, 299, null),
 --   ('UPI5', 'percent', 5, 0, 'upi')
 -- on conflict (code) do nothing;
+
+-- Menu item overrides (stores overrides for the hardcoded items from src/data/menu.ts)
+create table if not exists public.menu_items (
+  id text primary key,
+  name text,
+  price integer,
+  image_url text,
+  is_available boolean not null default true,
+  updated_at timestamptz not null default now()
+);
+
+-- Custom menu items added dynamically via the admin panel
+create table if not exists public.custom_menu_items (
+  id text primary key,
+  name text not null,
+  description text,
+  price integer not null check (price > 0),
+  emoji text not null default '🍽️',
+  image_url text,
+  category_id text not null,
+  diet text check (diet in ('veg', 'egg', 'non-veg')),
+  spicy boolean not null default false,
+  bestseller boolean not null default false,
+  is_available boolean not null default true,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+

@@ -15,11 +15,13 @@ import { useCartStore, cartTotals, type CartLine } from "@/stores/cart-store";
 import { menuItems, formatInr } from "@/data/menu";
 import { estimateDeliveryMinutes } from "@/lib/location";
 import { useAuthStore } from "@/stores/auth-store";
-import { useEffect, useState } from "react";
+import { OtpLoginForm } from "@/components/auth/OtpLoginForm";
+import { SiteHeader } from "@/components/layout/SiteHeader";
+import { useEffect, useState, useMemo } from "react";
 
 const MAX_LOCATION_ACCURACY_M = 250;
 
-type PaymentMode = "cod" | "upi";
+type PaymentMode = "cod" | "upi" | "online";
 type CheckoutStep = "contact" | "address";
 type DeliveryLocation = {
   lat: number;
@@ -44,6 +46,21 @@ const CHECKOUT_STEPS: { id: CheckoutStep; label: string; helper: string }[] = [
   { id: "address", label: "Deliver to", helper: "Your delivery address" },
 ];
 
+function loadRazorpayScript(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (typeof window !== "undefined" && (window as any).Razorpay) {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
+
 export default function CartPage() {
   const router    = useRouter();
   const lines     = useCartStore((s) => s.lines);
@@ -54,10 +71,6 @@ export default function CartPage() {
   const authUser = useAuthStore((s) => s.user);
   const authStatus = useAuthStore((s) => s.status);
   const openLoginModal = useAuthStore((s) => s.openLoginModal);
-  const { subtotal, qty } = cartTotals(lines);
-
-  const deliveryFee    = subtotal >= 299 || subtotal === 0 ? 0 : 49;
-  const gst            = 0;
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<{
     code: string;
@@ -67,10 +80,26 @@ export default function CartPage() {
   } | null>(null);
   const [couponError, setCouponError] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
+  const [availableCoupons, setAvailableCoupons] = useState<{
+    code: string; discount_type: "percent"|"flat"; discount_value: number; min_order: number; payment_mode_required: string | null;
+  }[]>([]);
+  const [storeSettings, setStoreSettings] = useState<{
+    delivery_charge: number; free_delivery_threshold: number; tax_percent: number; upi_discount_enabled: boolean; upi_discount_percent: number;
+  }>({ delivery_charge: 49, free_delivery_threshold: 299, tax_percent: 5, upi_discount_enabled: false, upi_discount_percent: 0 });
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/coupons").then(res => res.json()),
+      fetch("/api/settings").then(res => res.json())
+    ]).then(([couponsData, settingsData]) => {
+      if (couponsData.coupons) setAvailableCoupons(couponsData.coupons);
+      if (settingsData.settings) setStoreSettings(settingsData.settings);
+    }).catch(() => {});
+  }, []);
   const [showBillDetails, setShowBillDetails] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>("contact");
-  const [paymentMode, setPaymentMode] = useState<PaymentMode>("upi");
+  const [paymentMode, setPaymentMode] = useState<PaymentMode>("cod");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
@@ -84,14 +113,29 @@ export default function CartPage() {
   const [orderNotes, setOrderNotes] = useState("");
   const [notesOpen, setNotesOpen] = useState(false);
   const [cartReady, setCartReady] = useState(false);
+  
+  const { subtotal, qty } = cartTotals(lines);
+  const freeDeliveryAt = storeSettings.free_delivery_threshold;
+  const deliveryFee = subtotal >= freeDeliveryAt || subtotal === 0 ? 0 : storeSettings.delivery_charge;
+  const gst = Math.round(subtotal * (storeSettings.tax_percent / 100));
+  
   const couponDiscount = appliedCoupon
     ? appliedCoupon.discountType === "percent"
       ? Math.round(subtotal * appliedCoupon.discountValue / 100)
       : appliedCoupon.discountValue
     : 0;
-  const grand = Math.max(0, subtotal + deliveryFee + gst - couponDiscount);
-  const freeDeliveryAt = 299;
-  const progress = Math.min((subtotal / freeDeliveryAt) * 100, 100);
+  const upiDiscount = (paymentMode === "upi" || paymentMode === "online") && storeSettings.upi_discount_enabled
+    ? Math.round(subtotal * (storeSettings.upi_discount_percent / 100))
+    : 0;
+
+  const grand = Math.max(0, subtotal + deliveryFee + gst - couponDiscount - upiDiscount);
+
+  // Calculate potential UPI savings for badge
+  const potentialUpiSavings = storeSettings.upi_discount_enabled 
+    ? Math.round(subtotal * (storeSettings.upi_discount_percent / 100)) 
+    : 0;
+  
+  const progress = Math.min((subtotal / (freeDeliveryAt || 1)) * 100, 100);
   const deliveryEta = estimateDeliveryMinutes(deliveryLocation);
   const checkoutStepIndex = CHECKOUT_STEPS.findIndex((step) => step.id === checkoutStep);
   const checkoutPrimaryLabel =
@@ -142,8 +186,9 @@ export default function CartPage() {
       .catch(() => {});
   }, [authStatus]);
 
-  async function applyCoupon() {
-    const code = couponInput.trim().toUpperCase();
+  async function applyCoupon(codeOverride?: string | React.MouseEvent) {
+    const codeStr = typeof codeOverride === "string" ? codeOverride : couponInput;
+    const code = codeStr.trim().toUpperCase();
     if (!code) return;
     setCouponLoading(true);
     setCouponError("");
@@ -325,6 +370,129 @@ export default function CartPage() {
 
     setPlacing(true);
     try {
+      const isOnline = paymentMode === "upi" || paymentMode === "online";
+      if (isOnline) {
+        const loaded = await loadRazorpayScript();
+        if (!loaded) {
+          throw new Error("Razorpay SDK failed to load. Please check your internet connection.");
+        }
+
+        const createRes = await fetch("/api/create-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lines,
+            couponCode: appliedCoupon?.code,
+            paymentMode,
+            currency: "INR",
+            receipt: `cart_${Date.now()}`,
+          }),
+        });
+        const createPayload = await createRes.json();
+        if (createRes.status === 401) {
+          setPlacing(false);
+          openLoginModal();
+          return;
+        }
+        if (!createRes.ok || !createPayload.order_id) {
+          throw new Error(createPayload?.error || "Failed to initialize online payment.");
+        }
+
+        const rzpOptions = {
+          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_TCMS1nTPQvlGbI",
+          amount: createPayload.amount,
+          currency: createPayload.currency || "INR",
+          name: "Bhook Lagi",
+          description: "Food Order Payment",
+          order_id: createPayload.order_id,
+          prefill: {
+            name: name.trim(),
+            contact: phone.trim(),
+          },
+          theme: {
+            color: "#E85D04",
+          },
+          handler: async function (response: any) {
+            try {
+              const verifyRes = await fetch("/api/verify-payment", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_signature: response.razorpay_signature,
+                }),
+              });
+              const verifyPayload = await verifyRes.json();
+              if (!verifyRes.ok || !verifyPayload.success) {
+                setErrors((prev) => ({
+                  ...prev,
+                  submit: verifyPayload?.error || "Payment verification failed. Please contact support.",
+                }));
+                setCheckoutOpen(true);
+                setPlacing(false);
+                return;
+              }
+
+              const placeRes = await fetch("/api/orders", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  lines,
+                  delivery: {
+                    name: name.trim(),
+                    phone: phone.trim(),
+                    address: address.trim(),
+                    landmark: landmark.trim() || undefined,
+                    location: currentLocation,
+                  },
+                  saveAddress,
+                  paymentMode,
+                  paymentStatus: "paid",
+                  razorpayPaymentId: response.razorpay_payment_id,
+                  razorpayOrderId: response.razorpay_order_id,
+                  couponCode: appliedCoupon?.code,
+                  notes: orderNotes.trim() || undefined,
+                }),
+              });
+              const placePayload = await placeRes.json();
+              if (!placeRes.ok) throw new Error(placePayload?.error || "Could not save order after payment.");
+              clear();
+              router.push(`/orders/${placePayload.order.orderNumber}`);
+            } catch (err: any) {
+              setErrors((prev) => ({
+                ...prev,
+                submit: err instanceof Error ? err.message : "Error saving order after payment.",
+              }));
+              setCheckoutOpen(true);
+              setPlacing(false);
+            }
+          },
+          modal: {
+            ondismiss: function () {
+              setPlacing(false);
+              setErrors((prev) => ({
+                ...prev,
+                submit: "Payment cancelled by user. You can retry paying when ready.",
+              }));
+              setCheckoutOpen(true);
+            },
+          },
+        };
+
+        const rzp = new (window as any).Razorpay(rzpOptions);
+        rzp.on("payment.failed", function (response: any) {
+          setPlacing(false);
+          setErrors((prev) => ({
+            ...prev,
+            submit: response.error?.description || "Payment failed. Please try another method or retry.",
+          }));
+          setCheckoutOpen(true);
+        });
+        rzp.open();
+        return;
+      }
+
       const response = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -360,6 +528,24 @@ export default function CartPage() {
       setCheckoutOpen(true);
       setPlacing(false);
     }
+  }
+
+  if (authStatus === "guest") {
+    return (
+      <>
+        <SiteHeader />
+        <main className="mx-auto flex min-h-[80vh] max-w-sm flex-col items-center justify-center px-4 pb-28 pt-20">
+          <div className="mb-8 w-full">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[20px] bg-brand-orange shadow-lg shadow-brand-orange/30">
+              <span className="text-[28px] font-black text-white">BL</span>
+            </div>
+          </div>
+          <div className="w-full rounded-[28px] bg-white p-6 shadow-xl shadow-gray-200/50 border border-gray-100">
+            <OtpLoginForm />
+          </div>
+        </main>
+      </>
+    );
   }
 
   return (
@@ -570,6 +756,43 @@ export default function CartPage() {
                     )}
                   </AnimatePresence>
 
+                  {!appliedCoupon && availableCoupons.length > 0 && (
+                    <div className="mt-4 border-t border-gray-100 pt-4">
+                      <p className="mb-2.5 text-[11px] font-extrabold uppercase tracking-widest text-brand-orange/80">Available Offers</p>
+                      <div className="flex gap-3 overflow-x-auto pb-2 hide-scrollbar">
+                        {availableCoupons.map(c => {
+                          const meetsMinOrder = subtotal >= c.min_order;
+                          const meetsPayment = !c.payment_mode_required || c.payment_mode_required === paymentMode;
+                          const isValid = meetsMinOrder && meetsPayment;
+                          return (
+                            <div key={c.code} className={`flex shrink-0 flex-col justify-between rounded-xl border p-3 min-w-[160px] max-w-[200px] shadow-sm transition-all ${isValid ? "border-brand-orange/30 bg-brand-orange/[0.03]" : "border-gray-200 bg-gray-50 opacity-60"}`}>
+                              <div>
+                                <p className={`text-[13px] font-extrabold font-mono ${isValid ? "text-brand-orange" : "text-gray-500"}`}>{c.code}</p>
+                                <p className="text-[11px] font-semibold text-gray-600 mt-1 leading-snug">
+                                  {c.discount_type === "percent" ? `${c.discount_value}% OFF` : `₹${c.discount_value} OFF`}
+                                  {c.min_order > 0 ? ` on ₹${c.min_order}+` : ""}
+                                </p>
+                                {c.payment_mode_required && (
+                                  <p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-gray-400">
+                                    {c.payment_mode_required} only
+                                  </p>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => { setCouponInput(c.code); applyCoupon(c.code); }}
+                                disabled={!isValid || couponLoading}
+                                className={`mt-3 w-full rounded-lg py-1.5 text-[11px] font-bold transition-all ${isValid ? "bg-brand-orange text-white hover:bg-brand-orange-dark active:scale-95 shadow-md shadow-brand-orange/20" : "bg-gray-200 text-gray-500"}`}
+                              >
+                                {isValid ? "APPLY" : "NOT APPLICABLE"}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   <AnimatePresence>
                     {couponError && (
                       <motion.p
@@ -668,11 +891,15 @@ export default function CartPage() {
                         <BillRow
                           label="Delivery charge"
                           value={deliveryFee === 0 ? "FREE" : formatInr(deliveryFee)}
-                          hint={deliveryFee > 0 ? "Free above ₹299" : undefined}
+                          hint={deliveryFee > 0 ? (freeDeliveryAt > 0 ? `Free above ₹${freeDeliveryAt}` : undefined) : undefined}
                           green={deliveryFee === 0}
                         />
+                        <BillRow label={`Taxes & Platform fee (${storeSettings.tax_percent}%)`} value={formatInr(gst)} />
                         {appliedCoupon && (
                           <BillRow label={`Coupon (${appliedCoupon.code})`} value={`-${formatInr(couponDiscount)}`} green />
+                        )}
+                        {upiDiscount > 0 && (
+                          <BillRow label={`UPI Offer (${storeSettings.upi_discount_percent}%)`} value={`-${formatInr(upiDiscount)}`} green />
                         )}
                         <div className="my-1 h-px bg-gray-200" />
                         <div className="flex items-center justify-between pt-1">
@@ -722,7 +949,13 @@ export default function CartPage() {
             <div className="mx-auto max-w-3xl space-y-3">
               <p className="text-[15px] font-bold text-white/95">Bhook Lagi Wallet Balance: ₹0 · Add money</p>
               <div className="flex items-center gap-3">
-                <PaymentSelector paymentMode={paymentMode} onChange={setPaymentMode} />
+                <PaymentSelector
+                  paymentMode={paymentMode}
+                  upiSavings={potentialUpiSavings}
+                  onChange={(mode) => {
+                    setPaymentMode(mode);
+                  }}
+                />
 
                 <button
                   type="button"
@@ -732,7 +965,9 @@ export default function CartPage() {
                 >
                   <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/15 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
                   <div className="relative text-left">
-                    <p className="price-text text-[18px] font-black leading-none text-white">{formatInr(grand)}</p>
+                    <motion.div key={grand} initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+                      <p className="price-text text-[18px] font-black leading-none text-white">{formatInr(grand)}</p>
+                    </motion.div>
                     <p className="mt-0.5 text-[10px] font-black uppercase tracking-widest text-white/75">Total</p>
                   </div>
                   <div className="relative flex items-center gap-1.5">
@@ -1157,9 +1392,11 @@ function BillRow({ label, value, hint, green }: { label: string; value: string; 
 function PaymentSelector({
   paymentMode,
   onChange,
+  upiSavings = 0,
 }: {
   paymentMode: PaymentMode;
   onChange: (mode: PaymentMode) => void;
+  upiSavings?: number;
 }) {
   return (
     <div className="min-w-[135px] rounded-2xl bg-white/5 px-1 py-1 ring-1 ring-white/10">
@@ -1176,10 +1413,15 @@ function PaymentSelector({
         <button
           type="button"
           onClick={() => onChange("upi")}
-          className={`flex items-center justify-center gap-1 rounded-xl px-2 py-2 text-[11px] font-extrabold transition-colors ${paymentMode === "upi" ? "bg-white text-gray-950" : "text-white/65"}`}
+          className={`relative flex items-center justify-center gap-1 rounded-xl px-2 py-2 text-[11px] font-extrabold transition-colors ${paymentMode === "upi" || paymentMode === "online" ? "bg-white text-gray-950" : "text-white/65"}`}
         >
           <CreditCard className="h-3.5 w-3.5" />
           UPI
+          {upiSavings > 0 && paymentMode === "cod" && (
+            <span className="absolute -top-2.5 -right-2 flex items-center justify-center rounded-md bg-green-500 px-1.5 py-0.5 text-[8px] font-black text-white shadow-sm animate-pulse">
+              Save {formatInr(upiSavings)}
+            </span>
+          )}
         </button>
       </div>
     </div>

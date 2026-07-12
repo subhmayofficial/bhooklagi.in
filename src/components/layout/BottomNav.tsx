@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 const links = [
-  { href: "/home",   label: "Home",    Icon: Home },
+  { href: "/",       label: "Home",    Icon: Home },
   { href: "/menu",   label: "Menu",    Icon: UtensilsCrossed },
   { href: "/orders", label: "Orders",  Icon: Receipt },
 ] as const;
@@ -15,7 +15,7 @@ const links = [
 export function BottomNav() {
   const pathname = usePathname();
 
-  const HIDDEN_PATHS = ["/", "/cart", "/checkout"];
+  const HIDDEN_PATHS = ["/cart", "/checkout"];
   if (HIDDEN_PATHS.includes(pathname) || pathname.startsWith("/orders/")) return null;
 
   return (
@@ -26,7 +26,7 @@ export function BottomNav() {
       <div className="border-t border-gray-200 bg-white px-2 pb-2 pt-1 shadow-[0_-4px_16px_rgba(0,0,0,0.06)]">
         <div className="mx-auto flex max-w-lg items-center justify-between gap-1">
           {links.map(({ href, label, Icon }) => {
-            const active = href === "/home" ? pathname === "/home" || pathname === "/" : pathname.startsWith(href);
+            const active = href === "/" ? pathname === "/" || pathname === "/home" : pathname.startsWith(href);
             return (
               <Link
                 key={href}

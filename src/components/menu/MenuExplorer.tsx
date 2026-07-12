@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 
 /* ── Category images for the sidebar / pill bar ─────────────────── */
 const CAT_IMAGES: Partial<Record<MenuCategoryId, string>> = {
+  meals:      "https://b.zmtcdn.com/data/dish_photos/198/fe86ada522be0b3f0ab1aa6eefc24198.jpeg",
   burgers:    "https://b.zmtcdn.com/data/dish_photos/48b/a59d732bf2d0f51fb4895f46548e548b.png",
   rolls:      "https://b.zmtcdn.com/data/dish_photos/99a/7c1d6342603039279a6bcc5a6cd0b99a.jpeg",
   maggi:      "https://b.zmtcdn.com/data/dish_photos/153/89ab6ec6d2f308395e4693f991c0f153.jpeg",
@@ -496,6 +497,10 @@ function CategorySectionHeader({
 }
 
 /* ── Bestseller pill ─────────────────────────────────────────────── */
+function formatBestsellerName(name: string): string {
+  return name.replace(/^Bhook Lagi\s+/i, "");
+}
+
 function BestsellerPill({ item }: { item: typeof menuItems[number] }) {
   const addItem  = useCartStore((s) => s.addItem);
   const lines    = useCartStore((s) => s.lines);
@@ -512,9 +517,9 @@ function BestsellerPill({ item }: { item: typeof menuItems[number] }) {
           ? <Image src={item.image} alt={item.name} fill sizes="140px" className="object-cover" />
           : <div className="flex h-full w-full items-center justify-center text-[2.5rem]">{item.emoji}</div>
         }
-        <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-        <span className="absolute bottom-1.5 left-2 font-display text-[14px] leading-none text-white tracking-wide drop-shadow">
-          {item.name.split(" ").slice(0, 2).join(" ")}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+        <span className="absolute bottom-1.5 left-2 right-2 font-display text-[13px] leading-tight text-white tracking-wide drop-shadow line-clamp-2">
+          {formatBestsellerName(item.name)}
         </span>
       </div>
       <div className="flex items-center justify-between px-2.5 py-2">

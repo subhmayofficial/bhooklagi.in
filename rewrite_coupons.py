@@ -1,4 +1,6 @@
-"use client";
+import sys
+
+new_content = """"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -290,9 +292,6 @@ export default function AdminCouponsPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Link href="/admin/settings" className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[12px] font-semibold text-gray-600 hover:text-gray-900 transition-colors dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:text-white">
-              <span className="hidden sm:inline">Settings</span>
-            </Link>
             <button
               type="button"
               onClick={toggleTheme}
@@ -433,3 +432,8 @@ export default function AdminCouponsPage() {
     </div>
   );
 }
+"""
+
+with open("src/app/admin/coupons/page.tsx", "w") as f:
+    f.write(new_content)
+

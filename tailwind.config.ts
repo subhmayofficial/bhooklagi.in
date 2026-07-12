@@ -6,6 +6,7 @@ const config: Config = {
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
+  darkMode: "class",
   theme: {
     extend: {
       colors: {
@@ -22,7 +23,7 @@ const config: Config = {
         },
       },
       fontFamily: {
-        display: ["var(--font-bebas)", "Impact", "sans-serif"],
+        display: ["var(--font-lilita)", "var(--font-bebas)", "Impact", "sans-serif"],
         serif: ["var(--font-playfair)", "Georgia", "serif"],
         sans: ["var(--font-inter)", "system-ui", "sans-serif"],
       },

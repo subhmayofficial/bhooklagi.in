@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { useAuthStore } from "@/stores/auth-store";
 import { useCartStore, type CartLine } from "@/stores/cart-store";
+import { OtpLoginForm } from "@/components/auth/OtpLoginForm";
 import { formatInr } from "@/data/menu";
 import { ORDER_STATUS_META, type OrderStatus } from "@/lib/orders";
 
@@ -43,15 +44,15 @@ export default function OrdersHistoryPage() {
     return (
       <>
         <SiteHeader />
-        <main className="mx-auto max-w-lg px-4 pb-28 pt-28 text-center">
-          <h1 className="text-[19px] font-bold text-gray-900">Log in to see your orders</h1>
-          <button
-            type="button"
-            onClick={openLoginModal}
-            className="mt-6 inline-flex rounded-full bg-brand-orange px-8 py-3 text-[14px] font-bold text-white"
-          >
-            Log in with OTP
-          </button>
+        <main className="mx-auto flex min-h-[80vh] max-w-sm flex-col items-center justify-center px-4 pb-28 pt-20">
+          <div className="mb-8 w-full">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[20px] bg-brand-orange shadow-lg shadow-brand-orange/30">
+              <span className="text-[28px] font-black text-white">BL</span>
+            </div>
+          </div>
+          <div className="w-full rounded-[28px] bg-white p-6 shadow-xl shadow-gray-200/50 border border-gray-100">
+            <OtpLoginForm />
+          </div>
         </main>
       </>
     );

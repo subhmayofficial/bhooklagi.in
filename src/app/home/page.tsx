@@ -2,7 +2,7 @@ import { SiteFooter } from "@/components/layout/SiteFooter";
 import { AppHomeHero } from "@/components/home/AppHomeHero";
 import { FoodMarquee } from "@/components/home/FoodMarquee";
 import { HomeCategoryShowcase } from "@/components/home/HomeCategoryShowcase";
-import { OffersRail } from "@/components/home/OffersRail";
+import { OffersCarousel } from "@/components/home/OffersCarousel";
 import { FeaturedSection } from "@/components/home/FeaturedSection";
 import { CombosSection } from "@/components/home/CombosSection";
 import { TrustSection } from "@/components/home/TrustSection";
@@ -14,7 +14,7 @@ export default function AppHomePage() {
       <AppHomeHero />
       <FoodMarquee />
       <HomeCategoryShowcase />
-      <OffersRail />
+      <OffersCarousel />
       <FeaturedSection />
       <CombosSection />
       <TrustSection />
