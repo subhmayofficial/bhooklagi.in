@@ -228,7 +228,7 @@ export default function AdminOrdersPage() {
   // Queue of new orders waiting for popup (Zomato-style: one at a time)
   const [pendingOrders, setPendingOrders] = useState<AdminOrder[]>([]);
 
-  const prevOrderIds  = useRef<Set<string>>(new Set());
+  const alertedOrderIds  = useRef<Set<string>>(new Set());
   const audioCtxRef   = useRef<AudioContext | null>(null);
   const ringLoopRef   = useRef<ReturnType<typeof setTimeout> | null>(null); // loop timer
 
@@ -308,10 +308,7 @@ export default function AdminOrdersPage() {
     await updateStatus(order.id, "preparing");
   }
 
-  /* ── Reset known IDs on filter change so first poll is always silent ── */
-  useEffect(() => {
-    prevOrderIds.current = new Set();
-  }, [filter]);
+  // Filter change no longer resets the alerted set, preventing double-alerts
 
   /* ── Load / poll orders ── */
   const load = useCallback(async () => {
@@ -323,25 +320,24 @@ export default function AdminOrdersPage() {
       if (!res.ok) throw new Error(payload?.error || "Could not load orders.");
       const incoming: AdminOrder[] = payload.orders;
 
-      /* Detect genuinely new orders */
-      if (prevOrderIds.current.size === 0) {
-        const placedOrders = incoming.filter(o => o.status === "placed");
-        if (placedOrders.length > 0) {
-          setPendingOrders(placedOrders);
-        }
-      } else {
-        const fresh = incoming.filter((o) => !prevOrderIds.current.has(o.id) && o.status === "placed");
-        if (fresh.length > 0) {
-          setNewCount((c) => c + fresh.length);
-          // Add to popup queue
-          setPendingOrders((prev) => {
-            const arr = [...prev];
-            fresh.forEach(f => { if (!arr.find(x => x.id === f.id)) arr.push(f); });
-            return arr;
+      /* Detect genuinely new placed orders */
+      const fresh = incoming.filter((o) => o.status === "placed" && !alertedOrderIds.current.has(o.id));
+      if (fresh.length > 0) {
+        setNewCount((c) => c + fresh.length);
+        
+        // Add to popup queue
+        setPendingOrders((prev) => {
+          const arr = [...prev];
+          fresh.forEach(f => {
+            if (!arr.find(x => x.id === f.id)) arr.push(f);
+            alertedOrderIds.current.add(f.id); // Mark as alerted immediately
           });
-        }
+          return arr;
+        });
       }
-      prevOrderIds.current = new Set(incoming.map((o) => o.id));
+      
+      // Keep track of all incoming orders so we don't alert them if they change status/poll again
+      incoming.forEach((o) => alertedOrderIds.current.add(o.id));
       setOrders(incoming.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load orders.");

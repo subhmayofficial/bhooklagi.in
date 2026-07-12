@@ -97,13 +97,27 @@ export function MenuExplorer() {
     let items = active === "all" ? allItems : allItems.filter((m) => m.categoryId === active);
     if (diet !== "all") items = items.filter((m) => m.diet === diet);
     const q = query.trim().toLowerCase();
-    if (q) items = items.filter((m) => m.name.toLowerCase().includes(q) || m.description.toLowerCase().includes(q));
+    if (q) {
+      items = items.filter((m) => m.name.toLowerCase().includes(q) || m.description.toLowerCase().includes(q));
+      items = [...items].sort((a, b) => {
+        const aName = a.name.toLowerCase();
+        const bName = b.name.toLowerCase();
+        const aMatchesName = aName.includes(q);
+        const bMatchesName = bName.includes(q);
+        
+        // Exact name matches first, then description matches
+        if (aMatchesName && !bMatchesName) return -1;
+        if (!aMatchesName && bMatchesName) return 1;
+        return 0;
+      });
+    }
     return items;
   }, [active, query, diet, allItems]);
 
   /* ── Grouped by category (for "All" view) ── */
   const grouped = useMemo(() => {
-    if (active !== "all" && !query) return null;
+    if (query) return null; // Flat list layout during search (avoids duplicate category headers)
+    if (active !== "all") return null;
     const map: Record<string, typeof allItems> = {};
     for (const item of filtered) {
       if (!map[item.categoryId]) map[item.categoryId] = [];
@@ -349,7 +363,7 @@ export function MenuExplorer() {
         {/* ── Items ── */}
         <AnimatePresence mode="wait">
           <motion.div
-            key={active + query + diet}
+            key={active + diet} // Remove query from key to prevent glitchy screen flashes/animations on every keystroke
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}

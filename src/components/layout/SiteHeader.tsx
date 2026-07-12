@@ -12,6 +12,7 @@ const navLinks = [
   { href: "/",       label: "Home" },
   { href: "/menu",   label: "Menu" },
   { href: "/offers", label: "Offers" },
+  { href: "/orders", label: "Track Order" },
 ];
 
 export function SiteHeader() {
@@ -68,11 +69,11 @@ export function SiteHeader() {
           })}
         </nav>
 
-        {/* Mobile right actions */}
-        <div className="flex items-center gap-2 md:hidden">
+        {/* Mobile + Desktop Actions */}
+        <div className="flex items-center gap-2">
           <Link
             href="/cart"
-            className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gray-50 text-gray-600 active:scale-90 transition-transform"
+            className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-gray-900 active:scale-90 transition-all"
           >
             <ShoppingBag className="h-5 w-5" strokeWidth={1.8} />
             {qty > 0 && (
@@ -83,14 +84,11 @@ export function SiteHeader() {
           </Link>
           <Link
             href="/account"
-            className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-50 text-gray-600 active:scale-90 transition-transform"
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-gray-900 active:scale-90 transition-all"
           >
             <User className="h-5 w-5" strokeWidth={1.8} />
           </Link>
         </div>
-
-        {/* Desktop spacer */}
-        <div className="hidden h-8 w-8 md:block" />
       </div>
     </motion.header>
   );
