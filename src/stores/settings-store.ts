@@ -9,6 +9,7 @@ type StoreSettings = {
   upi_discount_enabled: boolean;
   upi_discount_percent: number;
   kitchen_open: boolean;
+  next_open_time: string | null;
 };
 
 type SettingsState = {

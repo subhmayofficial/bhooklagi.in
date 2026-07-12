@@ -316,10 +316,7 @@ export default function CartPage() {
   }
 
   function openCheckout() {
-    if (storeSettings.kitchen_open === false) {
-      alert("🏪 The kitchen is currently closed. We cannot accept orders right now.");
-      return;
-    }
+    if (storeSettings.kitchen_open === false) return;
     if (authStatus !== "authenticated") {
       openLoginModal();
       return;
@@ -609,6 +606,17 @@ export default function CartPage() {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* ════════════════════ KITCHEN CLOSED BANNER ════════════════════ */}
+          {storeSettings.kitchen_open === false && lines.length > 0 && (
+            <div className="mb-3 flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3.5">
+              <span className="text-xl">🏪</span>
+              <div className="flex-1">
+                <p className="text-[13px] font-extrabold text-red-700">Kitchen is Closed</p>
+                <p className="text-[11px] text-red-500">Orders are paused. Come back when we reopen!</p>
+              </div>
+            </div>
+          )}
 
           {/* ════════════════════ CART CONTENT ════════════════════ */}
           {lines.length > 0 && (

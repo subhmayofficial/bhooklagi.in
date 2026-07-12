@@ -32,7 +32,7 @@ export async function PATCH(req: Request) {
   if (!(await isAdminSession())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));
-  const { delivery_charge, free_delivery_threshold, tax_percent, upi_discount_enabled, upi_discount_percent, kitchen_open } = body;
+  const { delivery_charge, free_delivery_threshold, tax_percent, upi_discount_enabled, upi_discount_percent, kitchen_open, next_open_time } = body;
 
   const supabase = getSupabaseAdminClient();
 
@@ -47,6 +47,7 @@ export async function PATCH(req: Request) {
       upi_discount_enabled: Boolean(upi_discount_enabled),
       upi_discount_percent: Number(upi_discount_percent) || 0,
       kitchen_open: kitchen_open !== undefined ? Boolean(kitchen_open) : true,
+      next_open_time: next_open_time || null,
     })
     .select()
     .single();

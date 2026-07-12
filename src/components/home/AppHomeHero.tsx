@@ -20,9 +20,11 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useCartStore } from "@/stores/cart-store";
+import { useSettingsStore } from "@/stores/settings-store";
 import { menuItems, formatInr } from "@/data/menu";
 import { estimateDeliveryMinutes, type Coords } from "@/lib/location";
 import { NotificationCenter } from "@/components/home/NotificationCenter";
+import { NotifyMeModal } from "@/components/layout/NotifyMeModal";
 
 type LastOrder = {
   orderNumber: string;
@@ -71,6 +73,10 @@ export function AppHomeHero() {
   const status = useAuthStore((s) => s.status);
   const openLoginModal = useAuthStore((s) => s.openLoginModal);
   const addItem = useCartStore((s) => s.addItem);
+  const kitchenSettings = useSettingsStore((s) => s.settings);
+  const fetchSettings = useSettingsStore((s) => s.fetchSettings);
+  const isClosed = kitchenSettings ? !kitchenSettings.kitchen_open : false;
+  const [notifyModalOpen, setNotifyModalOpen] = useState(false);
 
   const [mounted, setMounted] = useState(false);
   const [query, setQuery] = useState("");
@@ -89,6 +95,8 @@ export function AppHomeHero() {
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [isListening, setIsListening] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { fetchSettings(); }, [fetchSettings]);
 
   useEffect(() => {
     setMounted(true);
@@ -216,6 +224,7 @@ export function AppHomeHero() {
   }
 
   function handleQuickAdd(item: typeof menuItems[0]) {
+    if (isClosed) return;
     addItem(item);
     setSearchFocused(false);
   }
@@ -242,7 +251,7 @@ export function AppHomeHero() {
   }
 
   function reorder() {
-    if (!lastOrder) return;
+    if (!lastOrder || isClosed) return;
     for (const line of lastOrder.items) {
       const item = menuItems.find((m) => m.id === line.itemId);
       if (item) addItem(item, line.qty);
@@ -259,7 +268,8 @@ export function AppHomeHero() {
   const showDropdown = searchFocused && (searchResults.length > 0 || query.length === 0);
 
   return (
-    // section has no overflow-hidden so the search dropdown isn't clipped
+    <>
+    {/* section has no overflow-hidden so the search dropdown isn't clipped */}
     <section
       className="relative bg-gradient-to-br from-brand-orange via-brand-orange-dark to-brand-gold px-4 pb-4 md:pb-5"
       style={{ paddingTop: "calc(0.75rem + env(safe-area-inset-top))" }}
@@ -322,33 +332,59 @@ export function AppHomeHero() {
           </div>
         </div>
 
-        {/* ── ETA card ── */}
+        {/* ── ETA / Closed card ── */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="flex items-center gap-3 rounded-2xl bg-white p-2.5 shadow-lg"
+          className={`flex items-center gap-3 rounded-2xl p-2.5 shadow-lg ${isClosed ? "bg-red-50 border border-red-200" : "bg-white"}`}
         >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-orange/10">
-            <Clock className="h-5 w-5 text-brand-orange" strokeWidth={2.5} />
+          <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isClosed ? "bg-red-100" : "bg-brand-orange/10"}`}>
+            <Clock className={`h-5 w-5 ${isClosed ? "text-red-500" : "text-brand-orange"}`} strokeWidth={2.5} />
           </span>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
-              <span className="relative flex h-2 w-2 shrink-0">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
-              </span>
-              <p className="truncate text-[14px] font-extrabold text-gray-900">
-                {customerCoords ? `Delivery in ${eta.min}-${eta.max} min` : "Get current location for ETA"}
-              </p>
-            </div>
-            <p className="truncate text-[11px] text-gray-500">
-              {customerCoords ? `Fastest kitchen near ${locationLabel.split(",")[0]}` : "Precise location keeps delivery time real"}
-            </p>
+            {isClosed ? (
+              <>
+                <div className="flex items-center gap-1.5">
+                  <span className="relative flex h-2 w-2 shrink-0">
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+                  </span>
+                  <p className="truncate text-[14px] font-extrabold text-red-700">Kitchen is Closed</p>
+                </div>
+                <p className="truncate text-[11px] text-red-500">
+                  {kitchenSettings?.next_open_time ? `Opens at ${kitchenSettings.next_open_time}` : "We'll reopen soon — stay tuned!"}
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-1.5">
+                  <span className="relative flex h-2 w-2 shrink-0">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+                  </span>
+                  <p className="truncate text-[14px] font-extrabold text-gray-900">
+                    {customerCoords ? `Delivery in ${eta.min}-${eta.max} min` : "Get current location for ETA"}
+                  </p>
+                </div>
+                <p className="truncate text-[11px] text-gray-500">
+                  {customerCoords ? `Fastest kitchen near ${locationLabel.split(",")[0]}` : "Precise location keeps delivery time real"}
+                </p>
+              </>
+            )}
           </div>
-          <span className="shrink-0 rotate-[-3deg] rounded-full bg-ink px-2.5 py-1 text-[10px] font-extrabold text-brand-gold shadow-sm">
-            🔥 ₹80 OFF
-          </span>
+          {isClosed ? (
+            <button
+              type="button"
+              onClick={() => setNotifyModalOpen(true)}
+              className="shrink-0 rounded-full bg-red-500 px-3 py-1.5 text-[10px] font-extrabold text-white shadow-sm transition-all hover:bg-red-600 active:scale-95"
+            >
+              Notify Me
+            </button>
+          ) : (
+            <span className="shrink-0 rotate-[-3deg] rounded-full bg-ink px-2.5 py-1 text-[10px] font-extrabold text-brand-gold shadow-sm">
+              🔥 ₹80 OFF
+            </span>
+          )}
         </motion.div>
 
         <p className="mt-2 text-[13px] font-medium text-white/85">
@@ -498,7 +534,8 @@ export function AppHomeHero() {
                               <button
                                 type="button"
                                 onClick={() => handleQuickAdd(item)}
-                                className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-orange text-white shadow-sm transition-transform active:scale-90"
+                                disabled={isClosed}
+                                className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-orange text-white shadow-sm transition-transform active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed"
                               >
                                 <Plus className="h-3.5 w-3.5" strokeWidth={3} />
                               </button>
@@ -621,7 +658,8 @@ export function AppHomeHero() {
                 <button
                   type="button"
                   onClick={reorder}
-                  className="flex w-full items-center gap-3 rounded-2xl bg-white p-3.5 text-left shadow-lg transition-transform active:scale-[0.99]"
+                  disabled={isClosed}
+                  className="flex w-full items-center gap-3 rounded-2xl bg-white p-3.5 text-left shadow-lg transition-transform active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-orange/10 text-brand-orange">
                     <RotateCcw className="h-4 w-4" strokeWidth={2.5} />
@@ -646,5 +684,8 @@ export function AppHomeHero() {
         </AnimatePresence>
       </div>
     </section>
+
+    <NotifyMeModal isOpen={notifyModalOpen} onClose={() => setNotifyModalOpen(false)} />
+  </>
   );
 }

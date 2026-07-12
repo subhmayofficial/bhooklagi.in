@@ -32,7 +32,7 @@ export function KitchenStatusBanner() {
           <Clock3 className="h-4 w-4" strokeWidth={2.5} />
         </span>
         <span className="leading-snug">
-          Kitchen is closed right now. Orders are paused until we reopen.
+          Kitchen is closed right now.{settings.next_open_time ? ` Opens at ${settings.next_open_time}.` : " Orders are paused until we reopen."}
         </span>
         <button
           type="button"

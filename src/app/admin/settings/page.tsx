@@ -22,7 +22,8 @@ export default function AdminSettingsPage() {
   const [upiEnabled, setUpiEnabled] = useState(false);
   const [upiPercent, setUpiPercent] = useState("");
   const [kitchenOpen, setKitchenOpen] = useState(true);
-  
+  const [nextOpenTime, setNextOpenTime] = useState("");
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -42,6 +43,7 @@ export default function AdminSettingsPage() {
       setUpiEnabled(s.upi_discount_enabled);
       setUpiPercent(s.upi_discount_percent.toString());
       setKitchenOpen(s.kitchen_open !== false);
+      setNextOpenTime(s.next_open_time || "");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error loading settings.");
     } finally {
@@ -73,6 +75,7 @@ export default function AdminSettingsPage() {
           upi_discount_enabled: upiEnabled,
           upi_discount_percent: parseInt(upiPercent) || 0,
           kitchen_open: kitchenOpen,
+          next_open_time: nextOpenTime.trim() || null,
         }),
       });
       const payload = await res.json();
@@ -225,7 +228,7 @@ export default function AdminSettingsPage() {
                   </h2>
                 </div>
                 
-                <div className="p-6">
+                <div className="p-6 space-y-4">
                   <div className="flex items-center justify-between rounded-2xl border border-gray-100 bg-gray-50 px-4 py-4 dark:border-white/5 dark:bg-black/20">
                     <div>
                       <p className="text-[14px] font-extrabold text-gray-900 dark:text-white">Kitchen Status</p>
@@ -242,6 +245,18 @@ export default function AdminSettingsPage() {
                       />
                       <div className="h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-green-500 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none dark:bg-gray-700 dark:after:border-gray-600"></div>
                     </label>
+                  </div>
+
+                  <div className={`transition-all ${!kitchenOpen ? "opacity-100" : "opacity-50 pointer-events-none"}`}>
+                    <label className="mb-1.5 block text-[13px] font-extrabold text-gray-700 dark:text-gray-300">Next Open Time</label>
+                    <p className="mb-3 text-[11px] text-gray-500">Shown to customers on the closed banner, e.g. &ldquo;7 PM today&rdquo; or &ldquo;Tomorrow 10 AM&rdquo;.</p>
+                    <input
+                      type="text"
+                      value={nextOpenTime}
+                      onChange={(e) => setNextOpenTime(e.target.value)}
+                      placeholder="e.g. 7 PM today"
+                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-[14px] font-bold text-gray-900 focus:border-brand-orange focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-orange/20 dark:border-white/10 dark:bg-black/20 dark:text-white dark:focus:bg-black/40 transition-all"
+                    />
                   </div>
                 </div>
               </div>
