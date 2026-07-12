@@ -1,57 +1,18 @@
 import { MetadataRoute } from 'next';
 
-export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = 'https://www.bhooklagi.in';
-  const lastModified = new Date();
+export const dynamic = 'force-static';
 
+const BASE = 'https://www.bhooklagi.in';
+
+export default function sitemap(): MetadataRoute.Sitemap {
   return [
-    {
-      url: `${baseUrl}/`,
-      lastModified,
-      changeFrequency: 'daily',
-      priority: 1,
-    },
-    {
-      url: `${baseUrl}/menu`,
-      lastModified,
-      changeFrequency: 'daily',
-      priority: 0.95,
-    },
-    {
-      url: `${baseUrl}/offers`,
-      lastModified,
-      changeFrequency: 'weekly',
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/contact`,
-      lastModified,
-      changeFrequency: 'monthly',
-      priority: 0.7,
-    },
-    {
-      url: `${baseUrl}/privacy-policy`,
-      lastModified,
-      changeFrequency: 'monthly',
-      priority: 0.3,
-    },
-    {
-      url: `${baseUrl}/terms`,
-      lastModified,
-      changeFrequency: 'monthly',
-      priority: 0.3,
-    },
-    {
-      url: `${baseUrl}/refund-policy`,
-      lastModified,
-      changeFrequency: 'monthly',
-      priority: 0.3,
-    },
-    {
-      url: `${baseUrl}/delivery-policy`,
-      lastModified,
-      changeFrequency: 'monthly',
-      priority: 0.3,
-    }
+    { url: `${BASE}/`,               changeFrequency: 'daily',   priority: 1 },
+    { url: `${BASE}/menu`,           changeFrequency: 'daily',   priority: 0.95 },
+    { url: `${BASE}/offers`,         changeFrequency: 'weekly',  priority: 0.8 },
+    { url: `${BASE}/contact`,        changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${BASE}/privacy-policy`, changeFrequency: 'monthly', priority: 0.3 },
+    { url: `${BASE}/terms`,          changeFrequency: 'monthly', priority: 0.3 },
+    { url: `${BASE}/refund-policy`,  changeFrequency: 'monthly', priority: 0.3 },
+    { url: `${BASE}/delivery-policy`,changeFrequency: 'monthly', priority: 0.3 },
   ];
 }
