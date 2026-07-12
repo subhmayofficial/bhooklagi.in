@@ -58,6 +58,10 @@
     select {
       font-size: 16px;
     }
+
+    .admin-shell {
+      padding-bottom: calc(5.75rem + env(safe-area-inset-bottom));
+    }
   }
 }
 

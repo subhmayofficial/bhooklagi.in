@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, X, Share, ChevronRight, Check } from "lucide-react";
+import { Bell, X, Share, ChevronRight, Check, AlertCircle } from "lucide-react";
 
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+const DISMISS_KEY = "bl_push_prompt_dismissed_v2";
+const PROMPT_DELAY_MS = 3000;
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -17,6 +19,13 @@ function urlBase64ToUint8Array(base64String: string) {
   return outputArray;
 }
 
+async function getServiceWorkerRegistration() {
+  if (!navigator.serviceWorker.controller) {
+    await navigator.serviceWorker.register("/sw.js");
+  }
+  return navigator.serviceWorker.ready;
+}
+
 export function PushPrompt() {
   const [showPrompt, setShowPrompt] = useState(false);
   const [isIos, setIsIos] = useState(false);
@@ -24,6 +33,42 @@ export function PushPrompt() {
   const [permissionState, setPermissionState] = useState<string>("default");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState("");
+
+  const ensureSubscriptionSaved = useCallback(async () => {
+    if (!VAPID_PUBLIC_KEY) {
+      setError("Notification setup is missing. Please try again later.");
+      return false;
+    }
+
+    const reg = await getServiceWorkerRegistration();
+    const existingSub = await reg.pushManager.getSubscription();
+    const subscription = existingSub ?? await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+    });
+
+    const res = await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subscription }),
+    });
+
+    if (!res.ok) {
+      const payload = await res.json().catch(() => null);
+      throw new Error(payload?.error || "Could not save notification permission.");
+    }
+
+    return true;
+  }, []);
+
+  const registerSubscriptionSilently = useCallback(async () => {
+    try {
+      await ensureSubscriptionSaved();
+    } catch (e) {
+      console.warn("Silent push subscription check failed:", e);
+    }
+  }, [ensureSubscriptionSaved]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -52,7 +97,7 @@ export function PushPrompt() {
     }
 
     // Check localStorage if they dismissed it recently to avoid spamming
-    const dismissedTime = localStorage.getItem("bl_push_prompt_dismissed");
+    const dismissedTime = localStorage.getItem(DISMISS_KEY);
     if (dismissedTime) {
       const diff = Date.now() - parseInt(dismissedTime, 10);
       // Wait 3 days before showing it again if they dismissed it
@@ -64,76 +109,43 @@ export function PushPrompt() {
     // Show prompt after a short delay
     const timer = setTimeout(() => {
       setShowPrompt(true);
-    }, 2000);
+    }, PROMPT_DELAY_MS);
 
     return () => clearTimeout(timer);
-  }, []);
-
-  async function registerSubscriptionSilently() {
-    try {
-      if (!VAPID_PUBLIC_KEY) return;
-      const reg = await navigator.serviceWorker.ready;
-      const existingSub = await reg.pushManager.getSubscription();
-
-      if (existingSub) {
-        // Send to backend to make sure it's saved/updated
-        await fetch("/api/push/subscribe", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ subscription: existingSub }),
-        });
-      }
-    } catch (e) {
-      console.warn("Silent push subscription check failed:", e);
-    }
-  }
+  }, [registerSubscriptionSilently]);
 
   async function handleEnablePush() {
     setLoading(true);
+    setError("");
     try {
-      if (!VAPID_PUBLIC_KEY) {
-        console.error("VAPID public key not found");
-        return;
-      }
-
       // Request permission
       const permission = await Notification.requestPermission();
       setPermissionState(permission);
 
       if (permission === "granted") {
-        const reg = await navigator.serviceWorker.ready;
-        
-        // Subscribe to PushManager
-        const sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-        });
-
-        // Send subscription object to backend
-        const res = await fetch("/api/push/subscribe", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ subscription: sub }),
-        });
-
-        if (res.ok) {
+        const saved = await ensureSubscriptionSaved();
+        if (saved) {
           setSuccess(true);
           setTimeout(() => {
             setShowPrompt(false);
-          }, 2000);
+          }, 1600);
         }
+      } else if (permission === "denied") {
+        setError("Notifications are blocked in browser settings.");
+        setTimeout(() => setShowPrompt(false), 1400);
       } else {
         setShowPrompt(false);
       }
     } catch (err) {
       console.error("Error subscribing to web push:", err);
+      setError(err instanceof Error ? err.message : "Could not enable alerts. Please try again.");
     } finally {
       setLoading(false);
     }
   }
 
   function handleDismiss() {
-    localStorage.setItem("bl_push_prompt_dismissed", Date.now().toString());
+    localStorage.setItem(DISMISS_KEY, Date.now().toString());
     setShowPrompt(false);
   }
 
@@ -146,10 +158,11 @@ export function PushPrompt() {
     <AnimatePresence>
       {showPrompt && (
         <motion.div
-          initial={{ opacity: 0, y: 15 }}
+          initial={{ opacity: 0, y: 80, scale: 0.98 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -15 }}
-          className="mb-6 w-full overflow-hidden rounded-2xl border border-brand-orange/20 bg-gradient-to-r from-orange-50/70 to-amber-50/70 p-4 shadow-sm backdrop-blur-sm dark:border-brand-orange/10 dark:from-gray-900 dark:to-gray-900"
+          exit={{ opacity: 0, y: 80, scale: 0.98 }}
+          transition={{ type: "spring", stiffness: 320, damping: 28 }}
+          className="fixed bottom-[92px] left-3 right-3 z-[920] mx-auto max-w-md overflow-hidden rounded-3xl border border-brand-orange/20 bg-white p-4 shadow-[0_16px_50px_rgba(15,23,42,0.22)] backdrop-blur-xl dark:border-brand-orange/10 dark:bg-gray-900 md:bottom-8"
         >
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-orange/10 text-brand-orange">
@@ -213,6 +226,13 @@ export function PushPrompt() {
                   >
                     Later
                   </button>
+                </div>
+              )}
+
+              {error && (
+                <div className="mt-3 flex items-start gap-2 rounded-xl bg-red-50 px-3 py-2 text-[11px] font-semibold text-red-600 dark:bg-red-950/30 dark:text-red-300">
+                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  {error}
                 </div>
               )}
             </div>

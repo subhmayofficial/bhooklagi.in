@@ -14,15 +14,14 @@ type StoreSettings = {
 type SettingsState = {
   settings: StoreSettings | null;
   loading: boolean;
-  fetchSettings: () => Promise<StoreSettings | null>;
+  fetchSettings: (force?: boolean) => Promise<StoreSettings | null>;
 };
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   settings: null,
   loading: false,
-  fetchSettings: async () => {
-    // If already loaded, return cached settings
-    if (get().settings) return get().settings;
+  fetchSettings: async (force = false) => {
+    if (!force && get().settings) return get().settings;
 
     set({ loading: true });
     try {
