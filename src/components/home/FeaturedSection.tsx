@@ -109,7 +109,7 @@ function FeaturedCard({ itemId }: { itemId: string }) {
   const [imgLoaded, setImgLoaded] = useState(false);
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gray-900 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-brand-orange/30 hover:shadow-[0_8px_32px_rgba(232,93,4,0.25)]">
+    <div className="group relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gray-900 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-brand-orange/30 hover:shadow-[0_8px_32px_rgba(232,93,4,0.25)] flex flex-col h-[285px] justify-between">
 
       {/* Bestseller flash */}
       {item.bestseller && (
@@ -122,7 +122,7 @@ function FeaturedCard({ itemId }: { itemId: string }) {
       {/* ── Clickable image area → menu page ── */}
       <Link
         href={`/menu?cat=${item.categoryId}`}
-        className="relative block aspect-square overflow-hidden bg-gradient-to-br from-gray-800 via-gray-900 to-gray-800"
+        className="relative block aspect-square overflow-hidden bg-gradient-to-br from-gray-800 via-gray-900 to-gray-800 flex-shrink-0"
         tabIndex={-1}
         aria-label={`View ${item.name} on menu`}
       >
@@ -185,19 +185,21 @@ function FeaturedCard({ itemId }: { itemId: string }) {
       </Link>
 
       {/* Info */}
-      <div className="p-3">
-        {/* Name — clickable → menu */}
-        <Link href={`/menu?cat=${item.categoryId}`}>
-          <p className="text-[13px] font-semibold leading-snug text-white line-clamp-1 hover:text-brand-gold transition-colors">
-            {item.name}
+      <div className="p-2.5 flex-1 flex flex-col justify-between min-w-0">
+        <div>
+          {/* Name — clickable → menu */}
+          <Link href={`/menu?cat=${item.categoryId}`}>
+            <p className="text-[13px] font-bold leading-snug text-white line-clamp-1 hover:text-brand-gold transition-colors">
+              {item.name}
+            </p>
+          </Link>
+          <p className="mt-0.5 text-[10px] leading-tight text-gray-500 line-clamp-2">
+            {item.description}
           </p>
-        </Link>
-        <p className="mt-0.5 text-[10px] leading-tight text-gray-500 line-clamp-2">
-          {item.description}
-        </p>
+        </div>
 
-        <div className="mt-3 flex items-center justify-between">
-          <p className="font-display text-[18px] leading-none tracking-wide text-brand-gold">
+        <div className="mt-2 flex items-center justify-between">
+          <p className="font-display text-[17px] leading-none tracking-wide text-brand-gold">
             {formatInr(item.price)}
           </p>
 

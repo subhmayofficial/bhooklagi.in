@@ -9,6 +9,22 @@ export type MenuCategoryId =
 
 export type DietTag = "veg" | "egg" | "non-veg";
 
+export type AddonOption = {
+  id: string;
+  name: string;
+  price: number;
+};
+
+export type AddonGroup = {
+  id: string;
+  title: string;
+  type: "single" | "multiple";
+  options: AddOption[];
+};
+
+// Backward compatibility alias
+export type AddOption = AddonOption;
+
 export type MenuItem = {
   id: string;
   name: string;
@@ -20,7 +36,64 @@ export type MenuItem = {
   diet?: DietTag;
   spicy?: boolean;
   bestseller?: boolean;
+  addons?: string[];
 };
+
+export const ADDON_GROUPS: Record<string, AddonGroup> = {
+  burger_custom: {
+    id: "burger_custom",
+    title: "Customize Burger",
+    type: "multiple",
+    options: [
+      { id: "cheese", name: "Extra Cheese Slice", price: 20 },
+      { id: "veg_patty", name: "Extra Veg Patty", price: 25 },
+      { id: "chicken_patty", name: "Extra Chicken Patty", price: 45 },
+    ]
+  },
+  roll_custom: {
+    id: "roll_custom",
+    title: "Customize Roll",
+    type: "multiple",
+    options: [
+      { id: "cheese", name: "Add Extra Cheese", price: 20 },
+      { id: "egg", name: "Add Double Egg", price: 15 },
+      { id: "chicken", name: "Add Extra Chicken", price: 40 },
+    ]
+  },
+  maggi_custom: {
+    id: "maggi_custom",
+    title: "Customize Maggi",
+    type: "multiple",
+    options: [
+      { id: "cheese", name: "Add Extra Cheese", price: 20 },
+      { id: "veggies", name: "Add Extra Veggies", price: 15 },
+      { id: "double", name: "Double Maggi portion", price: 30 },
+    ]
+  },
+  sandwich_custom: {
+    id: "sandwich_custom",
+    title: "Customize Sandwich",
+    type: "multiple",
+    options: [
+      { id: "cheese", name: "Extra Cheese Slice", price: 20 },
+      { id: "paneer", name: "Add Grated Paneer", price: 30 },
+    ]
+  }
+};
+
+export function getItemAddons(item: MenuItem): AddonGroup[] {
+  const groups: AddonGroup[] = [];
+  if (item.categoryId === "burgers") {
+    groups.push(ADDON_GROUPS.burger_custom);
+  } else if (item.categoryId === "rolls") {
+    groups.push(ADDON_GROUPS.roll_custom);
+  } else if (item.categoryId === "maggi") {
+    groups.push(ADDON_GROUPS.maggi_custom);
+  } else if (item.categoryId === "sandwiches") {
+    groups.push(ADDON_GROUPS.sandwich_custom);
+  }
+  return groups;
+}
 
 export const categories: {
   id: MenuCategoryId;

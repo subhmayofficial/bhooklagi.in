@@ -5,6 +5,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import type { MenuItem } from "@/data/menu";
 
 export type CartLine = {
+  customLineId: string; // unique ID representing itemId + sorted addon IDs
   itemId: string;
   name: string;
   unitPrice: number;
@@ -12,15 +13,18 @@ export type CartLine = {
   emoji: string;
   image?: string;
   diet?: string;
+  selectedAddons?: { id: string; name: string; price: number }[];
 };
+
+type CartLineInput = Omit<CartLine, "customLineId"> & { customLineId?: string };
 
 type CartState = {
   lines: CartLine[];
-  addItem: (item: MenuItem, qty?: number) => void;
-  increment: (itemId: string) => void;
-  decrement: (itemId: string) => void;
-  remove: (itemId: string) => void;
-  replaceLines: (lines: CartLine[]) => void;
+  addItem: (item: MenuItem, qty?: number, selectedAddons?: { id: string; name: string; price: number }[]) => void;
+  increment: (customLineId: string) => void;
+  decrement: (customLineId: string) => void;
+  remove: (customLineId: string) => void;
+  replaceLines: (lines: CartLineInput[]) => void;
   clear: () => void;
 };
 
@@ -36,13 +40,23 @@ export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
       lines: [],
-      addItem: (item, qty = 1) => {
+      addItem: (item, qty = 1, selectedAddons = []) => {
         const lines = get().lines;
-        const existing = lines.find((l) => l.itemId === item.id);
+
+        // Generate a unique line ID based on item ID and selected addons
+        const addonKeys = [...selectedAddons].map((a) => a.id).sort().join("-");
+        const customLineId = addonKeys ? `${item.id}-${addonKeys}` : item.id;
+
+        // Calculate the base unit price including addons
+        const basePrice = item.price;
+        const addonsPrice = selectedAddons.reduce((sum, a) => sum + a.price, 0);
+        const finalUnitPrice = basePrice + addonsPrice;
+
+        const existing = lines.find((l) => l.customLineId === customLineId);
         if (existing) {
           set({
             lines: lines.map((l) =>
-              l.itemId === item.id ? { ...l, qty: l.qty + qty } : l,
+              l.customLineId === customLineId ? { ...l, qty: l.qty + qty } : l,
             ),
           });
         } else {
@@ -50,37 +64,46 @@ export const useCartStore = create<CartState>()(
             lines: [
               ...lines,
               {
+                customLineId,
                 itemId: item.id,
                 name: item.name,
-                unitPrice: item.price,
+                unitPrice: finalUnitPrice,
                 qty,
                 emoji: item.emoji,
                 image: item.image,
                 diet: item.diet,
+                selectedAddons,
               },
             ],
           });
         }
       },
-      increment: (itemId) => {
+      increment: (customLineId) => {
         set({
           lines: get().lines.map((l) =>
-            l.itemId === itemId ? { ...l, qty: l.qty + 1 } : l,
+            l.customLineId === customLineId ? { ...l, qty: l.qty + 1 } : l,
           ),
         });
       },
-      decrement: (itemId) => {
+      decrement: (customLineId) => {
         const lines = get().lines
           .map((l) =>
-            l.itemId === itemId ? { ...l, qty: l.qty - 1 } : l,
+            l.customLineId === customLineId ? { ...l, qty: l.qty - 1 } : l,
           )
           .filter((l) => l.qty > 0);
         set({ lines });
       },
-      remove: (itemId) => {
-        set({ lines: get().lines.filter((l) => l.itemId !== itemId) });
+      remove: (customLineId) => {
+        set({ lines: get().lines.filter((l) => l.customLineId !== customLineId) });
       },
-      replaceLines: (lines) => set({ lines: lines.filter((line) => line.qty > 0) }),
+      replaceLines: (lines) => set({
+        lines: lines
+          .filter((line) => line.qty > 0)
+          .map((line) => ({
+            ...line,
+            customLineId: line.customLineId ?? line.itemId,
+          })),
+      }),
       clear: () => set({ lines: [] }),
     }),
     {

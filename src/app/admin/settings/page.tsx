@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   LogOut, ShoppingBag, Tag, LayoutGrid, Sun, Moon,
-  Save, AlertCircle, CheckCircle2, Truck, Receipt, Percent
+  Save, AlertCircle, CheckCircle2, Truck, Receipt, Percent, Bell
 } from "lucide-react";
 import { useAdminStore } from "@/stores/admin-store";
 
@@ -21,6 +21,7 @@ export default function AdminSettingsPage() {
   const [taxPercent, setTaxPercent] = useState("");
   const [upiEnabled, setUpiEnabled] = useState(false);
   const [upiPercent, setUpiPercent] = useState("");
+  const [kitchenOpen, setKitchenOpen] = useState(true);
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -40,6 +41,7 @@ export default function AdminSettingsPage() {
       setTaxPercent(s.tax_percent.toString());
       setUpiEnabled(s.upi_discount_enabled);
       setUpiPercent(s.upi_discount_percent.toString());
+      setKitchenOpen(s.kitchen_open !== false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error loading settings.");
     } finally {
@@ -70,6 +72,7 @@ export default function AdminSettingsPage() {
           tax_percent: parseInt(taxPercent) || 0,
           upi_discount_enabled: upiEnabled,
           upi_discount_percent: parseInt(upiPercent) || 0,
+          kitchen_open: kitchenOpen,
         }),
       });
       const payload = await res.json();
@@ -117,6 +120,9 @@ export default function AdminSettingsPage() {
               </Link>
               <Link href="/admin/banners" className="flex shrink-0 items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[12px] font-semibold text-gray-600 hover:text-gray-900 transition-colors dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:text-white">
                 <span className="flex h-3.5 w-3.5 items-center justify-center rounded-sm bg-gray-600 text-[8px] text-white">B</span><span className="hidden sm:inline">Banners</span>
+              </Link>
+              <Link href="/admin/subscribers" className="flex shrink-0 items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[12px] font-semibold text-gray-600 hover:text-gray-900 transition-colors dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:text-white">
+                <Bell className="h-3.5 w-3.5" /><span className="hidden sm:inline">Alerts</span>
               </Link>
               <button type="button" onClick={handleLogout} className="flex shrink-0 items-center gap-1.5 rounded-xl border border-red-900/40 bg-red-50 px-3 py-2 text-[12px] font-semibold text-red-600 hover:text-red-500 transition-colors dark:bg-red-950/40 dark:text-red-400 dark:hover:text-red-300">
                 <LogOut className="h-3.5 w-3.5" /><span className="hidden sm:inline">Logout</span>
@@ -206,6 +212,36 @@ export default function AdminSettingsPage() {
                         className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-11 pr-4 py-3 text-[14px] font-bold text-gray-900 focus:border-brand-orange focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-orange/20 dark:border-white/10 dark:bg-black/20 dark:text-white dark:focus:bg-black/40 transition-all"
                       />
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Kitchen Open/Closed Toggle Card */}
+              <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-gray-900">
+                <div className="border-b border-gray-100 bg-gray-50/50 px-6 py-4 dark:border-white/5 dark:bg-gray-950/30">
+                  <h2 className="flex items-center gap-2 text-[14px] font-extrabold text-gray-900 dark:text-white">
+                    <span className="text-brand-orange">🏪</span>
+                    Kitchen Status Toggle
+                  </h2>
+                </div>
+                
+                <div className="p-6">
+                  <div className="flex items-center justify-between rounded-2xl border border-gray-100 bg-gray-50 px-4 py-4 dark:border-white/5 dark:bg-black/20">
+                    <div>
+                      <p className="text-[14px] font-extrabold text-gray-900 dark:text-white">Kitchen Status</p>
+                      <p className="text-[11px] text-gray-500">
+                        {kitchenOpen ? "Kitchen is currently OPEN & accepting orders." : "Kitchen is currently CLOSED & ordering is blocked."}
+                      </p>
+                    </div>
+                    <label className="relative inline-flex cursor-pointer items-center">
+                      <input
+                        type="checkbox"
+                        checked={kitchenOpen}
+                        onChange={(e) => setKitchenOpen(e.target.checked)}
+                        className="peer sr-only"
+                      />
+                      <div className="h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-green-500 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none dark:bg-gray-700 dark:after:border-gray-600"></div>
+                    </label>
                   </div>
                 </div>
               </div>

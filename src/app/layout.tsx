@@ -11,6 +11,7 @@ import { AuthRehydrate } from "@/components/providers/AuthRehydrate";
 import { OtpLoginModal } from "@/components/auth/OtpLoginModal";
 import { RatingPopup } from "@/components/layout/RatingPopup";
 import { InstallPrompt } from "@/components/layout/InstallPrompt";
+import { KitchenStatusBanner } from "@/components/layout/KitchenStatusBanner";
 import { MSG91_SCRIPT_SRC } from "@/lib/msg91/widget";
 
 const bebas = Bebas_Neue({
@@ -157,6 +158,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         <CartRehydrate />
         <AuthRehydrate />
         <ScrollProgress />
+        <KitchenStatusBanner />
         <MainContentWrapper>{children}</MainContentWrapper>
         <InstallPrompt />
         <BottomNav />

@@ -27,7 +27,7 @@ export function SiteHeader() {
   return (
     <motion.header
       className={cn(
-        "fixed left-0 right-0 top-0 z-[800] transition-all duration-200",
+        "fixed left-0 right-0 top-0 z-[800] transition-all duration-200 fixed-gpu",
         scrolled ? "glass-nav h-[56px] shadow-sm" : "h-[60px] bg-white border-b border-gray-100",
       )}
     >

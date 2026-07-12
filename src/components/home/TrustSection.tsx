@@ -212,11 +212,13 @@ export function TrustSection() {
         {/* ── Cards — 2 col on mobile, 5 col on lg ── */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 lg:gap-4">
           {TRUST_ITEMS.map((item, i) => (
-            <TrustCard key={item.title} item={item} index={i} />
+            <div key={item.title} className={i === 4 ? "col-span-2 sm:col-span-1" : ""}>
+              <TrustCard item={item} index={i} />
+            </div>
           ))}
         </div>
 
-        {/* ── Stats bar ── */}
+        {/* ── Features highlight bar ── */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -226,17 +228,17 @@ export function TrustSection() {
         >
           <div className="grid grid-cols-2 divide-x divide-y divide-gray-100 sm:grid-cols-4 sm:divide-y-0">
             {[
-              { label: "Orders Delivered", value: "1000+", icon: "📦" },
-              { label: "Avg Rating",        value: "4.8 ★", icon: "⭐" },
-              { label: "Happy Students",    value: "500+",  icon: "😊" },
-              { label: "Avg Delivery",      value: "35 min",icon: "⚡" },
+              { label: "Real-Time Tracking", value: "Live updates",   icon: "📍" },
+              { label: "Easy UPI Payments",  value: "Secure & fast",  icon: "💳" },
+              { label: "Express Delivery",   value: "Hot & fresh",   icon: "🛵" },
+              { label: "Hygienic Kitchen",   value: "Zero contact",   icon: "🧼" },
             ].map((s) => (
               <div key={s.label} className="flex flex-col items-center gap-0.5 px-4 py-4 text-center">
                 <span className="text-[18px]">{s.icon}</span>
-                <span className="font-display text-[20px] leading-none tracking-wider text-brand-orange">
+                <span className="font-display text-[16px] leading-none tracking-wide text-brand-orange">
                   {s.value}
                 </span>
-                <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-wider text-gray-400">
+                <span className="mt-1 text-[9px] font-bold uppercase tracking-wider text-gray-400">
                   {s.label}
                 </span>
               </div>

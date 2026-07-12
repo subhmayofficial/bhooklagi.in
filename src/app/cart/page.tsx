@@ -84,8 +84,13 @@ export default function CartPage() {
     code: string; discount_type: "percent"|"flat"; discount_value: number; min_order: number; payment_mode_required: string | null;
   }[]>([]);
   const [storeSettings, setStoreSettings] = useState<{
-    delivery_charge: number; free_delivery_threshold: number; tax_percent: number; upi_discount_enabled: boolean; upi_discount_percent: number;
-  }>({ delivery_charge: 49, free_delivery_threshold: 299, tax_percent: 5, upi_discount_enabled: false, upi_discount_percent: 0 });
+    delivery_charge: number;
+    free_delivery_threshold: number;
+    tax_percent: number;
+    upi_discount_enabled: boolean;
+    upi_discount_percent: number;
+    kitchen_open?: boolean;
+  }>({ delivery_charge: 49, free_delivery_threshold: 299, tax_percent: 5, upi_discount_enabled: false, upi_discount_percent: 0, kitchen_open: true });
 
   useEffect(() => {
     Promise.all([
@@ -311,6 +316,10 @@ export default function CartPage() {
   }
 
   function openCheckout() {
+    if (storeSettings.kitchen_open === false) {
+      alert("🏪 The kitchen is currently closed. We cannot accept orders right now.");
+      return;
+    }
     if (authStatus !== "authenticated") {
       openLoginModal();
       return;
@@ -962,7 +971,7 @@ export default function CartPage() {
                 <button
                   type="button"
                   onClick={openCheckout}
-                  disabled={placing}
+                  disabled={placing || storeSettings.kitchen_open === false}
                   className="group relative flex flex-1 items-center justify-between overflow-hidden rounded-2xl bg-gradient-to-r from-brand-orange to-brand-gold px-4 py-3.5 shadow-[0_8px_28px_rgba(232,93,4,0.4)] transition-all active:scale-[0.99] disabled:opacity-70"
                 >
                   <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/15 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
@@ -973,8 +982,10 @@ export default function CartPage() {
                     <p className="mt-0.5 text-[10px] font-black uppercase tracking-widest text-white/75">Total</p>
                   </div>
                   <div className="relative flex items-center gap-1.5">
-                    <span className="text-[17px] font-extrabold text-white">{placing ? "Placing..." : "Place Order"}</span>
-                    <ChevronRight className="h-5 w-5 text-white/85" strokeWidth={3} />
+                    <span className="text-[17px] font-extrabold text-white">
+                      {storeSettings.kitchen_open === false ? "KITCHEN CLOSED" : placing ? "Placing..." : "Place Order"}
+                    </span>
+                    {storeSettings.kitchen_open !== false && <ChevronRight className="h-5 w-5 text-white/85" strokeWidth={3} />}
                   </div>
                 </button>
               </div>

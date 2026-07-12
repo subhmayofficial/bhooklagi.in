@@ -20,6 +20,7 @@ export async function GET() {
         tax_percent: 5,
         upi_discount_enabled: false,
         upi_discount_percent: 0,
+        kitchen_open: true,
       }
     });
   }
@@ -31,7 +32,7 @@ export async function PATCH(req: Request) {
   if (!(await isAdminSession())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));
-  const { delivery_charge, free_delivery_threshold, tax_percent, upi_discount_enabled, upi_discount_percent } = body;
+  const { delivery_charge, free_delivery_threshold, tax_percent, upi_discount_enabled, upi_discount_percent, kitchen_open } = body;
 
   const supabase = getSupabaseAdminClient();
 
@@ -45,6 +46,7 @@ export async function PATCH(req: Request) {
       tax_percent: Number(tax_percent) || 0,
       upi_discount_enabled: Boolean(upi_discount_enabled),
       upi_discount_percent: Number(upi_discount_percent) || 0,
+      kitchen_open: kitchen_open !== undefined ? Boolean(kitchen_open) : true,
     })
     .select()
     .single();

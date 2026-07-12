@@ -4,8 +4,9 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { Minus, Plus, Zap, Flame } from "lucide-react";
 import type { MenuItem } from "@/data/menu";
-import { formatInr } from "@/data/menu";
+import { formatInr, getItemAddons } from "@/data/menu";
 import { useCartStore } from "@/stores/cart-store";
+import { useSettingsStore } from "@/stores/settings-store";
 import { cn } from "@/lib/utils";
 
 const dietMeta: Record<
@@ -34,6 +35,13 @@ export function DishCard({
   const cartLine = lines.find((l) => l.itemId === item.id);
   const qty      = cartLine?.qty ?? 0;
   const diet     = item.diet ? dietMeta[item.diet] : null;
+
+  const addons   = getItemAddons(item);
+  const hasAddons = addons.length > 0;
+
+  // Check if kitchen is closed
+  const settings = useSettingsStore((s) => s.settings);
+  const isClosed = settings && !settings.kitchen_open;
 
   return (
     <motion.article
@@ -110,9 +118,27 @@ export function DishCard({
       </button>
 
       {/* ── ADD / Stepper — outside clickable area, bottom-right ── */}
-      <div className="absolute bottom-5 right-0">
+      <div className="absolute bottom-5 right-0 flex flex-col items-center gap-1.5">
         <AnimatePresence mode="wait" initial={false}>
-          {qty === 0 ? (
+          {isClosed ? (
+            <motion.button
+              key="closed"
+              disabled
+              className="flex items-center gap-1 whitespace-nowrap rounded-xl border border-gray-200 bg-gray-100 px-4 py-1.5 text-[12px] font-extrabold text-gray-400 cursor-not-allowed shadow-none"
+            >
+              CLOSED
+            </motion.button>
+          ) : hasAddons ? (
+            <motion.button
+              key="add-custom"
+              type="button"
+              onClick={onOpen}
+              className="flex items-center gap-1 whitespace-nowrap rounded-xl border-2 border-brand-orange bg-white px-4 py-1.5 text-[12px] font-extrabold text-brand-orange shadow-md shadow-brand-orange/20 transition-all hover:bg-brand-orange hover:text-white active:scale-95"
+            >
+              <Plus className="h-3 w-3" strokeWidth={3} />
+              ADD
+            </motion.button>
+          ) : qty === 0 ? (
             <motion.button
               key="add"
               initial={{ opacity: 0, scale: 0.8 }}
@@ -157,6 +183,12 @@ export function DishCard({
             </motion.div>
           )}
         </AnimatePresence>
+        
+        {hasAddons && (
+          <span className="text-[9px] font-bold text-gray-400 tracking-wider leading-none">
+            customisable
+          </span>
+        )}
       </div>
     </motion.article>
   );

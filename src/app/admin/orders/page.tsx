@@ -17,7 +17,14 @@ import { ORDER_STATUS_META, NEXT_STATUS, type OrderStatus } from "@/lib/orders";
 type AdminOrder = {
   id: string;
   orderNumber: string;
-  items: { itemId: string; name: string; qty: number; emoji: string; unitPrice: number }[];
+  items: { 
+    itemId: string; 
+    name: string; 
+    qty: number; 
+    emoji: string; 
+    unitPrice: number; 
+    selectedAddons?: { id: string; name: string; price: number }[];
+  }[];
   status: OrderStatus;
   paymentMode: string;
   paymentStatus: string;
@@ -157,7 +164,14 @@ function NewOrderPopup({
                 <div key={item.itemId} className="flex items-center justify-between">
                   <span className="flex items-center gap-2 text-[13px] font-semibold text-gray-200">
                     <span>{item.emoji}</span>
-                    <span>{item.name}</span>
+                    <span className="flex flex-col">
+                      <span>{item.name}</span>
+                      {item.selectedAddons && item.selectedAddons.length > 0 && (
+                        <span className="text-[10px] text-brand-orange font-normal leading-tight">
+                          +{item.selectedAddons.map(a => a.name).join(", ")}
+                        </span>
+                      )}
+                    </span>
                   </span>
                   <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-extrabold text-white">
                     ×{item.qty}
@@ -482,6 +496,19 @@ export default function AdminOrdersPage() {
               <Users className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Users</span>
             </Link>
+            <Link
+              href="/admin/subscribers"
+              className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[12px] font-semibold text-gray-400 hover:text-white transition-colors"
+            >
+              <Bell className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Alerts</span>
+            </Link>
+            <Link
+              href="/admin/settings"
+              className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[12px] font-semibold text-gray-400 hover:text-white transition-colors"
+            >
+              ⚙️ <span className="hidden sm:inline">Settings</span>
+            </Link>
 
             <button
               type="button"
@@ -619,8 +646,16 @@ export default function AdminOrdersPage() {
                     {/* Items */}
                     <div className="mt-3 flex flex-wrap gap-1.5">
                       {o.items.map((item) => (
-                        <span key={item.itemId} className="flex items-center gap-1 rounded-xl bg-white/8 px-2.5 py-1 text-[12px] font-semibold text-gray-300">
-                          {item.emoji} {item.name}
+                        <span key={item.itemId} className="flex items-center gap-2 rounded-xl bg-white/8 px-2.5 py-1.5 text-[12px] font-semibold text-gray-300">
+                          {item.emoji} 
+                          <span className="flex flex-col">
+                            <span>{item.name}</span>
+                            {item.selectedAddons && item.selectedAddons.length > 0 && (
+                              <span className="text-[10px] text-brand-orange/90 font-medium leading-none mt-0.5">
+                                +{item.selectedAddons.map(a => a.name).join(", ")}
+                              </span>
+                            )}
+                          </span>
                           <span className="rounded-full bg-white/15 px-1.5 text-[10px] font-extrabold text-white">×{item.qty}</span>
                         </span>
                       ))}

@@ -1,5 +1,5 @@
 import type { CartLine } from "@/stores/cart-store";
-import { menuItems } from "@/data/menu";
+import { menuItems, ADDON_GROUPS } from "@/data/menu";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type StoreSettings = { delivery_charge: number; free_delivery_threshold: number; tax_percent: number; upi_discount_enabled: boolean; upi_discount_percent: number; };
@@ -82,12 +82,42 @@ export async function computeServerOrderTotals(lines: CartLine[], supabase: Supa
        throw new Error(`Invalid price for item ${line.name}.`);
     }
 
+    // Verify and add addon pricing securely
+    let addonsPrice = 0;
+    const verifiedAddons: { id: string; name: string; price: number }[] = [];
+    
+    if (line.selectedAddons && Array.isArray(line.selectedAddons)) {
+      for (const selected of line.selectedAddons) {
+        let foundOption = null;
+        for (const group of Object.values(ADDON_GROUPS)) {
+          const opt = group.options.find((o) => o.id === selected.id);
+          if (opt) {
+            foundOption = opt;
+            break;
+          }
+        }
+        
+        if (foundOption) {
+          addonsPrice += foundOption.price;
+          verifiedAddons.push({
+            id: foundOption.id,
+            name: foundOption.name,
+            price: foundOption.price,
+          });
+        }
+      }
+    }
+
+    const finalUnitPrice = serverPrice + addonsPrice;
+
     verifiedLines.push({
+      customLineId: line.customLineId || line.itemId,
       itemId: line.itemId,
       name: serverName,
-      unitPrice: serverPrice,
+      unitPrice: finalUnitPrice,
       qty: line.qty,
       emoji: serverEmoji,
+      selectedAddons: verifiedAddons,
     });
   }
 

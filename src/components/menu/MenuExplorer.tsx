@@ -9,9 +9,10 @@ import {
   ShoppingBag, ChevronRight, Search, X, SlidersHorizontal, Flame,
 } from "lucide-react";
 import {
-  categories, menuItems, type MenuCategoryId, type DietTag, formatInr,
+  categories, menuItems, type MenuCategoryId, type DietTag, formatInr, getItemAddons
 } from "@/data/menu";
 import { useCartStore, cartTotals } from "@/stores/cart-store";
+import { useSettingsStore } from "@/stores/settings-store";
 import { DishCard } from "@/components/menu/DishCard";
 import { ItemDetailSheet } from "@/components/menu/ItemDetailSheet";
 import { cn } from "@/lib/utils";
@@ -354,7 +355,7 @@ export function MenuExplorer() {
             </div>
             <div className="hide-scrollbar -mx-4 flex gap-3 overflow-x-auto snap-x snap-mandatory px-4 pb-1 md:mx-0 md:px-0">
               {bestsellers.map((item) => (
-                <BestsellerPill key={item.id} item={item} />
+                <BestsellerPill key={item.id} item={item} onOpen={() => setOpenItemId(item.id)} />
               ))}
             </div>
           </div>
@@ -401,6 +402,7 @@ export function MenuExplorer() {
 
       <ItemDetailSheet 
         itemId={openItemId} 
+        items={allItems}
         onClose={() => setOpenItemId(null)} 
       />
 
@@ -414,7 +416,7 @@ export function MenuExplorer() {
             animate={{ y: 0, x: "-50%" }}
             exit={{ y: 150, x: "-50%" }}
             transition={{ type: "spring", stiffness: 340, damping: 32 }}
-            className="fixed bottom-[72px] left-1/2 z-[600] w-[calc(100%-2rem)] md:bottom-6 md:w-[520px]"
+            className="fixed bottom-[72px] left-1/2 z-[600] w-[calc(100%-2rem)] md:bottom-6 md:w-[520px] fixed-gpu"
             style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
           >
             <Link
@@ -516,11 +518,17 @@ function formatBestsellerName(name: string): string {
   return name.replace(/^Bhook Lagi\s+/i, "");
 }
 
-function BestsellerPill({ item }: { item: typeof menuItems[number] }) {
+function BestsellerPill({ item, onOpen }: { item: typeof menuItems[number]; onOpen: () => void }) {
   const addItem  = useCartStore((s) => s.addItem);
   const lines    = useCartStore((s) => s.lines);
   const cartLine = lines.find((l) => l.itemId === item.id);
   const qty      = cartLine?.qty ?? 0;
+
+  const settings = useSettingsStore((s) => s.settings);
+  const isClosed = settings && !settings.kitchen_open;
+
+  const addons   = getItemAddons(item);
+  const hasAddons = addons.length > 0;
 
   return (
     <motion.div
@@ -539,16 +547,35 @@ function BestsellerPill({ item }: { item: typeof menuItems[number] }) {
       </div>
       <div className="flex items-center justify-between px-2.5 py-2">
         <span className="price-text text-[14px] font-black leading-none text-brand-orange">{formatInr(item.price)}</span>
-        <button
-          type="button"
-          onClick={() => addItem(item)}
-          className={cn(
-            "flex h-6 w-6 items-center justify-center rounded-full text-white transition-colors",
-            qty > 0 ? "bg-green-500" : "bg-brand-orange"
-          )}
-        >
-          <Plus className="h-3.5 w-3.5" strokeWidth={3} />
-        </button>
+        
+        {isClosed ? (
+          <button
+            type="button"
+            disabled
+            className="flex h-6 px-2 items-center justify-center rounded-full bg-gray-100 text-[9px] font-extrabold text-gray-400 cursor-not-allowed"
+          >
+            CLOSED
+          </button>
+        ) : hasAddons ? (
+          <button
+            type="button"
+            onClick={onOpen}
+            className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-orange text-white active:scale-90 transition-transform"
+          >
+            <Plus className="h-3.5 w-3.5" strokeWidth={3} />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => addItem(item)}
+            className={cn(
+              "flex h-6 w-6 items-center justify-center rounded-full text-white transition-colors",
+              qty > 0 ? "bg-green-500" : "bg-brand-orange"
+            )}
+          >
+            <Plus className="h-3.5 w-3.5" strokeWidth={3} />
+          </button>
+        )}
       </div>
     </motion.div>
   );

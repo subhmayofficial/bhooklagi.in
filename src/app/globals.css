@@ -159,3 +159,15 @@
   );
   animation: shimmer 1.5s infinite;
 }
+
+/* Enable hardware acceleration on sticky/fixed layout bars to prevent mobile browser redraw jitters */
+.fixed-gpu {
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+}
+
+/* Prevent text rendering adjustments during animations */
+.no-layout-thrashing {
+  backface-visibility: hidden;
+  perspective: 1000px;
+}

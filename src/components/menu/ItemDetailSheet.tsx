@@ -1,26 +1,46 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plus, Minus, Zap, Flame, Star } from "lucide-react";
-import { menuItems, formatInr } from "@/data/menu";
+import { X, Plus, Minus, Zap, Flame, Star, ShoppingBag } from "lucide-react";
+import { menuItems, formatInr, getItemAddons, type MenuItem, type AddonOption } from "@/data/menu";
 import { useCartStore } from "@/stores/cart-store";
 
 interface ItemDetailSheetProps {
   itemId: string | null;
+  items?: MenuItem[];
   onClose: () => void;
 }
 
-export function ItemDetailSheet({ itemId, onClose }: ItemDetailSheetProps) {
-  const item = itemId ? menuItems.find((m) => m.id === itemId) ?? null : null;
+export function ItemDetailSheet({ itemId, items = menuItems, onClose }: ItemDetailSheetProps) {
+  const item = itemId ? items.find((m) => m.id === itemId) ?? null : null;
 
   const addItem   = useCartStore((s) => s.addItem);
   const increment = useCartStore((s) => s.increment);
   const decrement = useCartStore((s) => s.decrement);
   const lines     = useCartStore((s) => s.lines);
+  
+  // Customization state
+  const [selectedAddons, setSelectedAddons] = useState<AddonOption[]>([]);
+
+  // Reset customizations when sheet opens / item changes
+  useEffect(() => {
+    if (itemId) {
+      setSelectedAddons([]);
+    }
+  }, [itemId]);
+
   const cartLine  = item ? lines.find((l) => l.itemId === item.id) : null;
   const qty       = cartLine?.qty ?? 0;
+
+  const addonsList = item ? getItemAddons(item) : [];
+  const hasAddons = addonsList.length > 0;
+
+  // Calculate dynamic totals
+  const basePrice = item?.price ?? 0;
+  const addonsPrice = selectedAddons.reduce((sum, a) => sum + a.price, 0);
+  const totalPrice = basePrice + addonsPrice;
 
   /* lock body scroll while open */
   useEffect(() => {
@@ -43,6 +63,12 @@ export function ItemDetailSheet({ itemId, onClose }: ItemDetailSheetProps) {
     veg:       { border: "border-green-500", dot: "bg-green-500", bg: "bg-green-50",  label: "Pure Veg" },
     egg:       { border: "border-amber-500", dot: "bg-amber-500", bg: "bg-amber-50",  label: "Egg" },
     "non-veg": { border: "border-red-500",   dot: "bg-red-500",   bg: "bg-red-50",    label: "Non-Veg" },
+  };
+
+  const handleAddWithCustoms = () => {
+    if (!item) return;
+    addItem(item, 1, selectedAddons);
+    onClose();
   };
 
   return (
@@ -119,7 +145,7 @@ export function ItemDetailSheet({ itemId, onClose }: ItemDetailSheetProps) {
             </div>
 
             {/* ── Content ── */}
-            <div className="px-5 py-4">
+            <div className="px-5 py-4 max-h-[50vh] overflow-y-auto hide-scrollbar">
               {/* Diet + name row */}
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1">
@@ -153,17 +179,68 @@ export function ItemDetailSheet({ itemId, onClose }: ItemDetailSheetProps) {
               {/* Divider */}
               <div className="my-4 h-px bg-gray-100" />
 
+              {/* Add-ons Checklist */}
+              {hasAddons && (
+                <div className="mb-4">
+                  {addonsList.map((group) => (
+                    <div key={group.id} className="mb-4">
+                      <p className="text-[11px] font-extrabold uppercase tracking-widest text-brand-orange mb-2">
+                        {group.title}
+                      </p>
+                      <div className="space-y-2 rounded-2xl bg-gray-50 p-3 border border-gray-100">
+                        {group.options.map((option) => {
+                          const isChecked = selectedAddons.some((a) => a.id === option.id);
+                          return (
+                            <label
+                              key={option.id}
+                              className="flex items-center justify-between cursor-pointer py-1.5 text-[13px] font-bold text-gray-700 select-none"
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => {
+                                    if (isChecked) {
+                                      setSelectedAddons((prev) => prev.filter((a) => a.id !== option.id));
+                                    } else {
+                                      setSelectedAddons((prev) => [...prev, option]);
+                                    }
+                                  }}
+                                  className="h-4 w-4 rounded border-gray-300 text-brand-orange focus:ring-brand-orange"
+                                />
+                                <span>{option.name}</span>
+                              </div>
+                              <span className="text-gray-500 font-medium">+{formatInr(option.price)}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* ── Price + Add to cart ── */}
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">Price</p>
                   <p className="price-text text-[28px] font-black leading-none text-gray-900">
-                    {formatInr(item.price)}
+                    {formatInr(totalPrice)}
                   </p>
                 </div>
 
                 <AnimatePresence mode="wait" initial={false}>
-                  {qty === 0 ? (
+                  {hasAddons ? (
+                    <motion.button
+                      key="custom-add"
+                      type="button"
+                      onClick={handleAddWithCustoms}
+                      className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-brand-orange to-brand-gold px-7 py-3.5 text-[14px] font-extrabold text-white shadow-lg shadow-brand-orange/30 active:scale-95 transition-transform"
+                    >
+                      <ShoppingBag className="h-4 w-4" />
+                      Add to bag
+                    </motion.button>
+                  ) : qty === 0 ? (
                     <motion.button
                       key="add"
                       initial={{ opacity: 0, scale: 0.85 }}

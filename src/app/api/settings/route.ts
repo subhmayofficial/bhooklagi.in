@@ -18,6 +18,7 @@ export async function GET() {
         tax_percent: 5,
         upi_discount_enabled: false,
         upi_discount_percent: 0,
+        kitchen_open: true,
       }
     });
   }
