@@ -24,6 +24,7 @@ import type { MenuItem } from "@/data/menu";
 import { estimateDeliveryMinutes, type Coords } from "@/lib/location";
 import { NotificationCenter } from "@/components/home/NotificationCenter";
 import { NotifyMeModal } from "@/components/layout/NotifyMeModal";
+import { LocationPickerModal, type StoredDeliveryLocation } from "@/components/home/LocationPickerModal";
 
 type LastOrder = {
   orderNumber: string;
@@ -66,6 +67,10 @@ const DIET_DOT: Record<string, string> = {
   egg:     "bg-amber-500",
 };
 
+const LOCATION_LABEL_KEY = "bl_location_label";
+const LOCATION_COORDS_KEY = "bl_location_coords";
+const DELIVERY_LOCATION_KEY = "bl_delivery_location";
+
 function formatInr(value: number) {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
@@ -97,6 +102,7 @@ export function AppHomeHero() {
   const [customerCoords, setCustomerCoords] = useState<Coords | null>(null);
   const [locating, setLocating] = useState(false);
   const [locationErrorMsg, setLocationErrorMsg] = useState<string | null>(null);
+  const [locationPickerOpen, setLocationPickerOpen] = useState(false);
 
   // Search dropdown
   const [searchFocused, setSearchFocused] = useState(false);
@@ -119,10 +125,21 @@ export function AppHomeHero() {
 
   useEffect(() => {
     setMounted(true);
-    const cached = localStorage.getItem("bl_location_label");
-    const cachedCoords = localStorage.getItem("bl_location_coords");
+    const cached = localStorage.getItem(LOCATION_LABEL_KEY);
+    const cachedLocation = localStorage.getItem(DELIVERY_LOCATION_KEY);
+    const cachedCoords = localStorage.getItem(LOCATION_COORDS_KEY);
     if (cached) setLocationLabel(cached);
-    if (cachedCoords) {
+    let loadedStoredLocation = false;
+    if (cachedLocation) {
+      try {
+        const parsed = JSON.parse(cachedLocation) as StoredDeliveryLocation;
+        if (Number.isFinite(parsed.lat) && Number.isFinite(parsed.lng)) {
+          setCustomerCoords({ lat: parsed.lat, lng: parsed.lng });
+          loadedStoredLocation = true;
+        }
+      } catch {}
+    }
+    if (!loadedStoredLocation && cachedCoords) {
       try {
         const parsed = JSON.parse(cachedCoords) as Coords;
         if (Number.isFinite(parsed.lat) && Number.isFinite(parsed.lng)) setCustomerCoords(parsed);
@@ -133,6 +150,19 @@ export function AppHomeHero() {
       setRecentSearches(Array.isArray(storedSearches) ? storedSearches.slice(0, 5) : []);
     } catch {}
   }, []);
+
+  useEffect(() => {
+    if (!mounted || customerCoords) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      if (!cancelled) void detectLocation({ silent: true, automatic: true });
+    }, 1800);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerCoords, mounted]);
 
   useEffect(() => {
     if (searchFocused || query.length >= 2 || status === "authenticated") {
@@ -169,17 +199,33 @@ export function AppHomeHero() {
     setTimeout(() => setLocationErrorMsg(null), 3000);
   }
 
-  function detectLocation() {
+  function saveLocation(location: StoredDeliveryLocation, label: string) {
+    setCustomerCoords({ lat: location.lat, lng: location.lng });
+    setLocationLabel(label);
+    setLocationErrorMsg(null);
+    localStorage.setItem(DELIVERY_LOCATION_KEY, JSON.stringify(location));
+    localStorage.setItem(LOCATION_COORDS_KEY, JSON.stringify({ lat: location.lat, lng: location.lng }));
+    localStorage.setItem(LOCATION_LABEL_KEY, label);
+  }
+
+  function detectLocation(options?: { silent?: boolean; automatic?: boolean }) {
     if (locating) return;
-    if (!("geolocation" in navigator)) { flashLocationError("Location not supported"); return; }
+    if (!("geolocation" in navigator)) {
+      if (!options?.silent) flashLocationError("Location not supported");
+      return;
+    }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         try {
           const { latitude, longitude } = pos.coords;
           const coords = { lat: latitude, lng: longitude };
-          setCustomerCoords(coords);
-          localStorage.setItem("bl_location_coords", JSON.stringify(coords));
+          const location: StoredDeliveryLocation = {
+            ...coords,
+            accuracyM: pos.coords.accuracy ?? null,
+            capturedAt: new Date(pos.timestamp || Date.now()).toISOString(),
+            source: "browser_gps",
+          };
           const res = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&zoom=16&addressdetails=1`,
             { headers: { Accept: "application/json" } },
@@ -189,16 +235,25 @@ export function AppHomeHero() {
           const rough = addr.suburb || addr.neighbourhood || addr.village || addr.hamlet || addr.city_district;
           const city = addr.town || addr.city || addr.county || "Deoghar";
           const label = rough ? `${rough}, ${city}` : `${city}, Jharkhand`;
-          setLocationLabel(label);
-          localStorage.setItem("bl_location_label", label);
-        } catch { flashLocationError("Couldn't fetch address"); }
+          saveLocation(location, label);
+        } catch {
+          saveLocation({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracyM: pos.coords.accuracy ?? null,
+            capturedAt: new Date(pos.timestamp || Date.now()).toISOString(),
+            source: "browser_gps",
+          }, "Current location, Deoghar");
+        }
         finally { setLocating(false); }
       },
       (err) => {
         setLocating(false);
-        flashLocationError(err.code === err.PERMISSION_DENIED ? "Permission denied" : "Couldn't get location");
+        if (!options?.silent) {
+          flashLocationError(err.code === err.PERMISSION_DENIED ? "Permission denied" : "Couldn't get location");
+        }
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+      { enableHighAccuracy: true, timeout: options?.automatic ? 8000 : 15000, maximumAge: 60000 },
     );
   }
 
@@ -322,16 +377,15 @@ export function AppHomeHero() {
         <div className="mb-3 flex items-center justify-between gap-2">
           <button
             type="button"
-            onClick={detectLocation}
-            disabled={locating}
-            className="flex min-w-0 items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-[12px] font-semibold text-white backdrop-blur-sm disabled:opacity-80"
+            onClick={() => setLocationPickerOpen(true)}
+            className="flex min-w-0 items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-[12px] font-semibold text-white backdrop-blur-sm"
           >
             {locating
               ? <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" strokeWidth={2.5} />
               : <MapPin className="h-3.5 w-3.5 shrink-0" strokeWidth={2.5} />
             }
             <span className="max-w-[140px] truncate">
-              {locating ? "Locating..." : locationErrorMsg ?? (customerCoords ? locationLabel : "Get current location")}
+              {locating ? "Locating..." : locationErrorMsg ?? (customerCoords ? locationLabel : "Set delivery location")}
             </span>
             <ChevronDown className="h-3 w-3 shrink-0 opacity-80" strokeWidth={2.5} />
           </button>
@@ -389,11 +443,11 @@ export function AppHomeHero() {
                     <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
                   </span>
                   <p className="truncate text-[14px] font-extrabold text-gray-900">
-                    {customerCoords ? `Delivery in ${eta.min}-${eta.max} min` : "Get current location for ETA"}
+                    {customerCoords ? `Delivery in ${eta.min}-${eta.max} min` : "Set delivery pin for ETA"}
                   </p>
                 </div>
                 <p className="truncate text-[11px] text-gray-500">
-                  {customerCoords ? `Fastest kitchen near ${locationLabel.split(",")[0]}` : "Precise location keeps delivery time real"}
+                  {customerCoords ? `Fastest kitchen near ${locationLabel.split(",")[0]}` : "Tap address above to drop your pin"}
                 </p>
               </>
             )}
@@ -674,6 +728,13 @@ export function AppHomeHero() {
     </section>
 
     <NotifyMeModal isOpen={notifyModalOpen} onClose={() => setNotifyModalOpen(false)} />
+    <LocationPickerModal
+      isOpen={locationPickerOpen}
+      initialCoords={customerCoords}
+      initialLabel={locationLabel}
+      onClose={() => setLocationPickerOpen(false)}
+      onSave={saveLocation}
+    />
   </>
   );
 }

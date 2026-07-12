@@ -50,13 +50,14 @@ function parseDeliveryLocation(value: unknown): DeliveryLocation | null {
         ? location.accuracyM
         : Number(location.accuracyM);
   const capturedAt = typeof location.capturedAt === "string" ? location.capturedAt : new Date().toISOString();
+  const source = typeof location.source === "string" ? location.source : "browser_gps";
 
   if (!Number.isFinite(lat) || lat < -90 || lat > 90) return null;
   if (!Number.isFinite(lng) || lng < -180 || lng > 180) return null;
   if (accuracyM !== null && (!Number.isFinite(accuracyM) || accuracyM < 0)) return null;
   if (Number.isNaN(Date.parse(capturedAt))) return null;
 
-  return { lat, lng, accuracyM, source: "browser_gps", capturedAt };
+  return { lat, lng, accuracyM, source, capturedAt };
 }
 
 export async function POST(req: NextRequest) {
@@ -95,7 +96,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid phone number." }, { status: 400 });
   }
   if (!location) {
-    return NextResponse.json({ error: "Please allow precise location before placing the order." }, { status: 400 });
+    return NextResponse.json({ error: "Please set your delivery pin before placing the order." }, { status: 400 });
   }
   if (location.accuracyM !== null && location.accuracyM > MAX_LOCATION_ACCURACY_M) {
     return NextResponse.json(

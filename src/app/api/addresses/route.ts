@@ -14,13 +14,14 @@ function parseLocation(value: unknown) {
         ? location.accuracyM
         : Number(location.accuracyM);
   const capturedAt = typeof location.capturedAt === "string" ? location.capturedAt : new Date().toISOString();
+  const source = typeof location.source === "string" ? location.source : "browser_gps";
 
   if (!Number.isFinite(lat) || lat < -90 || lat > 90) return null;
   if (!Number.isFinite(lng) || lng < -180 || lng > 180) return null;
   if (accuracyM !== null && (!Number.isFinite(accuracyM) || accuracyM < 0)) return null;
   if (Number.isNaN(Date.parse(capturedAt))) return null;
 
-  return { lat, lng, accuracyM, capturedAt };
+  return { lat, lng, accuracyM, capturedAt, source };
 }
 
 export async function GET() {
@@ -79,7 +80,7 @@ export async function POST(req: NextRequest) {
       lat: location?.lat ?? null,
       lng: location?.lng ?? null,
       accuracy_m: location?.accuracyM ?? null,
-      location_source: location ? "browser_gps" : null,
+      location_source: location?.source ?? null,
       location_captured_at: location?.capturedAt ?? null,
     })
     .select("id")

@@ -28,6 +28,7 @@ type DeliveryLocation = {
   lng: number;
   accuracyM: number | null;
   capturedAt: string;
+  source?: "browser_gps" | "manual_pin" | "address_geocode";
 };
 type SavedAddress = {
   id: string;
@@ -45,6 +46,9 @@ const CHECKOUT_STEPS: { id: CheckoutStep; label: string; helper: string }[] = [
   { id: "contact", label: "Contact", helper: "Who is ordering?" },
   { id: "address", label: "Deliver to", helper: "Your delivery address" },
 ];
+
+const LOCATION_LABEL_KEY = "bl_location_label";
+const DELIVERY_LOCATION_KEY = "bl_delivery_location";
 
 function loadRazorpayScript(): Promise<boolean> {
   return new Promise((resolve) => {
@@ -112,7 +116,6 @@ export default function CartPage() {
   const [saveAddress, setSaveAddress] = useState(true);
   const [saved, setSaved] = useState<SavedAddress[]>([]);
   const [deliveryLocation, setDeliveryLocation] = useState<DeliveryLocation | null>(null);
-  const [locating, setLocating] = useState(false);
   const [placing, setPlacing] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [orderNotes, setOrderNotes] = useState("");
@@ -148,9 +151,7 @@ export default function CartPage() {
       ? "Next: delivery address"
       : placing
         ? "Placing order…"
-        : deliveryLocation
-          ? "Place Order"
-          : "Get location & Place Order";
+        : "Place Order";
 
   useEffect(() => {
     if (useCartStore.persist.hasHydrated()) setCartReady(true);
@@ -166,6 +167,24 @@ export default function CartPage() {
     setName((previous) => previous || authUser.name || "");
     setPhone((previous) => previous || authUser.phone.slice(-10));
   }, [authUser]);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(DELIVERY_LOCATION_KEY);
+      const storedLabel = localStorage.getItem(LOCATION_LABEL_KEY);
+      if (!stored) return;
+      const parsed = JSON.parse(stored) as DeliveryLocation;
+      if (!Number.isFinite(parsed.lat) || !Number.isFinite(parsed.lng)) return;
+      setDeliveryLocation({
+        lat: parsed.lat,
+        lng: parsed.lng,
+        accuracyM: parsed.accuracyM ?? null,
+        capturedAt: parsed.capturedAt || new Date().toISOString(),
+        source: parsed.source ?? "manual_pin",
+      });
+      if (storedLabel && !address) setAddress(storedLabel);
+    } catch {}
+  }, [address]);
 
   useEffect(() => {
     if (authStatus !== "authenticated") return;
@@ -185,6 +204,7 @@ export default function CartPage() {
             lng: defaultAddress.lng,
             accuracyM: defaultAddress.accuracyM,
             capturedAt: defaultAddress.locationCapturedAt ?? new Date().toISOString(),
+            source: "browser_gps",
           });
         }
       })
@@ -234,7 +254,7 @@ export default function CartPage() {
     if (!phone.trim()) nextErrors.phone = "Phone is required";
     else if (!/^[6-9]\d{9}$/.test(phone.trim())) nextErrors.phone = "Enter a valid 10-digit number";
     if (!address.trim()) nextErrors.address = "Delivery address is required";
-    if (!currentLocation) nextErrors.location = "Current location is required";
+    if (!currentLocation) nextErrors.location = "Set your delivery pin from the home page before placing the order.";
     else if (currentLocation.accuracyM !== null && currentLocation.accuracyM > MAX_LOCATION_ACCURACY_M) {
       nextErrors.location = "Location is not precise enough. Please retry near an open area.";
     }
@@ -252,7 +272,7 @@ export default function CartPage() {
   function validateAddressStep(currentLocation = deliveryLocation) {
     const nextErrors: Record<string, string> = {};
     if (!address.trim()) nextErrors.address = "Delivery address is required";
-    if (!currentLocation) nextErrors.location = "Current location is required";
+    if (!currentLocation) nextErrors.location = "Set your delivery pin from the home page before placing the order.";
     else if (currentLocation.accuracyM !== null && currentLocation.accuracyM > MAX_LOCATION_ACCURACY_M) {
       nextErrors.location = "Location is not precise enough. Please retry near an open area.";
     }
@@ -262,57 +282,6 @@ export default function CartPage() {
   function stepForErrors(nextErrors: Record<string, string>): CheckoutStep {
     if (nextErrors.name || nextErrors.phone) return "contact";
     return "address";
-  }
-
-  async function captureCurrentLocation() {
-    if (!("geolocation" in navigator)) {
-      setErrors((previous) => ({ ...previous, location: "Location is not supported on this device." }));
-      return null;
-    }
-
-    setLocating(true);
-    setErrors((previous) => ({ ...previous, location: "" }));
-
-    return new Promise<DeliveryLocation | null>((resolve) => {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const location: DeliveryLocation = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-            accuracyM: position.coords.accuracy ?? null,
-            capturedAt: new Date(position.timestamp || Date.now()).toISOString(),
-          };
-          setLocating(false);
-
-          if (location.accuracyM !== null && location.accuracyM > MAX_LOCATION_ACCURACY_M) {
-            setDeliveryLocation(null);
-            setErrors((previous) => ({
-              ...previous,
-              location: "Location is not precise enough. Please retry near an open area.",
-            }));
-            resolve(null);
-            return;
-          }
-
-          setDeliveryLocation(location);
-          setErrors((previous) => ({ ...previous, location: "" }));
-          resolve(location);
-        },
-        (error) => {
-          const message =
-            error.code === error.PERMISSION_DENIED
-              ? "Please allow location permission to place the order."
-              : error.code === error.TIMEOUT
-                ? "Location request timed out. Please retry."
-                : "Could not fetch current location. Please retry.";
-          setLocating(false);
-          setDeliveryLocation(null);
-          setErrors((previous) => ({ ...previous, location: message }));
-          resolve(null);
-        },
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
-      );
-    });
   }
 
   function openCheckout() {
@@ -341,9 +310,7 @@ export default function CartPage() {
       return;
     }
 
-    // address step — capture location then place order directly
-    let currentLocation = deliveryLocation;
-    if (!currentLocation) currentLocation = await captureCurrentLocation();
+    const currentLocation = deliveryLocation;
     const nextErrors = validateAddressStep(currentLocation);
     if (Object.keys(nextErrors).length > 0) {
       setErrors((previous) => ({ ...previous, ...nextErrors }));
@@ -363,8 +330,7 @@ export default function CartPage() {
       return;
     }
 
-    let currentLocation = overrideLocation ?? deliveryLocation;
-    if (!currentLocation) currentLocation = await captureCurrentLocation();
+    const currentLocation = overrideLocation ?? deliveryLocation;
 
     const nextErrors = validateDelivery(currentLocation);
     if (Object.keys(nextErrors).length > 0) {
@@ -1144,6 +1110,7 @@ export default function CartPage() {
                                 lng: item.lng,
                                 accuracyM: item.accuracyM,
                                 capturedAt: item.locationCapturedAt ?? new Date().toISOString(),
+                                source: "browser_gps",
                               });
                             } else {
                               setDeliveryLocation(null);
@@ -1176,20 +1143,20 @@ export default function CartPage() {
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className={`text-[13px] font-extrabold ${errors.location ? "text-red-700" : deliveryLocation ? "text-green-800" : "text-orange-800"}`}>
-                        {deliveryLocation ? "Current location captured" : "Get current location"}
+                        {deliveryLocation ? "Delivery pin ready" : "Delivery pin missing"}
                       </p>
                       <p className={`mt-0.5 text-[12px] ${errors.location ? "text-red-600" : deliveryLocation ? "text-green-700" : "text-orange-700"}`}>
-                        {errors.location || (deliveryLocation ? `Delivery in ${deliveryEta.min}-${deliveryEta.max} minutes` : "Required for live ETA and rider directions")}
+                        {errors.location || (deliveryLocation ? `Delivery in ${deliveryEta.min}-${deliveryEta.max} minutes` : "Set it from the home page address chip")}
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={captureCurrentLocation}
-                      disabled={locating}
-                      className="shrink-0 rounded-full bg-white px-3 py-1.5 text-[11px] font-bold text-brand-orange shadow-sm ring-1 ring-orange-100 disabled:opacity-60"
-                    >
-                      {locating ? "Fetching..." : deliveryLocation ? "Refresh" : "Get current location"}
-                    </button>
+                    {!deliveryLocation && (
+                      <Link
+                        href="/"
+                        className="shrink-0 rounded-full bg-white px-3 py-1.5 text-[11px] font-bold text-brand-orange shadow-sm ring-1 ring-orange-100"
+                      >
+                        Set pin
+                      </Link>
+                    )}
                   </div>
                 </div>
 
@@ -1227,7 +1194,7 @@ export default function CartPage() {
                     <button
                       type="button"
                       onClick={goToPreviousCheckoutStep}
-                      disabled={placing || locating}
+                      disabled={placing}
                       className="rounded-2xl border border-gray-200 px-4 py-3 text-[13px] font-extrabold text-gray-700 disabled:opacity-50"
                     >
                       Back
@@ -1236,7 +1203,7 @@ export default function CartPage() {
                   <button
                     type="button"
                     onClick={goToNextCheckoutStep}
-                    disabled={placing || locating}
+                    disabled={placing}
                     className="flex flex-1 items-center justify-between rounded-2xl bg-gradient-to-r from-brand-orange to-brand-gold px-5 py-4 text-white shadow-[0_8px_28px_rgba(232,93,4,0.35)] disabled:opacity-70"
                   >
                     <span className="text-[14px] font-extrabold">{checkoutPrimaryLabel}</span>
