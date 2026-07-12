@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  LogOut, ShoppingBag, Users, Tag, Plus, ToggleLeft, ToggleRight, Trash2,
-  Percent, Banknote, AlertCircle, LayoutGrid, Sun, Moon, X, Check, Gift
+  Tag, Plus, ToggleLeft, ToggleRight, Trash2,
+  Percent, Banknote, AlertCircle, X, Check, Gift
 } from "lucide-react";
 import { useAdminStore } from "@/stores/admin-store";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 
 type Freebie = {
   id: string;
@@ -354,41 +354,15 @@ export default function AdminCouponsPage() {
       </AnimatePresence>
 
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur-md dark:border-white/10 dark:bg-gray-950/95">
-        <div className="mx-auto flex h-14 max-w-4xl items-center justify-between px-4 md:px-6">
-          <div className="flex items-center gap-3">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-orange text-base shadow-md shadow-brand-orange/40">🏷️</span>
-            <div>
-              <p className="text-[13px] font-extrabold leading-none text-gray-900 dark:text-white">Coupons</p>
-              <p className="text-[10px] text-gray-500">Manage promo codes</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link href="/admin/settings" className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[12px] font-semibold text-gray-600 hover:text-gray-900 transition-colors dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:text-white">
-              <span className="hidden sm:inline">Settings</span>
-            </Link>
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 transition-colors hover:text-gray-900 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:text-white"
-            >
-              {theme === "dark" ? <Sun className="h-4 w-4" strokeWidth={2.5} /> : <Moon className="h-4 w-4" strokeWidth={2.5} />}
-            </button>
-            <Link href="/admin/orders" className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[12px] font-semibold text-gray-600 hover:text-gray-900 transition-colors dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:text-white">
-              <ShoppingBag className="h-3.5 w-3.5" /><span className="hidden sm:inline">Orders</span>
-            </Link>
-            <Link href="/admin/menu" className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[12px] font-semibold text-gray-600 hover:text-gray-900 transition-colors dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:text-white">
-              <LayoutGrid className="h-3.5 w-3.5" /><span className="hidden sm:inline">Menu</span>
-            </Link>
-            <Link href="/admin" className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[12px] font-semibold text-gray-600 hover:text-gray-900 transition-colors dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:text-white">
-              <Users className="h-3.5 w-3.5" /><span className="hidden sm:inline">Users</span>
-            </Link>
-            <button type="button" onClick={handleLogout} className="flex items-center gap-1.5 rounded-xl border border-red-900/40 bg-red-50 px-3 py-2 text-[12px] font-semibold text-red-600 hover:text-red-500 transition-colors dark:bg-red-950/40 dark:text-red-400 dark:hover:text-red-300">
-              <LogOut className="h-3.5 w-3.5" /><span className="hidden sm:inline">Logout</span>
-            </button>
-          </div>
-        </div>
-      </header>
+      <AdminPageHeader
+        icon={<span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-orange text-base shadow-md shadow-brand-orange/40">🏷️</span>}
+        title="Coupons"
+        subtitle="Manage promo codes"
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        onLogout={handleLogout}
+        maxWidth="max-w-4xl"
+      />
 
       <main className="mx-auto max-w-4xl px-4 py-8 md:px-6">
         <div className="mb-6 flex items-center justify-between">

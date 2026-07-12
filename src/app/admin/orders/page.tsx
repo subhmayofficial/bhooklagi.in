@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import {
-  LogOut, RefreshCw, Users, ShoppingBag, MapPinned, Navigation,
+  RefreshCw, ShoppingBag, MapPinned, Navigation,
   Bell, BellOff, Clock, Phone, ChevronRight, CheckCircle2, XCircle,
-  Bike, UtensilsCrossed, PackageCheck, AlertCircle, Star, Tag, LayoutGrid, Sun, Moon
+  Bike, UtensilsCrossed, PackageCheck, AlertCircle, Star
 } from "lucide-react";
 import { useAdminStore } from "@/stores/admin-store";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { motion, AnimatePresence } from "framer-motion";
 import { formatInr } from "@/data/menu";
 import { KITCHEN_COORDS_QUERY } from "@/lib/location";
@@ -406,121 +406,53 @@ export default function AdminOrdersPage() {
       </AnimatePresence>
 
       {/* ── Sticky top nav ── */}
-      <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur-md dark:border-white/10 dark:bg-gray-950/95">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 md:px-6">
-          {/* Logo */}
-          <div className="flex items-center gap-3">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-orange text-base shadow-md shadow-brand-orange/40">🍔</span>
-            <div>
-              <p className="text-[13px] font-extrabold leading-none text-gray-900 dark:text-white">Bhook Lagi Admin</p>
-              <p className="text-[10px] text-gray-500">Order management</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* New orders badge */}
-            <AnimatePresence>
-              {newCount > 0 && (
-                <motion.button
-                  initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
-                  type="button"
-                  onClick={() => setNewCount(0)}
-                  className="flex items-center gap-1.5 rounded-full bg-brand-orange px-3 py-1.5 text-[12px] font-extrabold text-white shadow-md shadow-brand-orange/40"
-                >
-                  <span className="relative flex h-2 w-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
-                  </span>
-                  {newCount} new!
-                </motion.button>
-              )}
-            </AnimatePresence>
-
-            {/* Sound toggle */}
-            <button
+      <AdminPageHeader
+        icon={<span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-orange text-base shadow-md shadow-brand-orange/40">🍔</span>}
+        title="Bhook Lagi Admin"
+        subtitle="Order management"
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        onLogout={handleLogout}
+      >
+        {/* New orders badge */}
+        <AnimatePresence>
+          {newCount > 0 && (
+            <motion.button
+              initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
               type="button"
-              onClick={() => {
-                if (soundOn) stopRing();
-                setSoundOn((v) => !v);
-              }}
-              title={soundOn ? "Mute ringtone" : "Unmute ringtone"}
-              className={`flex h-9 w-9 items-center justify-center rounded-xl border transition-colors ${
-                soundOn
-                  ? "border-brand-orange/30 bg-brand-orange/10 text-brand-orange"
-                  : "border-gray-200 bg-white text-gray-400 dark:border-white/10 dark:bg-white/5 dark:text-gray-500"
-              }`}
+              onClick={() => setNewCount(0)}
+              className="flex items-center gap-1.5 rounded-full bg-brand-orange px-3 py-1.5 text-[12px] font-extrabold text-white shadow-md shadow-brand-orange/40"
             >
-              {soundOn
-                ? <Bell className="h-4 w-4" strokeWidth={2.5} />
-                : <BellOff className="h-4 w-4" strokeWidth={2.5} />
-              }
-            </button>
-
-            <Link href="/admin/settings" className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[12px] font-semibold text-gray-600 hover:text-gray-900 transition-colors dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:text-white">
-              <span className="hidden sm:inline">Settings</span>
-            </Link>
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 transition-colors hover:text-gray-900 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:text-white"
-            >
-              {theme === "dark" ? <Sun className="h-4 w-4" strokeWidth={2.5} /> : <Moon className="h-4 w-4" strokeWidth={2.5} />}
-            </button>
-
-            <button
-              type="button"
-              onClick={load}
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 transition-colors hover:text-gray-900 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:text-white"
-            >
-              <RefreshCw className="h-4 w-4" strokeWidth={2.5} />
-            </button>
-
-            <Link
-              href="/admin/menu"
-              className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[12px] font-semibold text-gray-400 hover:text-white transition-colors"
-            >
-              <LayoutGrid className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Menu</span>
-            </Link>
-            <Link
-              href="/admin/coupons"
-              className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[12px] font-semibold text-gray-400 hover:text-white transition-colors"
-            >
-              <Tag className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Coupons</span>
-            </Link>
-            <Link
-              href="/admin"
-              className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[12px] font-semibold text-gray-400 hover:text-white transition-colors"
-            >
-              <Users className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Users</span>
-            </Link>
-            <Link
-              href="/admin/subscribers"
-              className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[12px] font-semibold text-gray-400 hover:text-white transition-colors"
-            >
-              <Bell className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Alerts</span>
-            </Link>
-            <Link
-              href="/admin/settings"
-              className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[12px] font-semibold text-gray-400 hover:text-white transition-colors"
-            >
-              ⚙️ <span className="hidden sm:inline">Settings</span>
-            </Link>
-
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="flex items-center gap-1.5 rounded-xl border border-red-900/40 bg-red-950/40 px-3 py-2 text-[12px] font-semibold text-red-400 hover:text-red-300 transition-colors"
-            >
-              <LogOut className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Logout</span>
-            </button>
-          </div>
-        </div>
-      </header>
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
+              </span>
+              {newCount} new!
+            </motion.button>
+          )}
+        </AnimatePresence>
+        {/* Sound toggle */}
+        <button
+          type="button"
+          onClick={() => { if (soundOn) stopRing(); setSoundOn((v) => !v); }}
+          title={soundOn ? "Mute ringtone" : "Unmute ringtone"}
+          className={`flex h-9 w-9 items-center justify-center rounded-xl border transition-colors ${
+            soundOn
+              ? "border-brand-orange/30 bg-brand-orange/10 text-brand-orange"
+              : "border-gray-200 bg-white text-gray-400 dark:border-white/10 dark:bg-white/5 dark:text-gray-500"
+          }`}
+        >
+          {soundOn ? <Bell className="h-4 w-4" strokeWidth={2.5} /> : <BellOff className="h-4 w-4" strokeWidth={2.5} />}
+        </button>
+        {/* Refresh */}
+        <button
+          type="button"
+          onClick={load}
+          className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 transition-colors hover:text-gray-900 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:text-white"
+        >
+          <RefreshCw className="h-4 w-4" strokeWidth={2.5} />
+        </button>
+      </AdminPageHeader>
 
       <main className="mx-auto max-w-6xl px-4 py-6 md:px-6">
         {/* Stats strip */}

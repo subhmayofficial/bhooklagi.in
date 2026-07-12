@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Bell, Send, CheckCircle2, AlertCircle, Users, User, Smartphone,
-  ChevronLeft, X, Search, LogOut, ShoppingBag, Sun, Moon,
+  ChevronLeft, X, Search,
 } from "lucide-react";
 import { useAdminStore } from "@/stores/admin-store";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 
 type PushSubscriber = {
   id: string;
@@ -165,28 +166,15 @@ export default function AdminSubscribersPage() {
       <div className="min-h-dvh bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-white pb-20 transition-colors">
 
         {/* Header */}
-        <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur-md dark:border-white/10 dark:bg-gray-950/95">
-          <div className="mx-auto flex h-14 max-w-4xl items-center justify-between px-4 md:px-6">
-            <div className="flex items-center gap-3">
-              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gray-800 text-base text-white shadow-md dark:bg-white/10">🔔</span>
-              <div>
-                <p className="text-[13px] font-extrabold leading-none text-gray-900 dark:text-white">Push Alerts</p>
-                <p className="text-[10px] text-gray-500">Manage subscribers & send notifications</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={toggleTheme} className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
-                {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              </button>
-              <Link href="/admin/orders" className="hidden sm:flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[12px] font-semibold text-gray-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
-                <ShoppingBag className="h-3.5 w-3.5" /> Orders
-              </Link>
-              <button type="button" onClick={handleLogout} className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[12px] font-semibold text-red-600 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-400">
-                <LogOut className="h-3.5 w-3.5" /><span className="hidden sm:inline">Logout</span>
-              </button>
-            </div>
-          </div>
-        </header>
+        <AdminPageHeader
+          icon={<span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gray-800 text-base text-white shadow-md dark:bg-white/10">🔔</span>}
+          title="Push Alerts"
+          subtitle="Manage subscribers & send notifications"
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onLogout={handleLogout}
+          maxWidth="max-w-4xl"
+        />
 
         <main className="mx-auto max-w-2xl px-4 py-6 md:px-6 space-y-5">
 

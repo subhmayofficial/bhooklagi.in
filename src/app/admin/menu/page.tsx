@@ -2,15 +2,15 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  LogOut, ShoppingBag, Tag, Users, ChevronDown, ChevronUp,
-  Check, X, AlertCircle, ToggleLeft, ToggleRight,
+  ChevronDown, ChevronUp, Check, X, AlertCircle, ToggleLeft, ToggleRight,
   ImageIcon, RefreshCw, Plus, Trash2,
 } from "lucide-react";
 import { categories } from "@/data/menu";
+import { useAdminStore } from "@/stores/admin-store";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 
 type AdminMenuItem = {
   id: string;
@@ -46,6 +46,7 @@ const EMPTY_FORM = {
 
 export default function AdminMenuPage() {
   const router = useRouter();
+  const { theme, toggleTheme } = useAdminStore();
   const [items, setItems] = useState<AdminMenuItem[] | null>(null);
   const [customItems, setCustomItems] = useState<AdminMenuItem[]>([]);
   const [error, setError] = useState("");
@@ -205,36 +206,22 @@ export default function AdminMenuPage() {
   const unavailableCount = allItems.filter((m) => !m.isAvailable).length;
 
   return (
-    <div className="min-h-dvh bg-gray-950 text-white">
-      {/* ── Header ── */}
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-gray-950/95 backdrop-blur-md">
-        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 md:px-6">
-          <div className="flex items-center gap-3">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-orange text-base shadow-md shadow-brand-orange/40">🍔</span>
-            <div>
-              <p className="text-[13px] font-extrabold leading-none text-white">Bhook Lagi Admin</p>
-              <p className="text-[10px] text-gray-500">Menu management</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={load} className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-400 hover:text-white transition-colors">
-              <RefreshCw className="h-4 w-4" strokeWidth={2.5} />
-            </button>
-            <Link href="/admin/orders" className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[12px] font-semibold text-gray-400 hover:text-white transition-colors">
-              <ShoppingBag className="h-3.5 w-3.5" /><span className="hidden sm:inline">Orders</span>
-            </Link>
-            <Link href="/admin/coupons" className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[12px] font-semibold text-gray-400 hover:text-white transition-colors">
-              <Tag className="h-3.5 w-3.5" /><span className="hidden sm:inline">Coupons</span>
-            </Link>
-            <Link href="/admin" className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[12px] font-semibold text-gray-400 hover:text-white transition-colors">
-              <Users className="h-3.5 w-3.5" /><span className="hidden sm:inline">Users</span>
-            </Link>
-            <button type="button" onClick={handleLogout} className="flex items-center gap-1.5 rounded-xl border border-red-900/40 bg-red-950/40 px-3 py-2 text-[12px] font-semibold text-red-400 hover:text-red-300 transition-colors">
-              <LogOut className="h-3.5 w-3.5" /><span className="hidden sm:inline">Logout</span>
-            </button>
-          </div>
-        </div>
-      </header>
+    <div className="dark">
+    <div className="min-h-dvh bg-gray-950 text-white pb-20">
+
+      <AdminPageHeader
+        icon={<span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-orange text-base shadow-md shadow-brand-orange/40">🍔</span>}
+        title="Bhook Lagi Admin"
+        subtitle="Menu management"
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        onLogout={handleLogout}
+        maxWidth="max-w-5xl"
+      >
+        <button type="button" onClick={load} className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 transition-colors hover:text-gray-900 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:text-white">
+          <RefreshCw className="h-4 w-4" strokeWidth={2.5} />
+        </button>
+      </AdminPageHeader>
 
       <main className="mx-auto max-w-5xl px-4 py-6 md:px-6">
         {/* Stats */}
@@ -466,6 +453,7 @@ export default function AdminMenuPage() {
         .admin-input:focus { border-color: rgba(232,93,4,0.5); outline: none; box-shadow: 0 0 0 2px rgba(232,93,4,0.2); }
         .admin-input option { background: #111; color: white; }
       `}</style>
+    </div>
     </div>
   );
 }

@@ -2,12 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import {
-  LogOut, ShoppingBag, Tag, LayoutGrid, Sun, Moon,
-  Save, AlertCircle, CheckCircle2, Truck, Receipt, Percent, Bell
+  Save, AlertCircle, CheckCircle2, Truck, Receipt, Percent, Tag
 } from "lucide-react";
 import { useAdminStore } from "@/stores/admin-store";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 
 
 
@@ -94,45 +93,15 @@ export default function AdminSettingsPage() {
     <div className={theme === "dark" ? "dark" : ""}>
       <div className="min-h-dvh bg-gray-50 text-gray-900 transition-colors dark:bg-gray-950 dark:text-white pb-20">
         
-        {/* Header */}
-        <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur-md dark:border-white/10 dark:bg-gray-950/95">
-          <div className="mx-auto flex h-14 max-w-4xl items-center justify-between px-4 md:px-6">
-            <div className="flex items-center gap-3">
-              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gray-800 text-base shadow-md shadow-gray-900/40 text-white dark:bg-white/10">⚙️</span>
-              <div>
-                <p className="text-[13px] font-extrabold leading-none text-gray-900 dark:text-white">Settings</p>
-                <p className="text-[10px] text-gray-500">Global store configuration</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar">
-              <button
-                type="button"
-                onClick={toggleTheme}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 transition-colors hover:text-gray-900 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:text-white"
-              >
-                {theme === "dark" ? <Sun className="h-4 w-4" strokeWidth={2.5} /> : <Moon className="h-4 w-4" strokeWidth={2.5} />}
-              </button>
-              <Link href="/admin/orders" className="flex shrink-0 items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[12px] font-semibold text-gray-600 hover:text-gray-900 transition-colors dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:text-white">
-                <ShoppingBag className="h-3.5 w-3.5" /><span className="hidden sm:inline">Orders</span>
-              </Link>
-              <Link href="/admin/menu" className="flex shrink-0 items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[12px] font-semibold text-gray-600 hover:text-gray-900 transition-colors dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:text-white">
-                <LayoutGrid className="h-3.5 w-3.5" /><span className="hidden sm:inline">Menu</span>
-              </Link>
-              <Link href="/admin/coupons" className="flex shrink-0 items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[12px] font-semibold text-gray-600 hover:text-gray-900 transition-colors dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:text-white">
-                <Tag className="h-3.5 w-3.5" /><span className="hidden sm:inline">Offers</span>
-              </Link>
-              <Link href="/admin/banners" className="flex shrink-0 items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[12px] font-semibold text-gray-600 hover:text-gray-900 transition-colors dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:text-white">
-                <span className="flex h-3.5 w-3.5 items-center justify-center rounded-sm bg-gray-600 text-[8px] text-white">B</span><span className="hidden sm:inline">Banners</span>
-              </Link>
-              <Link href="/admin/subscribers" className="flex shrink-0 items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[12px] font-semibold text-gray-600 hover:text-gray-900 transition-colors dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:text-white">
-                <Bell className="h-3.5 w-3.5" /><span className="hidden sm:inline">Alerts</span>
-              </Link>
-              <button type="button" onClick={handleLogout} className="flex shrink-0 items-center gap-1.5 rounded-xl border border-red-900/40 bg-red-50 px-3 py-2 text-[12px] font-semibold text-red-600 hover:text-red-500 transition-colors dark:bg-red-950/40 dark:text-red-400 dark:hover:text-red-300">
-                <LogOut className="h-3.5 w-3.5" /><span className="hidden sm:inline">Logout</span>
-              </button>
-            </div>
-          </div>
-        </header>
+        <AdminPageHeader
+          icon={<span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gray-800 text-base shadow-md shadow-gray-900/40 text-white dark:bg-white/10">⚙️</span>}
+          title="Settings"
+          subtitle="Global store configuration"
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onLogout={handleLogout}
+          maxWidth="max-w-4xl"
+        />
 
         <main className="mx-auto max-w-2xl px-4 py-8 md:px-6">
           <div className="mb-6">
