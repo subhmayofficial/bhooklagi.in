@@ -35,6 +35,21 @@ const STEP_ICONS: Record<OrderStatus, React.ElementType> = {
   cancelled: XCircle,
 };
 
+function loadRazorpayScript(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (typeof window !== "undefined" && (window as unknown as { Razorpay: unknown }).Razorpay) {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
+
 export default function OrderTrackingPage({ params }: { params: Promise<{ orderNumber: string }> }) {
   const router = useRouter();
   const { orderNumber } = use(params);
@@ -42,6 +57,8 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ orderN
   const [order, setOrder] = useState<OrderRecord | null | undefined>(undefined);
   const [events, setEvents] = useState<OrderEvent[]>([]);
   const [error, setError] = useState("");
+  const [paying, setPaying] = useState(false);
+  const [paymentError, setPaymentError] = useState("");
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -135,6 +152,99 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ orderN
     if (!order) return;
     replaceLines(order.items);
     router.push("/cart");
+  }
+
+  async function payOnline() {
+    if (!order || paying) return;
+    setPaymentError("");
+    setPaying(true);
+
+    try {
+      const loaded = await loadRazorpayScript();
+      if (!loaded) {
+        throw new Error("Razorpay SDK failed to load. Please check your internet connection.");
+      }
+
+      const createRes = await fetch(`/api/orders/${order.orderNumber}/pay`, {
+        method: "POST",
+      });
+      const createPayload = await createRes.json();
+      if (createRes.status === 401) {
+        setPaymentError("Please log in again to pay for this order.");
+        setPaying(false);
+        return;
+      }
+      if (!createRes.ok || !createPayload.order_id) {
+        throw new Error(createPayload?.error || "Failed to initialize online payment.");
+      }
+
+      const rzpOptions = {
+        key: createPayload.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_TCMS1nTPQvlGbI",
+        amount: createPayload.amount,
+        currency: createPayload.currency || "INR",
+        name: "Bhook Lagi",
+        description: `Payment for order ${order.orderNumber}`,
+        order_id: createPayload.order_id,
+        prefill: {
+          name: order.deliveryName,
+          contact: order.deliveryPhone,
+        },
+        theme: {
+          color: "#E85D04",
+        },
+        handler: async function (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) {
+          try {
+            const verifyRes = await fetch("/api/verify-payment", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature,
+                localOrderId: createPayload.localOrderId,
+                paymentMode: "online",
+              }),
+            });
+            const verifyPayload = await verifyRes.json();
+            if (!verifyRes.ok || !verifyPayload.success) {
+              throw new Error(verifyPayload?.error || "Payment verification failed. Please contact support.");
+            }
+
+            setOrder((current) => current ? { ...current, paymentMode: "online", paymentStatus: "paid" } : current);
+            setEvents((current) => [
+              ...current,
+              {
+                status: "paid",
+                note: `Online payment verified via Razorpay (ID: ${response.razorpay_payment_id})`,
+                created_at: new Date().toISOString(),
+              },
+            ]);
+            setPaying(false);
+          } catch (err: unknown) {
+            setPaymentError(err instanceof Error ? err.message : "Payment verification failed.");
+            setPaying(false);
+          }
+        },
+        modal: {
+          ondismiss: function () {
+            setPaymentError("Payment cancelled. You can retry when ready.");
+            setPaying(false);
+          },
+        },
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rzp = new (window as any).Razorpay(rzpOptions);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      rzp.on("payment.failed", function (response: any) {
+        setPaymentError(response.error?.description || "Payment failed. Please try again.");
+        setPaying(false);
+      });
+      rzp.open();
+    } catch (err: unknown) {
+      setPaymentError(err instanceof Error ? err.message : "Could not start online payment.");
+      setPaying(false);
+    }
   }
 
   return (
@@ -482,8 +592,8 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ orderN
           </div>
         </div>
 
-        {/* ── Pay Online Banner — For COD orders in progress ── */}
-        {order.paymentMode === "cod" && !delivered && !cancelled && (
+        {/* ── Pay Online Banner — For unpaid COD orders in progress ── */}
+        {order.paymentMode === "cod" && order.paymentStatus !== "paid" && !delivered && !cancelled && (
           <div className="overflow-hidden rounded-[28px] border border-brand-orange/40 bg-gradient-to-br from-brand-orange via-[#ff7824] to-brand-gold p-5 text-white shadow-xl shadow-brand-orange/20">
             <div className="flex items-start gap-3.5">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-white backdrop-blur-md shadow-inner">
@@ -491,18 +601,25 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ orderN
               </div>
               <div className="flex-1">
                 <p className="font-display text-[17px] font-black tracking-wide">Prefer Online Payment?</p>
-                <p className="mt-0.5 text-[13px] font-medium text-white/90">Avoid cash change issues — pay right now with any UPI app in 1 tap</p>
+                <p className="mt-0.5 text-[13px] font-medium text-white/90">Pay securely with UPI, cards, wallets, or netbanking via Razorpay</p>
               </div>
             </div>
-            <a
-              href={`upi://pay?pa=${encodeURIComponent(process.env.NEXT_PUBLIC_UPI_ID ?? "bhooklagi@upi")}&pn=${encodeURIComponent("Bhook Lagi")}&am=${order.grandTotal}&tn=${encodeURIComponent(`Order ${order.orderNumber}`)}&cu=INR`}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-white py-3.5 text-[14.5px] font-black text-brand-orange shadow-lg transition-transform active:scale-95"
+            <button
+              type="button"
+              onClick={payOnline}
+              disabled={paying}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-white py-3.5 text-[14.5px] font-black text-brand-orange shadow-lg transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-70"
             >
               <Smartphone className="h-4 w-4" />
-              Pay {formatInr(order.grandTotal)} via GPay / PhonePe / Paytm
-            </a>
+              {paying ? "Opening Razorpay..." : `Pay ${formatInr(order.grandTotal)} via Razorpay`}
+            </button>
+            {paymentError && (
+              <p className="mt-2 rounded-2xl bg-white/15 px-3 py-2 text-center text-[11px] font-extrabold text-white">
+                {paymentError}
+              </p>
+            )}
             <p className="mt-2 text-center text-[10.5px] font-extrabold text-white/80">
-              Instantly opens your favorite UPI app · 100% Secure
+              Razorpay checkout supports UPI apps like GPay, PhonePe, and Paytm
             </p>
           </div>
         )}

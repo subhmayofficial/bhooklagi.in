@@ -383,7 +383,7 @@ export default function CartPage() {
         }
 
         const rzpOptions = {
-          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_TCMS1nTPQvlGbI",
+          key: createPayload.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_TCMS1nTPQvlGbI",
           amount: createPayload.amount,
           currency: createPayload.currency || "INR",
           name: "Bhook Lagi",

@@ -13,6 +13,7 @@ export async function POST(req: NextRequest) {
   const paymentId = body.razorpay_payment_id || body.payment_id;
   const signature = body.razorpay_signature || body.signature;
   const localOrderId = body.localOrderId || body.db_order_id;
+  const paymentMode = typeof body.paymentMode === "string" ? body.paymentMode : null;
 
   if (!orderId || !paymentId || !signature) {
     return NextResponse.json(
@@ -48,6 +49,7 @@ export async function POST(req: NextRequest) {
     const { error } = await supabase
       .from("orders")
       .update({
+        ...(paymentMode ? { payment_mode: paymentMode } : {}),
         payment_status: "paid",
         updated_at: new Date().toISOString(),
       })
