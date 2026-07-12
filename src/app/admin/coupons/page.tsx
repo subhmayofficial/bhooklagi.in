@@ -6,9 +6,19 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LogOut, ShoppingBag, Users, Tag, Plus, ToggleLeft, ToggleRight, Trash2,
-  Percent, Banknote, AlertCircle, LayoutGrid, Sun, Moon, X, Check
+  Percent, Banknote, AlertCircle, LayoutGrid, Sun, Moon, X, Check, Gift
 } from "lucide-react";
 import { useAdminStore } from "@/stores/admin-store";
+
+type Freebie = {
+  id: string;
+  name: string;
+  description: string | null;
+  emoji: string;
+  min_order: number;
+  is_active: boolean;
+  created_at: string;
+};
 
 type Coupon = {
   id: string;
@@ -45,6 +55,17 @@ export default function AdminCouponsPage() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
 
+  // ── Freebies state ──
+  const [freebies, setFreebies] = useState<Freebie[] | null>(null);
+  const [showCreateFreebie, setShowCreateFreebie] = useState(false);
+  const [fbName, setFbName] = useState("");
+  const [fbDescription, setFbDescription] = useState("");
+  const [fbEmoji, setFbEmoji] = useState("🎁");
+  const [fbMinOrder, setFbMinOrder] = useState("");
+  const [fbCreating, setFbCreating] = useState(false);
+  const [fbCreateError, setFbCreateError] = useState("");
+  const [fbBusyId, setFbBusyId] = useState<string | null>(null);
+
   async function load() {
     const res = await fetch("/api/admin/coupons");
     if (res.status === 401) { router.replace("/admin/login"); return; }
@@ -53,7 +74,60 @@ export default function AdminCouponsPage() {
     setCoupons(payload.coupons);
   }
 
-  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  async function loadFreebies() {
+    const res = await fetch("/api/admin/freebies");
+    if (!res.ok) return;
+    const payload = await res.json();
+    setFreebies(payload.freebies ?? []);
+  }
+
+  useEffect(() => { load(); loadFreebies(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function toggleFreebie(f: Freebie) {
+    setFbBusyId(f.id);
+    await fetch(`/api/admin/freebies/${f.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isActive: !f.is_active }),
+    });
+    setFreebies((prev) => prev ? prev.map((x) => x.id === f.id ? { ...x, is_active: !f.is_active } : x) : prev);
+    setFbBusyId(null);
+  }
+
+  async function deleteFreebie(f: Freebie) {
+    if (!confirm(`Delete freebie "${f.name}"? This cannot be undone.`)) return;
+    setFbBusyId(f.id);
+    await fetch(`/api/admin/freebies/${f.id}`, { method: "DELETE" });
+    setFreebies((prev) => prev ? prev.filter((x) => x.id !== f.id) : prev);
+    setFbBusyId(null);
+  }
+
+  async function handleCreateFreebie(e: React.FormEvent) {
+    e.preventDefault();
+    setFbCreateError("");
+    setFbCreating(true);
+    try {
+      const res = await fetch("/api/admin/freebies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: fbName.trim(),
+          description: fbDescription.trim() || null,
+          emoji: fbEmoji.trim() || "🎁",
+          minOrder: fbMinOrder ? parseInt(fbMinOrder, 10) : 0,
+        }),
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload?.error || "Could not create freebie.");
+      setFreebies((prev) => prev ? [payload.freebie, ...prev] : [payload.freebie]);
+      setFbName(""); setFbDescription(""); setFbEmoji("🎁"); setFbMinOrder("");
+      setShowCreateFreebie(false);
+    } catch (err) {
+      setFbCreateError(err instanceof Error ? err.message : "Could not create freebie.");
+    } finally {
+      setFbCreating(false);
+    }
+  }
 
   async function handleLogout() {
     await fetch("/api/admin/logout", { method: "POST" });
@@ -428,6 +502,155 @@ export default function AdminCouponsPage() {
             ))}
           </AnimatePresence>
         </div>
+        {/* ══════════ FREEBIES SECTION ══════════ */}
+        <div className="mt-12">
+          <div className="mb-6 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Gift className="h-5 w-5 text-green-500" strokeWidth={2.5} />
+              <h2 className="text-[18px] font-extrabold text-gray-900 dark:text-white">Freebies</h2>
+              <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-extrabold text-green-700 dark:bg-green-950/50 dark:text-green-400">
+                Auto-applied at cart
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowCreateFreebie(true)}
+              className="flex items-center gap-2 rounded-2xl bg-green-600 px-5 py-2.5 text-[14px] font-extrabold text-white shadow-md shadow-green-600/30 transition-all active:scale-95 hover:bg-green-700"
+            >
+              <Plus className="h-4 w-4" strokeWidth={2.5} />
+              Add Freebie
+            </button>
+          </div>
+
+          <p className="mb-5 text-[13px] text-gray-500 dark:text-gray-400">
+            When a customer&rsquo;s cart subtotal meets the threshold, this free item is shown automatically at checkout. It&rsquo;s recorded in the order notes.
+          </p>
+
+          {/* Create Freebie Modal */}
+          <AnimatePresence>
+            {showCreateFreebie && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm"
+              >
+                <motion.div initial={{ scale: 0.95, y: 20, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 20, opacity: 0 }}
+                  className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-gray-900 ring-1 ring-black/5 dark:ring-white/10"
+                >
+                  <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50 px-6 py-4 dark:border-white/10 dark:bg-gray-950/50">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-green-600 dark:bg-green-950/50">
+                        <Gift className="h-4 w-4" strokeWidth={2.5} />
+                      </div>
+                      <h2 className="text-[16px] font-extrabold text-gray-900 dark:text-white">Add Freebie</h2>
+                    </div>
+                    <button type="button" onClick={() => setShowCreateFreebie(false)}
+                      className="rounded-full p-2 text-gray-400 hover:bg-gray-200 hover:text-gray-900 transition-colors dark:hover:bg-white/10 dark:hover:text-white">
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleCreateFreebie} className="p-6 space-y-4">
+                    <div className="flex gap-3">
+                      <div className="w-20">
+                        <label className="mb-1.5 block text-[12px] font-bold text-gray-600 dark:text-gray-400">Emoji</label>
+                        <input type="text" value={fbEmoji} onChange={(e) => setFbEmoji(e.target.value)}
+                          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-center text-[20px] focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20 dark:border-white/10 dark:bg-black/20 dark:text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <label className="mb-1.5 block text-[12px] font-bold text-gray-600 dark:text-gray-400">Free Item Name *</label>
+                        <input type="text" value={fbName} onChange={(e) => setFbName(e.target.value)}
+                          placeholder="e.g. Classic Fries" required
+                          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-[14px] font-bold text-gray-900 placeholder:text-gray-400 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20 dark:border-white/10 dark:bg-black/20 dark:text-white" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-[12px] font-bold text-gray-600 dark:text-gray-400">Description (optional)</label>
+                      <input type="text" value={fbDescription} onChange={(e) => setFbDescription(e.target.value)}
+                        placeholder="e.g. Hot & crispy fries on us!"
+                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-[14px] text-gray-900 placeholder:text-gray-400 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20 dark:border-white/10 dark:bg-black/20 dark:text-white" />
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-[12px] font-bold text-gray-600 dark:text-gray-400">Min Order Threshold (₹) *</label>
+                      <p className="mb-2 text-[11px] text-gray-500">Customer cart subtotal must be at or above this to unlock the freebie.</p>
+                      <input type="number" min={0} value={fbMinOrder} onChange={(e) => setFbMinOrder(e.target.value)}
+                        placeholder="e.g. 299" required
+                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-[14px] font-bold text-gray-900 placeholder:text-gray-400 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20 dark:border-white/10 dark:bg-black/20 dark:text-white" />
+                    </div>
+
+                    {fbCreateError && (
+                      <div className="flex items-center gap-2 rounded-xl border border-red-900/40 bg-red-50 px-4 py-3 text-[13px] text-red-600 dark:bg-red-950/40 dark:text-red-400">
+                        <AlertCircle className="h-4 w-4 shrink-0" />{fbCreateError}
+                      </div>
+                    )}
+
+                    <div className="flex gap-3 pt-2">
+                      <button type="button" onClick={() => setShowCreateFreebie(false)}
+                        className="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-3 text-[14px] font-bold text-gray-600 hover:bg-gray-50 transition-colors dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
+                        Cancel
+                      </button>
+                      <button type="submit" disabled={fbCreating}
+                        className="flex flex-[2] items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-3 text-[14px] font-extrabold text-white shadow-lg shadow-green-600/30 disabled:opacity-50 active:scale-95 transition-all hover:bg-green-700">
+                        {fbCreating ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" /> : <Gift className="h-5 w-5" strokeWidth={2.5} />}
+                        Add Freebie
+                      </button>
+                    </div>
+                  </form>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Freebies list */}
+          {freebies && freebies.length === 0 && (
+            <div className="flex flex-col items-center rounded-3xl border-2 border-dashed border-gray-200 py-12 text-center dark:border-white/10">
+              <Gift className="h-10 w-10 text-gray-300 dark:text-gray-600" strokeWidth={1.5} />
+              <p className="mt-3 text-[15px] font-bold text-gray-700 dark:text-gray-300">No freebies yet</p>
+              <p className="mt-1 text-[12px] text-gray-500">Add one to delight customers who hit your order threshold!</p>
+            </div>
+          )}
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <AnimatePresence initial={false}>
+              {(freebies ?? []).map((f) => (
+                <motion.div key={f.id} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.2 }}
+                  className={`overflow-hidden rounded-2xl border p-5 shadow-sm ${
+                    f.is_active
+                      ? "border-green-200 bg-green-50/50 dark:border-green-900/40 dark:bg-green-950/10"
+                      : "border-gray-100 bg-gray-50 opacity-60 dark:border-white/5 dark:bg-white/[0.02]"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-2xl shadow-sm dark:bg-black/20">{f.emoji}</span>
+                      <div>
+                        <p className="text-[15px] font-extrabold text-gray-900 dark:text-white">{f.name}</p>
+                        {f.description && <p className="mt-0.5 text-[12px] text-gray-500 dark:text-gray-400">{f.description}</p>}
+                        <p className="mt-1.5 text-[12px] font-bold text-green-700 dark:text-green-400">
+                          🎯 Unlocks at ₹{f.min_order}+
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1 rounded-xl border border-gray-100 bg-white p-1 dark:border-white/5 dark:bg-black/20">
+                      <button type="button" disabled={fbBusyId === f.id} onClick={() => toggleFreebie(f)}
+                        className="p-1.5 text-gray-400 hover:text-gray-900 disabled:opacity-40 transition-colors dark:hover:text-white">
+                        {f.is_active
+                          ? <ToggleRight className="h-5 w-5 text-green-500" strokeWidth={2} />
+                          : <ToggleLeft className="h-5 w-5" strokeWidth={2} />}
+                      </button>
+                      <div className="h-4 w-px bg-gray-200 dark:bg-white/10" />
+                      <button type="button" disabled={fbBusyId === f.id} onClick={() => deleteFreebie(f)}
+                        className="p-1.5 text-gray-400 hover:text-red-500 disabled:opacity-40 transition-colors dark:hover:text-red-400">
+                        <Trash2 className="h-4 w-4" strokeWidth={2} />
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        </div>
+
       </main>
     </div>
     </div>

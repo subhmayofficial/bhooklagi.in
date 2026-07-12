@@ -103,14 +103,17 @@ export default function CartPage() {
     upi_discount_percent: number;
     kitchen_open?: boolean;
   }>({ delivery_charge: 49, free_delivery_threshold: 299, tax_percent: 5, upi_discount_enabled: false, upi_discount_percent: 0, kitchen_open: true });
+  const [freebies, setFreebies] = useState<{ id: string; name: string; description: string | null; emoji: string; min_order: number }[]>([]);
 
   useEffect(() => {
     Promise.all([
       fetch("/api/coupons").then(res => res.json()),
-      fetch("/api/settings").then(res => res.json())
-    ]).then(([couponsData, settingsData]) => {
+      fetch("/api/settings").then(res => res.json()),
+      fetch("/api/freebies").then(res => res.json()),
+    ]).then(([couponsData, settingsData, freebiesData]) => {
       if (couponsData.coupons) setAvailableCoupons(couponsData.coupons);
       if (settingsData.settings) setStoreSettings(settingsData.settings);
+      if (freebiesData.freebies) setFreebies(freebiesData.freebies);
     }).catch(() => {});
   }, []);
   const [showBillDetails, setShowBillDetails] = useState(false);
@@ -160,6 +163,9 @@ export default function CartPage() {
     ? Math.round(billBeforeDiscount * (storeSettings.upi_discount_percent / 100)) 
     : 0;
   
+  const unlockedFreebies = freebies.filter((f) => subtotal >= f.min_order);
+  const nextFreebie = freebies.find((f) => subtotal < f.min_order);
+
   const progress = Math.min((subtotal / (freeDeliveryAt || 1)) * 100, 100);
   const deliveryEta = estimateDeliveryMinutes(deliveryLocation);
   const checkoutStepIndex = CHECKOUT_STEPS.findIndex((step) => step.id === checkoutStep);
@@ -437,7 +443,7 @@ export default function CartPage() {
                   razorpayPaymentId: response.razorpay_payment_id,
                   razorpayOrderId: response.razorpay_order_id,
                   couponCode: appliedCoupon?.code,
-                  notes: orderNotes.trim() || undefined,
+                  notes: [orderNotes.trim(), unlockedFreebies.length > 0 ? `🎁 Freebies: ${unlockedFreebies.map(f => f.name).join(", ")}` : ""].filter(Boolean).join(" | ") || undefined,
                 }),
               });
               const placePayload = await placeRes.json();
@@ -499,7 +505,7 @@ export default function CartPage() {
           saveAddress,
           paymentMode,
           couponCode: appliedCoupon?.code,
-          notes: orderNotes.trim() || undefined,
+          notes: [orderNotes.trim(), unlockedFreebies.length > 0 ? `🎁 Freebies: ${unlockedFreebies.map(f => f.name).join(", ")}` : ""].filter(Boolean).join(" | ") || undefined,
         }),
       });
       const payload = await response.json();
@@ -641,6 +647,27 @@ export default function CartPage() {
                 <div className="flex items-center gap-2.5 rounded-2xl border border-green-100 bg-green-50 px-4 py-3">
                   <CheckCircle2 className="h-5 w-5 text-green-600" strokeWidth={2} />
                   <p className="text-[13px] font-extrabold text-green-800">🎉 You&apos;ve unlocked free delivery!</p>
+                </div>
+              )}
+
+              {/* ── Freebies banners ── */}
+              {unlockedFreebies.map((f) => (
+                <motion.div key={f.id} initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
+                  className="flex items-center gap-3 rounded-2xl border border-green-200 bg-green-50 px-4 py-3"
+                >
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-green-100 text-xl">{f.emoji}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-extrabold text-green-800">🎁 You&apos;ve unlocked a free {f.name}!</p>
+                    {f.description && <p className="truncate text-[11px] text-green-600">{f.description}</p>}
+                  </div>
+                </motion.div>
+              ))}
+              {nextFreebie && (
+                <div className="flex items-center gap-3 rounded-2xl border border-dashed border-green-200 bg-green-50/40 px-4 py-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-green-50 text-xl">{nextFreebie.emoji}</span>
+                  <p className="text-[12px] font-semibold text-green-700">
+                    Add <span className="price-text font-extrabold">{formatInr(nextFreebie.min_order - subtotal)}</span> more to unlock a free <span className="font-extrabold">{nextFreebie.name}</span>!
+                  </p>
                 </div>
               )}
 
