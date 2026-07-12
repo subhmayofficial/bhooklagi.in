@@ -50,6 +50,7 @@ const CHECKOUT_STEPS: { id: CheckoutStep; label: string; helper: string }[] = [
 const LOCATION_LABEL_KEY = "bl_location_label";
 const DELIVERY_LOCATION_KEY = "bl_delivery_location";
 const HIDDEN_COUPON_CODES = new Set(["UPI5"]);
+const INSTALL_PROMPT_AFTER_ORDER_KEY = "bl_install_prompt_after_order";
 
 function paymentModeMatches(required: string | null, current: PaymentMode) {
   if (!required) return true;
@@ -441,6 +442,10 @@ export default function CartPage() {
               });
               const placePayload = await placeRes.json();
               if (!placeRes.ok) throw new Error(placePayload?.error || "Could not save order after payment.");
+              try {
+                sessionStorage.setItem(INSTALL_PROMPT_AFTER_ORDER_KEY, "1");
+                window.dispatchEvent(new Event("bl:order-placed"));
+              } catch {}
               clear();
               router.push(`/orders/${placePayload.order.orderNumber}`);
             } catch (err: unknown) {
@@ -504,6 +509,10 @@ export default function CartPage() {
         return;
       }
       if (!response.ok) throw new Error(payload?.error || "Could not place order.");
+      try {
+        sessionStorage.setItem(INSTALL_PROMPT_AFTER_ORDER_KEY, "1");
+        window.dispatchEvent(new Event("bl:order-placed"));
+      } catch {}
       clear();
       router.push(`/orders/${payload.order.orderNumber}`);
     } catch (error) {
@@ -665,11 +674,11 @@ export default function CartPage() {
                 <AnimatePresence initial={false}>
                   {lines.map((line) => (
                     <CartRow
-                      key={line.itemId}
+                      key={line.customLineId}
                       line={line}
-                      onInc={() => increment(line.itemId)}
-                      onDec={() => decrement(line.itemId)}
-                      onRemove={() => remove(line.itemId)}
+                      onInc={() => increment(line.customLineId)}
+                      onDec={() => decrement(line.customLineId)}
+                      onRemove={() => remove(line.customLineId)}
                     />
                   ))}
                 </AnimatePresence>

@@ -11,12 +11,51 @@ interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
 }
 
+const APP_OPEN_SHOWN_KEY = "bl_install_prompt_app_open_shown";
+const AFTER_ORDER_PENDING_KEY = "bl_install_prompt_after_order";
+
+function getSessionFlag(key: string) {
+  try {
+    return sessionStorage.getItem(key) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function setSessionFlag(key: string, value = "1") {
+  try {
+    sessionStorage.setItem(key, value);
+  } catch {}
+}
+
+function removeSessionFlag(key: string) {
+  try {
+    sessionStorage.removeItem(key);
+  } catch {}
+}
+
 export function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [show, setShow] = useState(false);
   const [isIosPrompt, setIsIosPrompt] = useState(false);
 
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let standardPromptReady = false;
+
+    const schedulePrompt = (reason: "app_open" | "after_order") => {
+      const afterOrderPending = getSessionFlag(AFTER_ORDER_PENDING_KEY);
+      if (reason === "after_order") {
+        if (!afterOrderPending) return;
+        removeSessionFlag(AFTER_ORDER_PENDING_KEY);
+      } else {
+        if (getSessionFlag(APP_OPEN_SHOWN_KEY) || afterOrderPending) return;
+        setSessionFlag(APP_OPEN_SHOWN_KEY);
+      }
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => setShow(true), reason === "after_order" ? 1200 : 3000);
+    };
+
     // Register Service Worker
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker
@@ -32,21 +71,31 @@ export function InstallPrompt() {
     
     if (isIos && !isStandalone) {
       setIsIosPrompt(true);
-      setTimeout(() => setShow(true), 3000);
+      schedulePrompt(getSessionFlag(AFTER_ORDER_PENDING_KEY) ? "after_order" : "app_open");
     }
 
     // Listen for standard PWA Install Prompt (Android/Desktop)
     const handler = (e: Event) => {
       e.preventDefault();
+      standardPromptReady = true;
       setDeferredPrompt(e as BeforeInstallPromptEvent);
       setIsIosPrompt(false);
-      setTimeout(() => setShow(true), 3000);
+      schedulePrompt(getSessionFlag(AFTER_ORDER_PENDING_KEY) ? "after_order" : "app_open");
+    };
+
+    const orderPlacedHandler = () => {
+      if (isIos || standardPromptReady) {
+        schedulePrompt("after_order");
+      }
     };
 
     window.addEventListener("beforeinstallprompt", handler);
+    window.addEventListener("bl:order-placed", orderPlacedHandler);
 
     return () => {
+      if (timer) clearTimeout(timer);
       window.removeEventListener("beforeinstallprompt", handler);
+      window.removeEventListener("bl:order-placed", orderPlacedHandler);
     };
   }, []);
 
