@@ -17,7 +17,7 @@ import { estimateDeliveryMinutes } from "@/lib/location";
 import { useAuthStore } from "@/stores/auth-store";
 import { OtpLoginForm } from "@/components/auth/OtpLoginForm";
 import { SiteHeader } from "@/components/layout/SiteHeader";
-import { useEffect, useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 
 const MAX_LOCATION_ACCURACY_M = 250;
 
@@ -48,7 +48,7 @@ const CHECKOUT_STEPS: { id: CheckoutStep; label: string; helper: string }[] = [
 
 function loadRazorpayScript(): Promise<boolean> {
   return new Promise((resolve) => {
-    if (typeof window !== "undefined" && (window as any).Razorpay) {
+    if (typeof window !== "undefined" && (window as unknown as { Razorpay: unknown }).Razorpay) {
       resolve(true);
       return;
     }
@@ -412,7 +412,7 @@ export default function CartPage() {
           theme: {
             color: "#E85D04",
           },
-          handler: async function (response: any) {
+          handler: async function (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) {
             try {
               const verifyRes = await fetch("/api/verify-payment", {
                 method: "POST",
@@ -459,7 +459,7 @@ export default function CartPage() {
               if (!placeRes.ok) throw new Error(placePayload?.error || "Could not save order after payment.");
               clear();
               router.push(`/orders/${placePayload.order.orderNumber}`);
-            } catch (err: any) {
+            } catch (err: unknown) {
               setErrors((prev) => ({
                 ...prev,
                 submit: err instanceof Error ? err.message : "Error saving order after payment.",
@@ -480,8 +480,8 @@ export default function CartPage() {
           },
         };
 
-        const rzp = new (window as any).Razorpay(rzpOptions);
-        rzp.on("payment.failed", function (response: any) {
+        const rzp = new (window as unknown as { Razorpay: new (options: unknown) => { on: (event: string, handler: (res: unknown) => void) => void } }).Razorpay(rzpOptions);
+        rzp.on("payment.failed", function (response: { error: { description: string } }) {
           setPlacing(false);
           setErrors((prev) => ({
             ...prev,

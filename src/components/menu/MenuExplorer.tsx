@@ -110,7 +110,7 @@ export function MenuExplorer() {
       map[item.categoryId].push(item);
     }
     return map;
-  }, [active, query, filtered, allItems]);
+  }, [active, query, filtered]);
 
   /* ── Cart ── */
   const lines           = useCartStore((s) => s.lines);

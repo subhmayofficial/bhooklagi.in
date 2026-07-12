@@ -19,7 +19,6 @@ type Address = {
 
 export default function AccountPage() {
   const authStatus = useAuthStore((s) => s.status);
-  const openLoginModal = useAuthStore((s) => s.openLoginModal);
   const logout = useAuthStore((s) => s.logout);
 
   const [account, setAccount] = useState<Account | null>(null);

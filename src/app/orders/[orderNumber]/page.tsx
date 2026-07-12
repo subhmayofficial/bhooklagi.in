@@ -4,10 +4,10 @@ import { use, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   CheckCircle2, MapPin, Phone, Clock, ChevronLeft,
-  Bike, Package, UtilityPole, PartyPopper, XCircle,
+  Bike, Package, PartyPopper, XCircle,
   ChefHat, Navigation2, ReceiptText, RotateCcw, UtensilsCrossed,
   Star, Smartphone, Sparkles, Flame, ShieldCheck, ArrowRight,
 } from "lucide-react";

@@ -23,7 +23,6 @@ type OrderSummary = {
 export default function OrdersHistoryPage() {
   const router = useRouter();
   const authStatus = useAuthStore((s) => s.status);
-  const openLoginModal = useAuthStore((s) => s.openLoginModal);
   const replaceLines = useCartStore((s) => s.replaceLines);
   const [orders, setOrders] = useState<OrderSummary[] | null>(null);
 

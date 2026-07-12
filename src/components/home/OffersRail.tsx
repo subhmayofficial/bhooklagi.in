@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Tag, Zap, Clock, Gift, Sparkles } from "lucide-react";
+import { Tag, Zap, Clock, Sparkles } from "lucide-react";
 import { offers } from "@/data/offers";
 import { cn } from "@/lib/utils";
 

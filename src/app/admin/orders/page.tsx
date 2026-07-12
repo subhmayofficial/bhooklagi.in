@@ -293,11 +293,6 @@ export default function AdminOrdersPage() {
     return () => window.removeEventListener("click", unlock);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* ── Dismiss current popup (Later button) ── */
-  function dismissPopup() {
-    stopRing();
-    setPendingOrders((prev) => prev.slice(1));
-  }
 
   /* ── Reject order from popup ── */
   async function rejectFromPopup(order: AdminOrder) {

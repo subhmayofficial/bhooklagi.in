@@ -39,8 +39,8 @@ export async function POST(req: NextRequest) {
   try {
     const result = await computeFinalServerTotals(lines, rawCouponCode, paymentMode, supabase);
     finalGrandTotal = result.finalGrandTotal;
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Invalid order items." }, { status: 400 });
+  } catch (err: unknown) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Invalid order items." }, { status: 400 });
   }
 
   const amount = Math.round(finalGrandTotal * 100);

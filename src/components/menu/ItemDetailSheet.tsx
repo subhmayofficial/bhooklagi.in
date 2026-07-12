@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, Minus, Zap, Flame, Star } from "lucide-react";
-import { menuItems, formatInr, type MenuItem } from "@/data/menu";
+import { menuItems, formatInr } from "@/data/menu";
 import { useCartStore } from "@/stores/cart-store";
 
 interface ItemDetailSheetProps {

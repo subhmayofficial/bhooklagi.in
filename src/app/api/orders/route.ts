@@ -115,8 +115,8 @@ export async function POST(req: NextRequest) {
     couponId = result.couponId;
     usedCount = result.usedCount;
     finalGrandTotal = result.finalGrandTotal;
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Invalid order items." }, { status: 400 });
+  } catch (err: unknown) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Invalid order items." }, { status: 400 });
   }
 
   if (couponId) {

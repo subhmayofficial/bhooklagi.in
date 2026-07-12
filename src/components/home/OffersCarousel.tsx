@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Tag, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCartStore } from "@/stores/cart-store";
 
 type Banner = {
   id: string;

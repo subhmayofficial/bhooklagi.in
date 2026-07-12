@@ -4,24 +4,18 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  LogOut, ShoppingBag, Users, Tag, LayoutGrid, Sun, Moon,
-  Save, AlertCircle, CheckCircle2, Settings, Truck, Receipt, Percent
+  LogOut, ShoppingBag, Tag, LayoutGrid, Sun, Moon,
+  Save, AlertCircle, CheckCircle2, Truck, Receipt, Percent
 } from "lucide-react";
 import { useAdminStore } from "@/stores/admin-store";
 
-type StoreSettings = {
-  delivery_charge: number;
-  free_delivery_threshold: number;
-  tax_percent: number;
-  upi_discount_enabled: boolean;
-  upi_discount_percent: number;
-};
+
 
 export default function AdminSettingsPage() {
   const { theme, toggleTheme } = useAdminStore();
   const router = useRouter();
   
-  const [settings, setSettings] = useState<StoreSettings | null>(null);
+
   const [deliveryCharge, setDeliveryCharge] = useState("");
   const [freeThreshold, setFreeThreshold] = useState("");
   const [taxPercent, setTaxPercent] = useState("");

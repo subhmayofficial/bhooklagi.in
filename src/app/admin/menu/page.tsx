@@ -7,7 +7,7 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LogOut, ShoppingBag, Tag, Users, ChevronDown, ChevronUp,
-  Check, X, AlertCircle, LayoutGrid, ToggleLeft, ToggleRight,
+  Check, X, AlertCircle, ToggleLeft, ToggleRight,
   ImageIcon, RefreshCw, Plus, Trash2,
 } from "lucide-react";
 import { categories } from "@/data/menu";
@@ -31,9 +31,6 @@ type AdminMenuItem = {
   bestseller?: boolean;
 };
 
-const CATEGORY_LABELS: Record<string, string> = Object.fromEntries(
-  categories.map((c) => [c.id, c.label]),
-);
 
 const DIET_OPTIONS = [
   { value: "", label: "None" },
