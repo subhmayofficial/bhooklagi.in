@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "b.zmtcdn.com",
+        hostname: "bhooklagi.b-cdn.net",
       },
     ],
   },

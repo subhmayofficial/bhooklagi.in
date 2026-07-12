@@ -19,13 +19,13 @@ import { cn } from "@/lib/utils";
 
 /* ── Category images for the sidebar / pill bar ─────────────────── */
 const CAT_IMAGES: Partial<Record<MenuCategoryId, string>> = {
-  meals:      "https://b.zmtcdn.com/data/dish_photos/198/fe86ada522be0b3f0ab1aa6eefc24198.jpeg",
-  burgers:    "https://b.zmtcdn.com/data/dish_photos/48b/a59d732bf2d0f51fb4895f46548e548b.png",
-  rolls:      "https://b.zmtcdn.com/data/dish_photos/99a/7c1d6342603039279a6bcc5a6cd0b99a.jpeg",
-  maggi:      "https://b.zmtcdn.com/data/dish_photos/153/89ab6ec6d2f308395e4693f991c0f153.jpeg",
-  fries:      "https://b.zmtcdn.com/data/dish_photos/d9f/1ea36e028d1056244cea461d5f270d9f.png",
-  sandwiches: "https://b.zmtcdn.com/data/dish_photos/505/d869d610f6e0cc28b350c3d7859a7505.png",
-  drinks:     "https://b.zmtcdn.com/data/dish_photos/5dc/78d0f5c66690dde9ea27d8f83e3e05dc.jpg",
+  meals:      "https://bhooklagi.b-cdn.net/bunny-image-seed/fe86ada522be0b3f0ab1aa6eefc24198-2693c300.jpg",
+  burgers:    "https://bhooklagi.b-cdn.net/bunny-image-seed/a59d732bf2d0f51fb4895f46548e548b-4be36c0f.png",
+  rolls:      "https://bhooklagi.b-cdn.net/bunny-image-seed/7c1d6342603039279a6bcc5a6cd0b99a-d2e4bfb1.jpg",
+  maggi:      "https://bhooklagi.b-cdn.net/bunny-image-seed/89ab6ec6d2f308395e4693f991c0f153-bff50cd3.jpg",
+  fries:      "https://bhooklagi.b-cdn.net/bunny-image-seed/1ea36e028d1056244cea461d5f270d9f-1e70e579.png",
+  sandwiches: "https://bhooklagi.b-cdn.net/bunny-image-seed/d869d610f6e0cc28b350c3d7859a7505-96fe0acc.png",
+  drinks:     "https://bhooklagi.b-cdn.net/bunny-image-seed/78d0f5c66690dde9ea27d8f83e3e05dc-e33d471a.jpg",
 };
 
 /* ── Diet filter options ─────────────────────────────────────────── */

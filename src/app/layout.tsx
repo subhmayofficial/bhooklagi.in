@@ -178,8 +178,8 @@ export default function RootLayout({
   return (
     <html lang="en" className="scroll-smooth">
       <head>
-        <link rel="preconnect" href="https://b.zmtcdn.com" />
-        <link rel="dns-prefetch" href="https://b.zmtcdn.com" />
+        <link rel="preconnect" href="https://bhooklagi.b-cdn.net" />
+        <link rel="dns-prefetch" href="https://bhooklagi.b-cdn.net" />
         <link rel="preconnect" href="https://www.googletagmanager.com" />
         <script
           type="application/ld+json"
