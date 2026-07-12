@@ -431,6 +431,15 @@ export const menuItems: MenuItem[] = [
     diet: "veg",
     bestseller: true,
   },
+  {
+    id: "bl-cold-coffee",
+    name: "Cold Coffee",
+    description: "Rich and creamy cold coffee blended to perfection — a chilled coffee kick to refresh you anytime. [250 ml]",
+    price: 79,
+    emoji: "☕",
+    categoryId: "drinks",
+    diet: "veg",
+  },
 ];
 
 export function getItemsByCategory(categoryId: MenuCategoryId) {
