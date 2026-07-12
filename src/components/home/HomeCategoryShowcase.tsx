@@ -150,10 +150,30 @@ export function HomeCategoryShowcase() {
         </div>
 
         {/* Grid */}
-        <div className="grid grid-cols-4 gap-x-2 gap-y-4 md:grid-cols-7 md:gap-x-4">
+        <div className="grid grid-cols-4 gap-x-2 gap-y-4 md:grid-cols-8 md:gap-x-4">
           {featured.map((c, i) => (
             <CategoryCircle key={c.id} c={c} index={i} />
           ))}
+          {/* 8th item to complete the grid */}
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.92 }}
+            whileInView={{ opacity: 1, y: 0, scale: 1 }}
+            viewport={{ once: true, margin: "-30px" }}
+            transition={{ delay: 7 * 0.07, duration: 0.4, ease: "easeOut" }}
+          >
+            <Link href="/menu" className="group flex flex-col items-center gap-2">
+              <div className="relative h-[72px] w-[72px] overflow-hidden rounded-full ring-2 ring-gray-100 shadow-sm transition-all duration-300 group-hover:shadow-md group-hover:ring-brand-orange bg-gray-50 flex flex-col items-center justify-center sm:h-[84px] sm:w-[84px] md:h-[96px] md:w-[96px]">
+                <ArrowRight className="h-6 w-6 text-brand-orange mb-1 group-hover:translate-x-1 transition-transform" />
+                <span className="text-[9px] font-extrabold uppercase tracking-widest text-gray-500 leading-none">View</span>
+              </div>
+              <div className="text-center w-full">
+                <p className="w-full truncate text-[11px] font-bold text-gray-800 md:text-[13px]">
+                  All Menu
+                </p>
+                <p className="text-[10px] text-gray-400">Explore more</p>
+              </div>
+            </Link>
+          </motion.div>
         </div>
       </div>
     </section>
