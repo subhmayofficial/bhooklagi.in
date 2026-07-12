@@ -20,10 +20,10 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-[900] md:hidden"
+      className="fixed bottom-0 left-0 right-0 z-[900] md:hidden bg-white border-t border-gray-200 shadow-[0_-4px_16px_rgba(0,0,0,0.06)]"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <div className="border-t border-gray-200 bg-white px-2 pb-2 pt-1 shadow-[0_-4px_16px_rgba(0,0,0,0.06)]">
+      <div className="px-2 pb-2 pt-1">
         <div className="mx-auto flex max-w-lg items-center justify-between gap-1">
           {links.map(({ href, label, Icon }) => {
             const active = href === "/" ? pathname === "/" || pathname === "/home" : pathname.startsWith(href);

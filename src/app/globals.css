@@ -18,6 +18,8 @@
     overflow-x: clip;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
   }
 
   main,
@@ -99,6 +101,15 @@
   /* Swiggy-style card shadow */
   .card-shadow {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+
+  /* Hide scrollbar for smooth carousels */
+  .hide-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 
   .card-shadow-lg {

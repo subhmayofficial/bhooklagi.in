@@ -287,7 +287,7 @@ export function MenuExplorer() {
         {/* ── Mobile horizontal category pills ── */}
         <div
           ref={pillsRef}
-          className="hide-scrollbar sticky top-[56px] z-40 -mx-4 mb-4 flex gap-1.5 overflow-x-auto border-b border-gray-100 bg-white/95 px-4 py-2 backdrop-blur-md md:hidden"
+          className="hide-scrollbar sticky top-[56px] z-40 -mx-4 mb-4 flex gap-1.5 overflow-x-auto snap-x snap-mandatory border-b border-gray-100 bg-white/95 px-4 py-2 backdrop-blur-md md:hidden"
         >
           {/* All card */}
           <button
@@ -295,7 +295,7 @@ export function MenuExplorer() {
             type="button"
             onClick={() => selectCategory("all")}
             className={cn(
-              "flex shrink-0 flex-col items-center gap-1 rounded-2xl p-2 min-w-[58px] transition-all",
+              "flex shrink-0 snap-center flex-col items-center gap-1 rounded-2xl p-2 min-w-[58px] transition-all active:scale-95",
               active === "all" ? "bg-brand-orange/10" : "hover:bg-gray-50"
             )}
           >
@@ -312,7 +312,7 @@ export function MenuExplorer() {
                 type="button"
                 onClick={() => selectCategory(c.id)}
                 className={cn(
-                  "flex shrink-0 flex-col items-center gap-1 rounded-2xl p-2 min-w-[58px] transition-all",
+                  "flex shrink-0 snap-center flex-col items-center gap-1 rounded-2xl p-2 min-w-[58px] transition-all active:scale-95",
                   active === c.id ? "bg-brand-orange/10" : "hover:bg-gray-50"
                 )}
               >
@@ -338,7 +338,7 @@ export function MenuExplorer() {
               <Flame className="h-4 w-4 text-brand-orange" fill="#E85D04" />
               <h2 className="text-[14px] font-extrabold text-gray-800">Bestsellers</h2>
             </div>
-            <div className="hide-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-1 md:mx-0 md:px-0">
+            <div className="hide-scrollbar -mx-4 flex gap-3 overflow-x-auto snap-x snap-mandatory px-4 pb-1 md:mx-0 md:px-0">
               {bestsellers.map((item) => (
                 <BestsellerPill key={item.id} item={item} />
               ))}
@@ -396,11 +396,12 @@ export function MenuExplorer() {
       <AnimatePresence>
         {mounted && qty > 0 && (
           <motion.div
-            initial={{ y: 100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 100, opacity: 0 }}
+            initial={{ y: 150, x: "-50%" }}
+            animate={{ y: 0, x: "-50%" }}
+            exit={{ y: 150, x: "-50%" }}
             transition={{ type: "spring", stiffness: 340, damping: 32 }}
-            className="fixed bottom-[72px] left-4 right-4 z-[600] md:bottom-6 md:left-1/2 md:right-auto md:w-[520px] md:-translate-x-1/2"
+            className="fixed bottom-[72px] left-1/2 z-[600] w-[calc(100%-2rem)] md:bottom-6 md:w-[520px]"
+            style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
           >
             <Link
               href="/cart"
