@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
+const HIDDEN_COUPON_CODES = new Set(["UPI5"]);
+
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const code = typeof body.code === "string" ? body.code.trim().toUpperCase() : "";
@@ -8,6 +10,12 @@ export async function POST(req: Request) {
   const subtotal = typeof body.subtotal === "number" ? body.subtotal : 0;
 
   if (!code) return NextResponse.json({ error: "No code provided." }, { status: 400 });
+  if (HIDDEN_COUPON_CODES.has(code)) {
+    return NextResponse.json(
+      { error: "UPI discount is applied automatically when you choose UPI." },
+      { status: 400 },
+    );
+  }
 
   const supabase = getSupabaseAdminClient();
   const { data: coupon } = await supabase
@@ -22,6 +30,13 @@ export async function POST(req: Request) {
   if (coupon.min_order > 0 && subtotal < coupon.min_order) {
     return NextResponse.json(
       { error: `Minimum order ₹${coupon.min_order} required for this coupon.` },
+      { status: 400 },
+    );
+  }
+
+  if (coupon.payment_mode_required === "upi" || coupon.payment_mode_required === "online") {
+    return NextResponse.json(
+      { error: "UPI discount is applied automatically when you choose UPI." },
       { status: 400 },
     );
   }

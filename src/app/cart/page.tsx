@@ -49,6 +49,13 @@ const CHECKOUT_STEPS: { id: CheckoutStep; label: string; helper: string }[] = [
 
 const LOCATION_LABEL_KEY = "bl_location_label";
 const DELIVERY_LOCATION_KEY = "bl_delivery_location";
+const HIDDEN_COUPON_CODES = new Set(["UPI5"]);
+
+function paymentModeMatches(required: string | null, current: PaymentMode) {
+  if (!required) return true;
+  if ((required === "upi" || required === "online") && (current === "upi" || current === "online")) return true;
+  return required === current;
+}
 
 function loadRazorpayScript(): Promise<boolean> {
   return new Promise((resolve) => {
@@ -126,21 +133,30 @@ export default function CartPage() {
   const freeDeliveryAt = storeSettings.free_delivery_threshold;
   const deliveryFee = subtotal >= freeDeliveryAt || subtotal === 0 ? 0 : storeSettings.delivery_charge;
   const gst = Math.round(subtotal * (storeSettings.tax_percent / 100));
+  const visibleCoupons = availableCoupons.filter((coupon) => {
+    const code = coupon.code.toUpperCase();
+    if (HIDDEN_COUPON_CODES.has(code)) return false;
+    return coupon.payment_mode_required !== "upi" && coupon.payment_mode_required !== "online";
+  });
+  const couponAppliesToPayment = appliedCoupon
+    ? paymentModeMatches(appliedCoupon.paymentModeRequired, paymentMode)
+    : false;
   
-  const couponDiscount = appliedCoupon
+  const couponDiscount = appliedCoupon && couponAppliesToPayment
     ? appliedCoupon.discountType === "percent"
       ? Math.round(subtotal * appliedCoupon.discountValue / 100)
       : appliedCoupon.discountValue
     : 0;
+  const billBeforeDiscount = subtotal + deliveryFee + gst;
   const upiDiscount = (paymentMode === "upi" || paymentMode === "online") && storeSettings.upi_discount_enabled
-    ? Math.round(subtotal * (storeSettings.upi_discount_percent / 100))
+    ? Math.round(billBeforeDiscount * (storeSettings.upi_discount_percent / 100))
     : 0;
-
-  const grand = Math.max(0, subtotal + deliveryFee + gst - couponDiscount - upiDiscount);
+  const totalSavings = couponDiscount + upiDiscount;
+  const grand = Math.max(0, billBeforeDiscount - totalSavings);
 
   // Calculate potential UPI savings for badge
   const potentialUpiSavings = storeSettings.upi_discount_enabled 
-    ? Math.round(subtotal * (storeSettings.upi_discount_percent / 100)) 
+    ? Math.round(billBeforeDiscount * (storeSettings.upi_discount_percent / 100)) 
     : 0;
   
   const progress = Math.min((subtotal / (freeDeliveryAt || 1)) * 100, 100);
@@ -215,6 +231,11 @@ export default function CartPage() {
     const codeStr = typeof codeOverride === "string" ? codeOverride : couponInput;
     const code = codeStr.trim().toUpperCase();
     if (!code) return;
+    if (HIDDEN_COUPON_CODES.has(code)) {
+      setCouponError("UPI discount is applied automatically when you choose UPI.");
+      setAppliedCoupon(null);
+      return;
+    }
     setCouponLoading(true);
     setCouponError("");
     try {
@@ -238,15 +259,6 @@ export default function CartPage() {
       setCouponLoading(false);
     }
   }
-
-  // Auto-clear coupon if payment mode changes and coupon requires a different mode
-  useEffect(() => {
-    if (appliedCoupon?.paymentModeRequired && appliedCoupon.paymentModeRequired !== paymentMode) {
-      setAppliedCoupon(null);
-      setCouponError(`Coupon ${appliedCoupon.code} requires ${appliedCoupon.paymentModeRequired.toUpperCase()} payment.`);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paymentMode]);
 
   function validateDelivery(currentLocation = deliveryLocation) {
     const nextErrors: Record<string, string> = {};
@@ -664,10 +676,7 @@ export default function CartPage() {
               </div>
 
               {/* ── Coupon code ── */}
-              <div className="relative overflow-hidden rounded-2xl border-2 border-dashed border-orange-200 bg-white shadow-sm">
-                {/* Ticket notches */}
-                <div className="pointer-events-none absolute -left-3 top-1/2 h-6 w-6 -translate-y-1/2 rounded-full bg-[#f7f2ee]" />
-                <div className="pointer-events-none absolute -right-3 top-1/2 h-6 w-6 -translate-y-1/2 rounded-full bg-[#f7f2ee]" />
+              <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
                 <div className="p-4">
                   <div className="mb-3 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
@@ -678,8 +687,8 @@ export default function CartPage() {
                         <p className="text-[14px] font-extrabold text-gray-950">
                           {appliedCoupon ? "Coupon applied 🎉" : "Apply coupon"}
                         </p>
-                        <p className="text-[11px] font-semibold text-orange-500">
-                          {paymentMode === "upi" ? "💡 UPI5 — 5% off on UPI" : "💡 BHOOK20 — ₹80 off on ₹299+"}
+                        <p className="text-[11px] font-semibold text-gray-500">
+                          Promo codes work separately from UPI discount.
                         </p>
                       </div>
                     </div>
@@ -701,16 +710,29 @@ export default function CartPage() {
                         initial={{ opacity: 0, y: 6 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -6 }}
-                        className="flex items-center gap-2 rounded-xl bg-green-50 px-3 py-2.5"
+                        className={`rounded-2xl border px-3 py-3 ${couponAppliesToPayment ? "border-green-100 bg-green-50" : "border-amber-100 bg-amber-50"}`}
                       >
-                        <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-green-600" strokeWidth={2.5} />
-                        <div>
-                          <p className="text-[13px] font-extrabold text-green-800">{appliedCoupon.code}</p>
-                          <p className="text-[11px] font-semibold text-green-600">
-                            {appliedCoupon.discountType === "percent"
-                              ? `${appliedCoupon.discountValue}% off — ${formatInr(couponDiscount)} saved!`
-                              : `${formatInr(appliedCoupon.discountValue)} off!`}
-                          </p>
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className={`h-5 w-5 flex-shrink-0 ${couponAppliesToPayment ? "text-green-600" : "text-amber-600"}`} strokeWidth={2.5} />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className={`font-mono text-[13px] font-extrabold ${couponAppliesToPayment ? "text-green-800" : "text-amber-800"}`}>
+                                {appliedCoupon.code}
+                              </p>
+                              {couponAppliesToPayment && (
+                                <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-extrabold text-green-700">
+                                  Saved {formatInr(couponDiscount)}
+                                </span>
+                              )}
+                            </div>
+                            <p className={`mt-0.5 text-[11px] font-semibold ${couponAppliesToPayment ? "text-green-600" : "text-amber-700"}`}>
+                              {couponAppliesToPayment
+                                ? appliedCoupon.discountType === "percent"
+                                  ? `${appliedCoupon.discountValue}% discount applied`
+                                  : `${formatInr(appliedCoupon.discountValue)} discount applied`
+                                : `Valid only with ${appliedCoupon.paymentModeRequired?.toUpperCase()} payment`}
+                            </p>
+                          </div>
                         </div>
                       </motion.div>
                     ) : (
@@ -741,13 +763,13 @@ export default function CartPage() {
                     )}
                   </AnimatePresence>
 
-                  {!appliedCoupon && availableCoupons.length > 0 && (
+                  {!appliedCoupon && visibleCoupons.length > 0 && (
                     <div className="mt-4 border-t border-gray-100 pt-4">
                       <p className="mb-2.5 text-[11px] font-extrabold uppercase tracking-widest text-brand-orange/80">Available Offers</p>
                       <div className="flex gap-3 overflow-x-auto pb-2 hide-scrollbar">
-                        {availableCoupons.map(c => {
+                        {visibleCoupons.map(c => {
                           const meetsMinOrder = subtotal >= c.min_order;
-                          const meetsPayment = !c.payment_mode_required || c.payment_mode_required === paymentMode;
+                          const meetsPayment = paymentModeMatches(c.payment_mode_required, paymentMode);
                           const isValid = meetsMinOrder && meetsPayment;
                           return (
                             <div key={c.code} className={`flex shrink-0 flex-col justify-between rounded-xl border p-3 min-w-[160px] max-w-[200px] shadow-sm transition-all ${isValid ? "border-brand-orange/30 bg-brand-orange/[0.03]" : "border-gray-200 bg-gray-50 opacity-60"}`}>
@@ -851,10 +873,10 @@ export default function CartPage() {
                   <div className="flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-brand-orange" strokeWidth={2} />
                     <span className="text-[16px] font-extrabold text-gray-950">
-                      Total Bill <span className="price-text text-gray-400 line-through">{appliedCoupon ? formatInr(subtotal + deliveryFee + gst) : ""}</span>{" "}
+                      Total Bill <span className="price-text text-gray-400 line-through">{totalSavings > 0 ? formatInr(billBeforeDiscount) : ""}</span>{" "}
                       <span className="price-text">{formatInr(grand)}</span>
                     </span>
-                    {appliedCoupon && <span className="rounded-md bg-blue-50 px-2 py-1 text-[11px] font-bold text-blue-600">Saved {formatInr(couponDiscount)}</span>}
+                    {totalSavings > 0 && <span className="rounded-md bg-blue-50 px-2 py-1 text-[11px] font-bold text-blue-600">Saved {formatInr(totalSavings)}</span>}
                   </div>
                   {showBillDetails
                     ? <ChevronUp className="h-4 w-4 text-gray-400" strokeWidth={2.5} />

@@ -3,6 +3,13 @@ import { menuItems, ADDON_GROUPS } from "@/data/menu";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type StoreSettings = { delivery_charge: number; free_delivery_threshold: number; tax_percent: number; upi_discount_enabled: boolean; upi_discount_percent: number; };
+const HIDDEN_COUPON_CODES = new Set(["UPI5"]);
+
+function paymentModeMatches(required: string | null, paymentMode: string) {
+  if (!required) return true;
+  if ((required === "upi" || required === "online") && (paymentMode === "upi" || paymentMode === "online")) return true;
+  return required === paymentMode;
+}
 
 export function computeOrderTotals(lines: CartLine[], settings: StoreSettings) {
   const subtotal = lines.reduce((s, l) => s + l.unitPrice * l.qty, 0);
@@ -138,7 +145,7 @@ export async function computeFinalServerTotals(
   let couponId: string | null = null;
   let usedCount = 0;
 
-  if (rawCouponCode) {
+  if (rawCouponCode && !HIDDEN_COUPON_CODES.has(rawCouponCode)) {
     const { data: coupon } = await supabase
       .from("coupons")
       .select("id, discount_type, discount_value, min_order, payment_mode_required, max_uses, used_count")
@@ -148,7 +155,9 @@ export async function computeFinalServerTotals(
 
     if (
       coupon &&
-      (!coupon.payment_mode_required || coupon.payment_mode_required === paymentMode) &&
+      coupon.payment_mode_required !== "upi" &&
+      coupon.payment_mode_required !== "online" &&
+      paymentModeMatches(coupon.payment_mode_required, paymentMode) &&
       totals.subtotal >= coupon.min_order &&
       (coupon.max_uses === null || coupon.used_count < coupon.max_uses)
     ) {
@@ -163,7 +172,7 @@ export async function computeFinalServerTotals(
   }
 
   const upiDiscount = (paymentMode === "upi" || paymentMode === "online") && storeSettings.upi_discount_enabled
-    ? Math.round((totals.subtotal * storeSettings.upi_discount_percent) / 100)
+    ? Math.round((totals.grandTotal * storeSettings.upi_discount_percent) / 100)
     : 0;
 
   const finalGrandTotal = Math.max(0, totals.grandTotal - couponDiscount - upiDiscount);

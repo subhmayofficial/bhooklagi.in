@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X, BellRing, CheckCircle2 } from "lucide-react";
+import { useAuthStore } from "@/stores/auth-store";
 
 interface NotifyMeModalProps {
   isOpen: boolean;
@@ -9,40 +10,54 @@ interface NotifyMeModalProps {
 }
 
 export function NotifyMeModal({ isOpen, onClose }: NotifyMeModalProps) {
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+  const authStatus = useAuthStore((state) => state.status);
+  const openLoginModal = useAuthStore((state) => state.openLoginModal);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (authStatus === "guest") {
+      onClose();
+      openLoginModal();
+      return;
+    }
+
+    if (authStatus !== "authenticated") return;
+
+    let cancelled = false;
     setError("");
     setLoading(true);
+    setSuccess(false);
 
-    try {
-      const res = await fetch("/api/kitchen-notifications", {
+    fetch("/api/kitchen-notifications", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, phone }),
+        body: JSON.stringify({}),
+      })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error || "Failed to subscribe.");
+        if (!cancelled) {
+          setSuccess(true);
+          window.setTimeout(() => {
+            if (!cancelled) onClose();
+          }, 1800);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Something went wrong.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
-      const data = await res.json();
 
-      if (!res.ok) throw new Error(data?.error || "Failed to subscribe.");
-
-      setSuccess(true);
-      setTimeout(() => {
-        setSuccess(false);
-        setName("");
-        setPhone("");
-        onClose();
-      }, 3000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    return () => {
+      cancelled = true;
+    };
+  }, [authStatus, isOpen, onClose, openLoginModal]);
 
   if (!isOpen) return null;
 
@@ -76,7 +91,7 @@ export function NotifyMeModal({ isOpen, onClose }: NotifyMeModalProps) {
                 </p>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-4">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-orange/10 text-brand-orange">
                     <BellRing className="h-5 w-5" />
@@ -87,41 +102,21 @@ export function NotifyMeModal({ isOpen, onClose }: NotifyMeModalProps) {
                   </div>
                 </div>
 
-                <div className="space-y-3 pt-2">
-                  <div>
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Name (Optional)</label>
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Your name"
-                      className="mt-1 w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-[13px] text-gray-900 focus:border-brand-orange focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">WhatsApp / Mobile No.</label>
-                    <input
-                      type="tel"
-                      required
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="e.g. 9876543210"
-                      className="mt-1 w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-[13px] text-gray-900 focus:border-brand-orange focus:outline-none"
-                    />
-                  </div>
+                <div className="rounded-2xl bg-orange-50 px-4 py-3 text-[12px] font-semibold text-orange-800">
+                  {loading ? "Saving your alert..." : "We will use your logged-in mobile number for the alert."}
                 </div>
 
                 {error && <p className="text-[11px] font-semibold text-red-500">{error}</p>}
 
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={onClose}
                   disabled={loading}
-                  className="w-full rounded-xl bg-brand-orange py-3 text-[13px] font-extrabold text-white shadow-md shadow-brand-orange/20 active:scale-[0.98] transition-all disabled:opacity-50"
+                  className="w-full rounded-xl bg-gray-950 py-3 text-[13px] font-extrabold text-white shadow-md active:scale-[0.98] transition-all disabled:opacity-50"
                 >
-                  {loading ? "Subscribing..." : "Notify Me!"}
+                  {loading ? "Please wait..." : "Close"}
                 </button>
-              </form>
+              </div>
             )}
           </div>
         </>

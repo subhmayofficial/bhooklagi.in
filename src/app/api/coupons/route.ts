@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
+const HIDDEN_COUPON_CODES = new Set(["UPI5"]);
+
 export async function GET() {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
@@ -13,5 +15,11 @@ export async function GET() {
     return NextResponse.json({ error: "Could not fetch coupons." }, { status: 500 });
   }
 
-  return NextResponse.json({ coupons: data ?? [] });
+  const coupons = (data ?? []).filter((coupon) => {
+    const code = String(coupon.code ?? "").toUpperCase();
+    if (HIDDEN_COUPON_CODES.has(code)) return false;
+    return coupon.payment_mode_required !== "upi" && coupon.payment_mode_required !== "online";
+  });
+
+  return NextResponse.json({ coupons });
 }
