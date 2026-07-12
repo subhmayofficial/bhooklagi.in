@@ -1,40 +1,43 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { motion, useScroll, useSpring } from "framer-motion";
+import { useEffect, useRef } from "react";
 
-/**
- * `useScroll` + motion styles can differ between server HTML and the client.
- * Render the animated bar only after mount so hydration matches.
- */
 export function ScrollProgress() {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const barRef = useRef<HTMLDivElement>(null);
 
-  if (!mounted) {
-    return (
-      <div
-        className="pointer-events-none fixed left-0 top-0 z-[1000] h-[3px] w-full bg-transparent"
-        aria-hidden
-      />
-    );
-  }
+  useEffect(() => {
+    let frame = 0;
 
-  return <ScrollProgressBar />;
-}
+    const update = () => {
+      frame = 0;
+      const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+      const progress = scrollable > 0 ? Math.min(window.scrollY / scrollable, 1) : 0;
+      if (barRef.current) {
+        barRef.current.style.transform = `scaleX(${progress})`;
+      }
+    };
 
-function ScrollProgressBar() {
-  const { scrollYProgress } = useScroll();
-  const scaleX = useSpring(scrollYProgress, {
-    stiffness: 120,
-    damping: 30,
-    restDelta: 0.001,
-  });
+    const onScroll = () => {
+      if (!frame) frame = window.requestAnimationFrame(update);
+    };
+
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, []);
 
   return (
-    <motion.div
+    <div
+      ref={barRef}
+      aria-hidden
       className="fixed left-0 top-0 z-[1000] h-[3px] w-full origin-left bg-gradient-to-r from-brand-orange via-brand-gold to-brand-orange-light"
-      style={{ scaleX }}
+      style={{ transform: "scaleX(0)" }}
     />
   );
 }

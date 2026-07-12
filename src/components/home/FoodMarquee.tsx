@@ -1,7 +1,3 @@
-"use client";
-
-import { motion } from "framer-motion";
-
 const items = [
   { text: "Burgers",    emoji: "🍔" },
   { text: "Rolls",      emoji: "🌯" },
@@ -23,11 +19,7 @@ export function FoodMarquee() {
       <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 bg-gradient-to-r from-[#fdf6ec] to-transparent" />
       <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-gradient-to-l from-[#fdf6ec] to-transparent" />
 
-      <motion.div
-        className="flex w-max gap-0"
-        animate={{ x: ["0%", "-50%"] }}
-        transition={{ duration: 32, ease: "linear", repeat: Infinity }}
-      >
+      <div className="food-marquee-track flex w-max gap-0">
         {doubled.map((item, i) => (
           <span
             key={`${item.text}-${i}`}
@@ -38,7 +30,7 @@ export function FoodMarquee() {
             <span className="ml-2 text-brand-orange/40">✦</span>
           </span>
         ))}
-      </motion.div>
+      </div>
     </div>
   );
 }

@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
 import {
   Search,
   MapPin,
@@ -21,7 +20,7 @@ import {
 import { useAuthStore } from "@/stores/auth-store";
 import { useCartStore } from "@/stores/cart-store";
 import { useSettingsStore } from "@/stores/settings-store";
-import { menuItems, formatInr } from "@/data/menu";
+import type { MenuItem } from "@/data/menu";
 import { estimateDeliveryMinutes, type Coords } from "@/lib/location";
 import { NotificationCenter } from "@/components/home/NotificationCenter";
 import { NotifyMeModal } from "@/components/layout/NotifyMeModal";
@@ -67,6 +66,14 @@ const DIET_DOT: Record<string, string> = {
   egg:     "bg-amber-500",
 };
 
+function formatInr(value: number) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
 export function AppHomeHero() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
@@ -84,6 +91,7 @@ export function AppHomeHero() {
   const [lastOrder, setLastOrder] = useState<LastOrder | null>(null);
   const [lastOrderStatus, setLastOrderStatus] = useState<LastOrderStatus>("idle");
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
 
   const [locationLabel, setLocationLabel] = useState("Deoghar, Jharkhand");
   const [customerCoords, setCustomerCoords] = useState<Coords | null>(null);
@@ -95,6 +103,17 @@ export function AppHomeHero() {
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [isListening, setIsListening] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+  const menuLoadRef = useRef<Promise<MenuItem[]> | null>(null);
+
+  const loadMenuItems = useCallback(() => {
+    if (!menuLoadRef.current) {
+      menuLoadRef.current = import("@/data/menu").then((mod) => {
+        setMenuItems(mod.menuItems);
+        return mod.menuItems;
+      });
+    }
+    return menuLoadRef.current;
+  }, []);
 
   useEffect(() => { fetchSettings(); }, [fetchSettings]);
 
@@ -114,6 +133,12 @@ export function AppHomeHero() {
       setRecentSearches(Array.isArray(storedSearches) ? storedSearches.slice(0, 5) : []);
     } catch {}
   }, []);
+
+  useEffect(() => {
+    if (searchFocused || query.length >= 2 || status === "authenticated") {
+      void loadMenuItems();
+    }
+  }, [loadMenuItems, query.length, searchFocused, status]);
 
   // Close search dropdown on outside click
   useEffect(() => {
@@ -137,7 +162,7 @@ export function AppHomeHero() {
         m.categoryId.toLowerCase().includes(q)
       )
       .slice(0, 7);
-  }, [query]);
+  }, [menuItems, query]);
 
   function flashLocationError(msg: string) {
     setLocationErrorMsg(msg);
@@ -223,7 +248,7 @@ export function AppHomeHero() {
     router.push(`/menu?q=${encodeURIComponent(itemName)}`);
   }
 
-  function handleQuickAdd(item: typeof menuItems[0]) {
+  function handleQuickAdd(item: MenuItem) {
     if (isClosed) return;
     addItem(item);
     setSearchFocused(false);
@@ -252,11 +277,13 @@ export function AppHomeHero() {
 
   function reorder() {
     if (!lastOrder || isClosed) return;
-    for (const line of lastOrder.items) {
-      const item = menuItems.find((m) => m.id === line.itemId);
-      if (item) addItem(item, line.qty);
-    }
-    router.push("/cart");
+    loadMenuItems().then((items) => {
+      for (const line of lastOrder.items) {
+        const item = items.find((m) => m.id === line.itemId);
+        if (item) addItem(item, line.qty);
+      }
+      router.push("/cart");
+    });
   }
 
   function handleProfileTap() {
@@ -277,14 +304,16 @@ export function AppHomeHero() {
       {/* Floaters clipped inside their own layer — keep visual overflow off section */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         {FLOATERS.map((f, i) => (
-          <motion.span
+          <span
             key={i}
-            animate={{ y: [0, -10, 0] }}
-            transition={{ duration: f.duration, repeat: Infinity, ease: "easeInOut", delay: f.delay }}
-            className={`absolute select-none opacity-[0.15] drop-shadow ${f.className}`}
+            className={`hero-floater absolute select-none opacity-[0.15] drop-shadow ${f.className}`}
+            style={{
+              animationDelay: `${f.delay}s`,
+              animationDuration: `${f.duration}s`,
+            }}
           >
             {f.emoji}
-          </motion.span>
+          </span>
         ))}
       </div>
 
@@ -333,10 +362,7 @@ export function AppHomeHero() {
         </div>
 
         {/* ── ETA / Closed card ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
+        <div
           className={`flex items-center gap-3 rounded-2xl p-2.5 shadow-lg ${isClosed ? "bg-red-50 border border-red-200" : "bg-white"}`}
         >
           <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isClosed ? "bg-red-100" : "bg-brand-orange/10"}`}>
@@ -385,17 +411,14 @@ export function AppHomeHero() {
               🔥 ₹80 OFF
             </span>
           )}
-        </motion.div>
+        </div>
 
         <p className="mt-2 text-[13px] font-medium text-white/85">
           {greeting()}{user?.name ? `, ${user.name.split(" ")[0]}` : ""} — bhook lagi? 👋
         </p>
 
         {/* ── Advanced Search ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, delay: 0.08 }}
+        <div
           className="relative mt-3 space-y-2"
           ref={searchContainerRef}
         >
@@ -421,37 +444,22 @@ export function AppHomeHero() {
               {!query && (
                 <div className="pointer-events-none absolute left-[52px] top-1/2 flex -translate-y-1/2 items-center gap-1.5 text-[14px] text-gray-400">
                   <span className="font-normal">Search for</span>
-                  <AnimatePresence mode="wait">
-                    <motion.span
-                      key={suggestionIndex}
-                      initial={{ y: 8, opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      exit={{ y: -8, opacity: 0 }}
-                      transition={{ duration: 0.25 }}
-                      className="font-semibold text-gray-600"
-                    >
-                      &ldquo;{SEARCH_SUGGESTIONS[suggestionIndex]}&rdquo;
-                    </motion.span>
-                  </AnimatePresence>
+                  <span className="font-semibold text-gray-600">
+                    &ldquo;{SEARCH_SUGGESTIONS[suggestionIndex]}&rdquo;
+                  </span>
                 </div>
               )}
 
               {/* Clear */}
-              <AnimatePresence>
-                {query && (
-                  <motion.button
-                    initial={{ opacity: 0, scale: 0.7 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.7 }}
-                    transition={{ duration: 0.15 }}
-                    type="button"
-                    onClick={() => { setQuery(""); setSearchFocused(true); }}
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="h-4 w-4" strokeWidth={2.5} />
-                  </motion.button>
-                )}
-              </AnimatePresence>
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => { setQuery(""); setSearchFocused(true); }}
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition-transform hover:text-gray-600 active:scale-95"
+                >
+                  <X className="h-4 w-4" strokeWidth={2.5} />
+                </button>
+              )}
 
               {/* Mic */}
               <div className="pr-1">
@@ -479,13 +487,8 @@ export function AppHomeHero() {
           </form>
 
           {/* ── Live search dropdown ── */}
-          <AnimatePresence>
-            {showDropdown && (
-              <motion.div
-                initial={{ opacity: 0, y: -6, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -6, scale: 0.98 }}
-                transition={{ duration: 0.17, ease: "easeOut" }}
+          {showDropdown && (
+              <div
                 className="absolute left-0 right-0 top-[calc(100%+4px)] z-50 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-2xl"
               >
                 {/* Live results */}
@@ -611,39 +614,29 @@ export function AppHomeHero() {
                     </ul>
                   </div>
                 )}
-              </motion.div>
+              </div>
             )}
-          </AnimatePresence>
 
           {/* Quick category pills */}
           <div className="hide-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-0.5 pr-6">
-            {QUICK_CATS.map((cat, i) => (
-              <motion.button
+            {QUICK_CATS.map((cat) => (
+              <button
                 key={cat.q}
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.15 + i * 0.05, duration: 0.3 }}
                 type="button"
                 onClick={() => router.push(`/menu?cat=${cat.q}`)}
                 className="flex flex-shrink-0 items-center gap-1.5 rounded-full bg-white/20 px-3 py-1.5 text-[11px] font-bold text-white backdrop-blur-sm transition-all hover:bg-white/30 active:scale-95"
               >
                 <span className="text-[13px]">{cat.emoji}</span>
                 {cat.label}
-              </motion.button>
+              </button>
             ))}
           </div>
-        </motion.div>
+        </div>
 
         {/* ── Reorder card ── */}
-        <AnimatePresence initial={false}>
-          {(lastOrderStatus === "loading" || lastOrderStatus === "ready") && (
-            <motion.div
+        {(lastOrderStatus === "loading" || lastOrderStatus === "ready") && (
+            <div
               key="reorder-slot"
-              layout
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.35, ease: "easeOut" }}
               className="mt-3"
             >
               {lastOrderStatus === "loading" || !lastOrder ? (
@@ -670,18 +663,13 @@ export function AppHomeHero() {
                       {lastOrder.items.map((i) => i.name).join(", ")}
                     </span>
                   </span>
-                  <motion.span
-                    animate={{ x: [0, 4, 0] }}
-                    transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
-                    className="shrink-0 text-gray-300"
-                  >
+                  <span className="shrink-0 text-gray-300">
                     <ChevronRight className="h-4 w-4" />
-                  </motion.span>
+                  </span>
                 </button>
               )}
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
       </div>
     </section>
 

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, UtensilsCrossed, Receipt } from "lucide-react";
-import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 const links = [
@@ -39,11 +38,7 @@ export function BottomNav() {
                 )}
               >
                 {active && (
-                  <motion.span
-                    layoutId="bottom-tab"
-                    className="absolute inset-0 rounded-xl bg-brand-orange/[0.08]"
-                    transition={{ type: "spring", stiffness: 380, damping: 32 }}
-                  />
+                  <span className="absolute inset-0 rounded-xl bg-brand-orange/[0.08] transition-colors" />
                 )}
                 <span className="relative">
                   <Icon className="mx-auto h-5 w-5" strokeWidth={active ? 2.5 : 1.8} />

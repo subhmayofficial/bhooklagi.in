@@ -6,11 +6,9 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { MainContentWrapper } from "@/components/layout/MainContentWrapper";
 import { WhatsAppFloatButton } from "@/components/layout/WhatsAppFloatButton";
 import { ScrollProgress } from "@/components/layout/ScrollProgress";
+import { LazyClientWidgets } from "@/components/layout/LazyClientWidgets";
 import { CartRehydrate } from "@/components/providers/CartRehydrate";
 import { AuthRehydrate } from "@/components/providers/AuthRehydrate";
-import { OtpLoginModal } from "@/components/auth/OtpLoginModal";
-import { RatingPopup } from "@/components/layout/RatingPopup";
-import { InstallPrompt } from "@/components/layout/InstallPrompt";
 import { KitchenStatusBanner } from "@/components/layout/KitchenStatusBanner";
 import { MSG91_SCRIPT_SRC } from "@/lib/msg91/widget";
 
@@ -134,7 +132,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
         {/* Google Tag Manager */}
-        <Script id="gtm-head" strategy="beforeInteractive">
+        <Script id="gtm-head" strategy="afterInteractive">
           {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
 new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
 j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
@@ -160,19 +158,17 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         <ScrollProgress />
         <KitchenStatusBanner />
         <MainContentWrapper>{children}</MainContentWrapper>
-        <InstallPrompt />
         <BottomNav />
         <WhatsAppFloatButton />
-        <OtpLoginModal />
-        <RatingPopup />
-        <Script src={MSG91_SCRIPT_SRC} strategy="afterInteractive" />
+        <LazyClientWidgets />
+        <Script src={MSG91_SCRIPT_SRC} strategy="lazyOnload" />
 
         {/* Google Analytics (via GTM — kept for direct GA4 events too) */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-8N9WY0WXSH"
-          strategy="afterInteractive"
+          strategy="lazyOnload"
         />
-        <Script id="google-analytics" strategy="afterInteractive">
+        <Script id="google-analytics" strategy="lazyOnload">
           {`
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}

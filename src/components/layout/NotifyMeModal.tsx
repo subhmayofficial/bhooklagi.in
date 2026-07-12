@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { X, BellRing, CheckCircle2 } from "lucide-react";
 
 interface NotifyMeModalProps {
@@ -45,24 +44,18 @@ export function NotifyMeModal({ isOpen, onClose }: NotifyMeModalProps) {
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <AnimatePresence>
-      {isOpen && (
         <>
           {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+          <div
             onClick={onClose}
             className="fixed inset-0 z-[10000] bg-black/60 backdrop-blur-sm"
           />
 
           {/* Modal */}
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+          <div
             className="fixed inset-x-4 bottom-6 z-[10010] mx-auto max-w-sm overflow-hidden rounded-3xl bg-white p-6 shadow-2xl md:top-1/2 md:bottom-auto md:-translate-y-1/2"
           >
             <button
@@ -130,9 +123,7 @@ export function NotifyMeModal({ isOpen, onClose }: NotifyMeModalProps) {
                 </button>
               </form>
             )}
-          </motion.div>
+          </div>
         </>
-      )}
-    </AnimatePresence>
   );
 }

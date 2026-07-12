@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 import {
   Bell, Package, CheckCircle2, Clock, Truck, X, Tag, ChevronRight, Sparkles,
 } from "lucide-react";
@@ -138,28 +137,16 @@ export function NotificationCenter() {
         className="relative flex h-11 w-11 items-center justify-center rounded-full bg-white/20 text-white shadow-lg shadow-black/10 ring-1 ring-white/25 backdrop-blur-sm transition-transform active:scale-95"
       >
         <Bell className="h-5 w-5" strokeWidth={2.5} />
-        <AnimatePresence>
-          {unread > 0 && (
-            <motion.span
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0 }}
-              className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-extrabold text-white shadow-sm"
-            >
-              {unread > 9 ? "9+" : unread}
-            </motion.span>
-          )}
-        </AnimatePresence>
+        {unread > 0 && (
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-extrabold text-white shadow-sm">
+            {unread > 9 ? "9+" : unread}
+          </span>
+        )}
       </button>
 
       {/* Dropdown panel */}
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: -8, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -8, scale: 0.97 }}
-            transition={{ duration: 0.18, ease: "easeOut" }}
+      {open && (
+          <div
             className="absolute right-0 top-[calc(100%+10px)] z-50 w-[320px] overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-2xl"
           >
             {/* Header */}
@@ -261,9 +248,8 @@ export function NotificationCenter() {
                 </button>
               </div>
             )}
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
     </div>
   );
 }
