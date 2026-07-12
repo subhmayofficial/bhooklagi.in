@@ -480,8 +480,10 @@ export default function CartPage() {
           },
         };
 
-        const rzp = new (window as unknown as { Razorpay: new (options: unknown) => { on: (event: string, handler: (res: unknown) => void) => void } }).Razorpay(rzpOptions);
-        rzp.on("payment.failed", function (response: { error: { description: string } }) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const rzp = new (window as any).Razorpay(rzpOptions);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        rzp.on("payment.failed", function (response: any) {
           setPlacing(false);
           setErrors((prev) => ({
             ...prev,

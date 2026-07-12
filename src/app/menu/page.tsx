@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { MenuExplorer } from "@/components/menu/MenuExplorer";
+import { PushPrompt } from "@/components/menu/PushPrompt";
 import { Clock, Bike, ShieldCheck, Phone, MessageCircle } from "lucide-react";
 import { WHATSAPP_NUMBER } from "@/lib/whatsapp";
 
@@ -118,6 +119,7 @@ export default function MenuPage() {
 
       {/* ── Main content ── */}
       <main className="min-h-screen bg-gray-50 pb-36 md:pb-24">
+        <PushPrompt />
         <div className="mx-auto max-w-6xl px-4 py-5 md:px-6">
           <Suspense fallback={<MenuFallback />}>
             <MenuExplorer />

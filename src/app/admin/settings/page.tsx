@@ -35,7 +35,6 @@ export default function AdminSettingsPage() {
       if (!res.ok) throw new Error(payload?.error || "Could not load settings.");
       
       const s = payload.settings;
-      setSettings(s);
       setDeliveryCharge(s.delivery_charge.toString());
       setFreeThreshold(s.free_delivery_threshold.toString());
       setTaxPercent(s.tax_percent.toString());
@@ -76,7 +75,6 @@ export default function AdminSettingsPage() {
       const payload = await res.json();
       if (!res.ok) throw new Error(payload?.error || "Could not save settings.");
       
-      setSettings(payload.settings);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {

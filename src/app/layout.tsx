@@ -10,6 +10,7 @@ import { CartRehydrate } from "@/components/providers/CartRehydrate";
 import { AuthRehydrate } from "@/components/providers/AuthRehydrate";
 import { OtpLoginModal } from "@/components/auth/OtpLoginModal";
 import { RatingPopup } from "@/components/layout/RatingPopup";
+import { InstallPrompt } from "@/components/layout/InstallPrompt";
 import { MSG91_SCRIPT_SRC } from "@/lib/msg91/widget";
 
 const bebas = Bebas_Neue({
@@ -156,6 +157,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         <AuthRehydrate />
         <ScrollProgress />
         <MainContentWrapper>{children}</MainContentWrapper>
+        <InstallPrompt />
         <BottomNav />
         <WhatsAppFloatButton />
         <OtpLoginModal />
