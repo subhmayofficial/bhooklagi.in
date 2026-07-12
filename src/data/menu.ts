@@ -28,13 +28,13 @@ export const categories: {
   emoji: string;
   blurb: string;
 }[] = [
-  { id: "meals",      label: "Combo Meals", emoji: "🍱", blurb: "Complete meals, great value" },
   { id: "burgers",    label: "Burgers",     emoji: "🍔", blurb: "Juicy stacks & sauces" },
   { id: "rolls",      label: "Rolls",       emoji: "🌯", blurb: "Street-style wraps" },
   { id: "maggi",      label: "Maggi",       emoji: "🍜", blurb: "Masala moods" },
-  { id: "fries",      label: "Snacks",      emoji: "🍟", blurb: "Crispy sides" },
+  { id: "fries",      label: "Fries",       emoji: "🍟", blurb: "Crispy sides" },
   { id: "sandwiches", label: "Sandwiches",  emoji: "🥪", blurb: "Grilled & loaded" },
   { id: "drinks",     label: "Beverages",   emoji: "🧃", blurb: "Chill sips" },
+  { id: "meals",      label: "Combo Meals", emoji: "🍱", blurb: "Complete meals, great value" },
 ];
 
 export const menuItems: MenuItem[] = [

@@ -4,8 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, useScroll, useMotionValueEvent } from "framer-motion";
 import { useState } from "react";
-import { MapPin } from "lucide-react";
+import { MapPin, ShoppingBag, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useCartStore, cartTotals } from "@/stores/cart-store";
 
 const navLinks = [
   { href: "/",       label: "Home" },
@@ -18,6 +19,9 @@ export function SiteHeader() {
   const { scrollY } = useScroll();
   const [scrolled, setScrolled] = useState(false);
   useMotionValueEvent(scrollY, "change", (y) => setScrolled(y > 48));
+
+  const lines = useCartStore((s) => s.lines);
+  const { qty } = cartTotals(lines);
 
   return (
     <motion.header
@@ -64,7 +68,29 @@ export function SiteHeader() {
           })}
         </nav>
 
-        <div className="h-8 w-8" />
+        {/* Mobile right actions */}
+        <div className="flex items-center gap-2 md:hidden">
+          <Link
+            href="/cart"
+            className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gray-50 text-gray-600 active:scale-90 transition-transform"
+          >
+            <ShoppingBag className="h-5 w-5" strokeWidth={1.8} />
+            {qty > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-brand-orange text-[9px] font-extrabold text-white">
+                {qty > 9 ? "9+" : qty}
+              </span>
+            )}
+          </Link>
+          <Link
+            href="/account"
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-50 text-gray-600 active:scale-90 transition-transform"
+          >
+            <User className="h-5 w-5" strokeWidth={1.8} />
+          </Link>
+        </div>
+
+        {/* Desktop spacer */}
+        <div className="hidden h-8 w-8 md:block" />
       </div>
     </motion.header>
   );
