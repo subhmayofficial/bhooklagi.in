@@ -6,6 +6,9 @@ import { SiteFooter } from "@/components/layout/SiteFooter";
 export const metadata: Metadata = {
   title: "Contact Us",
   description: "Get in touch with Bhook Lagi? for orders, refunds, or any query. Based in Deoghar, Jharkhand.",
+  alternates: {
+    canonical: "/contact",
+  },
 };
 
 export default function ContactPage() {

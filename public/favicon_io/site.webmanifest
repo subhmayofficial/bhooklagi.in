@@ -2,11 +2,21 @@
   "name": "Bhook Lagi?",
   "short_name": "Bhook Lagi",
   "description": "Deoghar's new cloud kitchen — burgers, rolls, maggi, Chinese, pasta, fries & more.",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "theme_color": "#E85D04",
   "background_color": "#FFF8F0",
+  "categories": ["food", "shopping", "lifestyle"],
   "icons": [
+    {
+      "src": "/favicon_io/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
     {
       "src": "/favicon_io/android-chrome-192x192.png",
       "sizes": "192x192",
@@ -18,6 +28,20 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Order Food",
+      "short_name": "Order",
+      "url": "/menu",
+      "description": "Open the Bhook Lagi menu"
+    },
+    {
+      "name": "My Orders",
+      "short_name": "Orders",
+      "url": "/orders",
+      "description": "Track recent orders"
     }
   ]
 }

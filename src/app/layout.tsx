@@ -61,6 +61,23 @@ export const metadata: Metadata = {
     "Jharkhand food delivery"
   ],
   authors: [{ name: "Bhook Lagi? Kitchen" }],
+  creator: "Bhook Lagi?",
+  publisher: "Bhook Lagi?",
+  applicationName: "Bhook Lagi?",
+  alternates: {
+    canonical: "/",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
   openGraph: {
     type: "website",
     locale: "en_IN",
@@ -69,12 +86,21 @@ export const metadata: Metadata = {
     description:
       "Order Deoghar's best burgers, rolls, Chinese & pasta online. Fast delivery anywhere in Deoghar!",
     url: "https://www.bhooklagi.in",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Bhook Lagi? food delivery in Deoghar",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     site: "@bhooklagi",
     title: "Bhook Lagi? | Food Delivery Deoghar",
     description: "Order food online in Deoghar — fast delivery & big flavours.",
+    images: ["/og-image.png"],
   },
   icons: {
     icon: "/favicon_io/favicon-32x32.png",
@@ -86,16 +112,41 @@ export const metadata: Metadata = {
 
 const jsonLd = {
   "@context": "https://schema.org",
-  "@type": "FoodEstablishment",
+  "@type": "Restaurant",
   "name": "Bhook Lagi?",
-  "image": "https://www.bhooklagi.in/apple-touch-icon.png",
+  "image": "https://www.bhooklagi.in/og-image.png",
+  "logo": "https://www.bhooklagi.in/favicon_io/android-chrome-512x512.png",
   "@id": "https://www.bhooklagi.in",
   "url": "https://www.bhooklagi.in",
   "telephone": "+919296834048",
   "priceRange": "₹",
-  "menu": "https://www.bhooklagi.in/",
+  "menu": "https://www.bhooklagi.in/menu",
   "servesCuisine": ["Fast Food", "Chinese", "Indian", "Burgers", "Rolls", "Pasta"],
-  "acceptsReservations": "False",
+  "acceptsReservations": false,
+  "hasDelivery": true,
+  "areaServed": {
+    "@type": "City",
+    "name": "Deoghar"
+  },
+  "openingHoursSpecification": [{
+    "@type": "OpeningHoursSpecification",
+    "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+    "opens": "10:00",
+    "closes": "23:00"
+  }],
+  "potentialAction": {
+    "@type": "OrderAction",
+    "target": {
+      "@type": "EntryPoint",
+      "urlTemplate": "https://www.bhooklagi.in/menu",
+      "inLanguage": "en-IN",
+      "actionPlatform": [
+        "http://schema.org/DesktopWebPlatform",
+        "http://schema.org/MobileWebPlatform"
+      ]
+    },
+    "deliveryMethod": "http://purl.org/goodrelations/v1#DeliveryModeOwnFleet"
+  },
   "address": {
     "@type": "PostalAddress",
     "addressLocality": "Deoghar",
@@ -127,12 +178,15 @@ export default function RootLayout({
   return (
     <html lang="en" className="scroll-smooth">
       <head>
+        <link rel="preconnect" href="https://b.zmtcdn.com" />
+        <link rel="dns-prefetch" href="https://b.zmtcdn.com" />
+        <link rel="preconnect" href="https://www.googletagmanager.com" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
         {/* Google Tag Manager */}
-        <Script id="gtm-head" strategy="afterInteractive">
+        <Script id="gtm-head" strategy="lazyOnload">
           {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
 new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
 j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=

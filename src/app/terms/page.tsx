@@ -4,6 +4,9 @@ import { PolicyLayout } from "@/components/legal/PolicyLayout";
 export const metadata: Metadata = {
   title: "Terms & Conditions",
   description: "Terms and conditions governing use of the Bhook Lagi? platform and food ordering service.",
+  alternates: {
+    canonical: "/terms",
+  },
 };
 
 export default function TermsPage() {

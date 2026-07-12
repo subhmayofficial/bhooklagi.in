@@ -4,6 +4,9 @@ import { PolicyLayout } from "@/components/legal/PolicyLayout";
 export const metadata: Metadata = {
   title: "Refund & Cancellation Policy",
   description: "Bhook Lagi? refund and cancellation policy for food orders placed online.",
+  alternates: {
+    canonical: "/refund-policy",
+  },
 };
 
 export default function RefundPolicyPage() {

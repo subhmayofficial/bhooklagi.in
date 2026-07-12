@@ -12,15 +12,21 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 1,
     },
     {
-      url: `${baseUrl}/cart`,
+      url: `${baseUrl}/menu`,
       lastModified,
-      changeFrequency: 'always',
+      changeFrequency: 'daily',
+      priority: 0.95,
+    },
+    {
+      url: `${baseUrl}/offers`,
+      lastModified,
+      changeFrequency: 'weekly',
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/account`,
+      url: `${baseUrl}/contact`,
       lastModified,
-      changeFrequency: 'weekly',
+      changeFrequency: 'monthly',
       priority: 0.7,
     },
     {
@@ -30,19 +36,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.3,
     },
     {
-      url: `${baseUrl}/terms-conditions`,
+      url: `${baseUrl}/terms`,
       lastModified,
       changeFrequency: 'monthly',
       priority: 0.3,
     },
     {
-      url: `${baseUrl}/cancellation-refund`,
+      url: `${baseUrl}/refund-policy`,
       lastModified,
       changeFrequency: 'monthly',
       priority: 0.3,
     },
     {
-      url: `${baseUrl}/shipping-delivery`,
+      url: `${baseUrl}/delivery-policy`,
       lastModified,
       changeFrequency: 'monthly',
       priority: 0.3,

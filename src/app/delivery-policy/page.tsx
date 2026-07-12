@@ -4,6 +4,9 @@ import { PolicyLayout } from "@/components/legal/PolicyLayout";
 export const metadata: Metadata = {
   title: "Delivery Policy",
   description: "Bhook Lagi? delivery area, charges, timelines, and delivery terms for Deoghar.",
+  alternates: {
+    canonical: "/delivery-policy",
+  },
 };
 
 export default function DeliveryPolicyPage() {

@@ -4,6 +4,9 @@ import { PolicyLayout } from "@/components/legal/PolicyLayout";
 export const metadata: Metadata = {
   title: "Privacy Policy",
   description: "How Bhook Lagi? collects, uses, and protects your personal information.",
+  alternates: {
+    canonical: "/privacy-policy",
+  },
 };
 
 export default function PrivacyPolicyPage() {
