@@ -55,6 +55,15 @@ const FILTERS: { label: string; value: OrderStatus | "all"; icon: React.ReactNod
   { label: "Cancelled", value: "cancelled",         icon: <XCircle className="h-3.5 w-3.5" /> },
 ];
 
+type RingtoneId = "kitchen" | "dhol" | "arcade" | "siren";
+
+const RINGTONE_OPTIONS: { id: RingtoneId; label: string }[] = [
+  { id: "kitchen", label: "Kitchen Bell" },
+  { id: "dhol", label: "Desi Dhol" },
+  { id: "arcade", label: "Arcade" },
+  { id: "siren", label: "Siren" },
+];
+
 function googlePinUrl(lat: number, lng: number) {
   return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
 }
@@ -63,33 +72,69 @@ function googleRouteUrl(lat: number, lng: number) {
 }
 
 /* ─────────────────────────────────────────────────────────────────
-   RINGTONE — soft restaurant-style ding-dong, gain 0.15 (gentle)
-   Returns the scheduled end time so caller knows when it finishes
+   RINGTONE — selectable alarm patterns for new orders.
+   Returns the scheduled end time so caller knows when it finishes.
 ───────────────────────────────────────────────────────────────── */
-function playRingOnce(ctx: AudioContext): number {
-  // Gentle 5-note ding pattern (lower gain = softer)
-  const notes: [number, number][] = [
-    [1318, 0.18],
-    [1568, 0.22],
-    [1318, 0.12],
-    [1108, 0.18],
-    [880,  0.30],
-  ];
+function playRingOnce(ctx: AudioContext, ringtone: RingtoneId): number {
+  const patterns: Record<RingtoneId, { notes: [number, number][]; wave: OscillatorType; gain: number; gap: number; shine?: boolean }> = {
+    kitchen: {
+      notes: [[988, 0.12], [1318, 0.12], [1760, 0.18], [988, 0.12], [1318, 0.12], [1760, 0.26]],
+      wave: "square",
+      gain: 0.32,
+      gap: 0.045,
+      shine: true,
+    },
+    dhol: {
+      notes: [[165, 0.09], [165, 0.09], [220, 0.12], [165, 0.09], [247, 0.12], [220, 0.18], [165, 0.09], [220, 0.18]],
+      wave: "sawtooth",
+      gain: 0.42,
+      gap: 0.035,
+    },
+    arcade: {
+      notes: [[784, 0.09], [1046, 0.09], [1318, 0.09], [1568, 0.13], [1318, 0.09], [1568, 0.09], [2093, 0.2]],
+      wave: "square",
+      gain: 0.28,
+      gap: 0.035,
+      shine: true,
+    },
+    siren: {
+      notes: [[660, 0.22], [1046, 0.22], [660, 0.22], [1046, 0.28]],
+      wave: "sawtooth",
+      gain: 0.36,
+      gap: 0.02,
+    },
+  };
+  const pattern = patterns[ringtone];
   let t = ctx.currentTime + 0.05;
-  notes.forEach(([freq, dur]) => {
-    const osc  = ctx.createOscillator();
+  pattern.notes.forEach(([freq, dur]) => {
+    const main = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.type = "triangle"; // softer than "sine" — less harsh
-    osc.frequency.setValueAtTime(freq, t);
-    gain.gain.setValueAtTime(0.15, t);                           // quiet
+
+    main.type = pattern.wave;
+    main.frequency.setValueAtTime(freq, t);
+
+    gain.gain.setValueAtTime(0.001, t);
+    gain.gain.exponentialRampToValueAtTime(pattern.gain, t + 0.018);
     gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
-    osc.start(t);
-    osc.stop(t + dur);
-    t += dur + 0.04;
+
+    main.connect(gain);
+    gain.connect(ctx.destination);
+
+    let shine: OscillatorNode | null = null;
+    if (pattern.shine) {
+      shine = ctx.createOscillator();
+      shine.type = "triangle";
+      shine.frequency.setValueAtTime(freq * 2, t);
+      shine.connect(gain);
+      shine.start(t);
+      shine.stop(t + dur);
+    }
+
+    main.start(t);
+    main.stop(t + dur);
+    t += dur + pattern.gap;
   });
-  return t + 0.1; // return end time
+  return t + 0.05;
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -237,6 +282,7 @@ export default function AdminOrdersPage() {
   const [error, setError]         = useState("");
   const [busyId, setBusyId]       = useState<string | null>(null);
   const [soundOn, setSoundOn]     = useState(true);
+  const [ringtone, setRingtone]   = useState<RingtoneId>("kitchen");
   const [newCount, setNewCount]   = useState(0);
 
   // Queue of new orders waiting for popup (Zomato-style: one at a time)
@@ -245,6 +291,11 @@ export default function AdminOrdersPage() {
   const alertedOrderIds  = useRef<Set<string>>(new Set());
   const audioCtxRef   = useRef<AudioContext | null>(null);
   const ringLoopRef   = useRef<ReturnType<typeof setTimeout> | null>(null); // loop timer
+  const ringtoneRef = useRef<RingtoneId>("kitchen");
+  const titleAlertRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const titleAlertCountRef = useRef(0);
+  const originalTitleRef = useRef<string | null>(null);
+  const originalFaviconHrefRef = useRef<string | null>(null);
 
   /* ── Audio context ── */
   function getAudioCtx() {
@@ -258,15 +309,15 @@ export default function AdminOrdersPage() {
   }
 
   /* ── Start looping ringtone ── */
-  function startRing() {
-    if (!soundOn) return;
+  function startRing(force = false) {
+    if (!soundOn && !force) return;
+    if (ringLoopRef.current) return;
     function loop() {
       try {
         const ctx     = getAudioCtx();
-        const endTime = playRingOnce(ctx);
+        const endTime = playRingOnce(ctx, ringtoneRef.current);
         const msLeft  = Math.max(0, (endTime - ctx.currentTime) * 1000);
-        // Ring again 1s after previous note ends
-        ringLoopRef.current = setTimeout(loop, msLeft + 1000);
+        ringLoopRef.current = setTimeout(loop, msLeft + 260);
       } catch { /* AudioContext not ready */ }
     }
     loop();
@@ -280,6 +331,98 @@ export default function AdminOrdersPage() {
     }
   }
 
+  function getFaviconLink() {
+    let link = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "icon";
+      document.head.appendChild(link);
+    }
+    return link;
+  }
+
+  function setAlertFavicon(count: number) {
+    const link = getFaviconLink();
+    if (originalFaviconHrefRef.current === null) {
+      originalFaviconHrefRef.current = link.href || "";
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 64;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.fillStyle = "#e85d04";
+    ctx.beginPath();
+    ctx.arc(32, 32, 30, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "900 34px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(count > 9 ? "9+" : String(count), 32, 34);
+    link.href = canvas.toDataURL("image/png");
+  }
+
+  function startTabAlert(count: number) {
+    titleAlertCountRef.current = count;
+    if (originalTitleRef.current === null) {
+      originalTitleRef.current = document.title;
+    }
+    setAlertFavicon(count);
+    if (titleAlertRef.current) return;
+
+    let flip = false;
+    titleAlertRef.current = setInterval(() => {
+      flip = !flip;
+      document.title = flip
+        ? `(${titleAlertCountRef.current}) NEW ORDER!`
+        : originalTitleRef.current ?? "Bhook Lagi Admin";
+    }, 850);
+  }
+
+  function stopTabAlert() {
+    if (titleAlertRef.current) {
+      clearInterval(titleAlertRef.current);
+      titleAlertRef.current = null;
+    }
+    if (originalTitleRef.current !== null) {
+      document.title = originalTitleRef.current;
+    }
+    const link = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
+    if (link && originalFaviconHrefRef.current !== null) {
+      link.href = originalFaviconHrefRef.current;
+    }
+  }
+
+  function testAlert() {
+    try {
+      getAudioCtx().resume();
+    } catch { /* AudioContext not ready */ }
+    stopRing();
+    startRing(true);
+    startTabAlert(1);
+    window.setTimeout(() => {
+      stopRing();
+      if (pendingOrders.length === 0) {
+        stopTabAlert();
+      }
+    }, 6500);
+  }
+
+  function changeRingtone(value: string) {
+    if (!RINGTONE_OPTIONS.some((option) => option.id === value)) return;
+    const next = value as RingtoneId;
+    ringtoneRef.current = next;
+    setRingtone(next);
+    window.localStorage.setItem("admin-ringtone", next);
+    if (ringLoopRef.current) {
+      stopRing();
+      window.setTimeout(startRing, 40);
+    }
+  }
+
   /* ── Show next pending order popup ── */
   const currentPopupOrder = pendingOrders[0] ?? null;
 
@@ -287,6 +430,9 @@ export default function AdminOrdersPage() {
   useEffect(() => {
     if (pendingOrders.length === 0) {
       stopRing();
+      stopTabAlert();
+    } else {
+      startTabAlert(pendingOrders.length);
     }
   }, [pendingOrders.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -303,8 +449,18 @@ export default function AdminOrdersPage() {
     const unlock = () => {
       try { getAudioCtx().resume(); } catch { /* ignore */ }
     };
+    const savedRingtone = window.localStorage.getItem("admin-ringtone");
+    if (savedRingtone && RINGTONE_OPTIONS.some((option) => option.id === savedRingtone)) {
+      const next = savedRingtone as RingtoneId;
+      ringtoneRef.current = next;
+      setRingtone(next);
+    }
     window.addEventListener("click", unlock, { once: true });
-    return () => window.removeEventListener("click", unlock);
+    return () => {
+      window.removeEventListener("click", unlock);
+      stopRing();
+      stopTabAlert();
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
 
@@ -431,7 +587,43 @@ export default function AdminOrdersPage() {
             </motion.button>
           )}
         </AnimatePresence>
-        {/* Sound toggle */}
+        {/* Ringtone controls */}
+        <label className="hidden h-9 items-center gap-2 rounded-xl border border-gray-200 bg-white px-2 text-gray-500 dark:border-white/10 dark:bg-white/5 sm:flex">
+          <Bell className="h-4 w-4 text-brand-orange" strokeWidth={2.5} />
+          <select
+            value={ringtone}
+            onChange={(e) => changeRingtone(e.target.value)}
+            title="Choose ringtone"
+            className="bg-transparent text-[12px] font-extrabold text-gray-700 outline-none dark:text-gray-200"
+          >
+            {RINGTONE_OPTIONS.map((option) => (
+              <option key={option.id} value={option.id} className="bg-gray-950 text-white">
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <select
+          value={ringtone}
+          onChange={(e) => changeRingtone(e.target.value)}
+          title="Choose ringtone"
+          className="h-9 rounded-xl border border-gray-200 bg-white px-2 text-[11px] font-extrabold text-gray-700 outline-none dark:border-white/10 dark:bg-white/5 dark:text-gray-200 sm:hidden"
+        >
+          {RINGTONE_OPTIONS.map((option) => (
+            <option key={option.id} value={option.id} className="bg-gray-950 text-white">
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={testAlert}
+          title="Test ringtone"
+          className="flex h-9 items-center justify-center gap-1.5 rounded-xl border border-brand-orange/30 bg-brand-orange/10 px-3 text-[12px] font-extrabold text-brand-orange transition-colors hover:bg-brand-orange hover:text-white"
+        >
+          <Bell className="h-4 w-4" strokeWidth={2.5} />
+          <span className="hidden sm:inline">Test</span>
+        </button>
         <button
           type="button"
           onClick={() => { if (soundOn) stopRing(); setSoundOn((v) => !v); }}
