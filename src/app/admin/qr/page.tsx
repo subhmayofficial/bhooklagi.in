@@ -22,6 +22,8 @@ import {
 import { useAdminStore } from "@/stores/admin-store";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 
+const PUBLIC_SITE_ORIGIN = "https://www.bhooklagi.in";
+
 type QrCampaign = {
   id: string;
   title: string;
@@ -66,7 +68,7 @@ function formatDateTime(iso: string | null) {
 
 function shortUrl(url: string) {
   try {
-    const parsed = new URL(url, typeof window !== "undefined" ? window.location.origin : "https://www.bhooklagi.in");
+    const parsed = new URL(url, PUBLIC_SITE_ORIGIN);
     return `${parsed.host}${parsed.pathname === "/" ? "" : parsed.pathname}`;
   } catch {
     return url;
@@ -137,9 +139,8 @@ export default function AdminQrPage() {
   const [destinationUrl, setDestinationUrl] = useState("/menu");
   const [notes, setNotes] = useState("");
 
-  const origin = typeof window !== "undefined" ? window.location.origin : "https://www.bhooklagi.in";
   const suggestedSlug = slug || slugify(title);
-  const previewUrl = `${origin}/q/${suggestedSlug || "your-qr"}`;
+  const previewUrl = `${PUBLIC_SITE_ORIGIN}/q/${suggestedSlug || "your-qr"}`;
 
   const totals = useMemo(() => {
     const totalScans = campaigns?.reduce((sum, campaign) => sum + campaign.scanCount, 0) ?? 0;
@@ -375,7 +376,7 @@ export default function AdminQrPage() {
               ) : (
                 <div className="grid gap-4 xl:grid-cols-2">
                   {campaigns.map((campaign) => {
-                    const trackingUrl = `${origin}/q/${campaign.slug}`;
+                    const trackingUrl = `${PUBLIC_SITE_ORIGIN}/q/${campaign.slug}`;
                     const isBusy = busyId === campaign.id;
                     return (
                       <article key={campaign.id} className="grid gap-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-white/10 dark:bg-black/20 md:grid-cols-[190px_1fr]">
