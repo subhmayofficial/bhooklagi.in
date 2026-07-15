@@ -6,6 +6,7 @@ import {
   Bell,
   Image as ImageIcon,
   LayoutGrid,
+  QrCode,
   Settings,
   ShoppingBag,
   Tag,
@@ -19,6 +20,7 @@ const ADMIN_LINKS = [
   { href: "/admin", label: "Users", Icon: Users, exact: true },
   { href: "/admin/coupons", label: "Offers", Icon: Tag },
   { href: "/admin/banners", label: "Banners", Icon: ImageIcon },
+  { href: "/admin/qr", label: "QR", Icon: QrCode },
   { href: "/admin/subscribers", label: "Alerts", Icon: Bell },
   { href: "/admin/settings", label: "Settings", Icon: Settings },
 ];
@@ -32,7 +34,7 @@ export function AdminQuickNav() {
       aria-label="Admin quick navigation"
       className="fixed inset-x-0 bottom-0 z-[950] border-t border-gray-200/80 bg-white/95 px-2 pb-[max(0.65rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_34px_rgba(15,23,42,0.12)] backdrop-blur-xl dark:border-white/10 dark:bg-gray-950/95 md:left-1/2 md:right-auto md:bottom-4 md:w-[min(760px,calc(100%-2rem))] md:-translate-x-1/2 md:rounded-3xl md:border md:px-3 md:pb-3"
     >
-      <div className="hide-scrollbar flex gap-1 overflow-x-auto md:grid md:grid-cols-7 md:overflow-visible">
+      <div className="hide-scrollbar flex gap-1 overflow-x-auto md:grid md:grid-cols-8 md:overflow-visible">
         {ADMIN_LINKS.map(({ href, label, Icon, exact }) => {
           const active = exact ? pathname === href : pathname.startsWith(href);
           return (
