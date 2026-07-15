@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   RefreshCw, ShoppingBag, MapPinned, Navigation,
   Bell, BellOff, Clock, Phone, ChevronRight, CheckCircle2, XCircle,
-  Bike, UtensilsCrossed, PackageCheck, AlertCircle, Star
+  Bike, UtensilsCrossed, AlertCircle
 } from "lucide-react";
 import { useAdminStore } from "@/stores/admin-store";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
@@ -46,13 +46,17 @@ type AdminOrder = {
   specialInstructions: string | null;
 };
 
-const FILTERS: { label: string; value: OrderStatus | "all"; icon: React.ReactNode }[] = [
-  { label: "All",       value: "all",              icon: <ShoppingBag className="h-3.5 w-3.5" /> },
-  { label: "Placed",    value: "placed",            icon: <Bell className="h-3.5 w-3.5" /> },
-  { label: "Preparing", value: "preparing",         icon: <UtensilsCrossed className="h-3.5 w-3.5" /> },
-  { label: "Out",       value: "out_for_delivery",  icon: <Bike className="h-3.5 w-3.5" /> },
-  { label: "Delivered", value: "delivered",         icon: <PackageCheck className="h-3.5 w-3.5" /> },
-  { label: "Cancelled", value: "cancelled",         icon: <XCircle className="h-3.5 w-3.5" /> },
+const ORDER_BOARD_COLUMNS: {
+  label: string;
+  caption: string;
+  value: OrderStatus;
+  icon: React.ReactNode;
+  accent: string;
+}[] = [
+  { label: "Ready",            caption: "New orders",        value: "placed",           icon: <Bell className="h-4 w-4" />,            accent: "text-blue-600 bg-blue-50 border-blue-100 dark:text-blue-300 dark:bg-blue-500/10 dark:border-blue-500/20" },
+  { label: "Preparing",        caption: "Kitchen active",    value: "preparing",        icon: <UtensilsCrossed className="h-4 w-4" />, accent: "text-amber-600 bg-amber-50 border-amber-100 dark:text-amber-300 dark:bg-amber-500/10 dark:border-amber-500/20" },
+  { label: "Out for delivery", caption: "Rider on route",    value: "out_for_delivery", icon: <Bike className="h-4 w-4" />,            accent: "text-brand-orange bg-orange-50 border-orange-100 dark:bg-orange-500/10 dark:border-orange-500/20" },
+  { label: "Cancelled",        caption: "Rejected orders",   value: "cancelled",        icon: <XCircle className="h-4 w-4" />,         accent: "text-red-600 bg-red-50 border-red-100 dark:text-red-300 dark:bg-red-500/10 dark:border-red-500/20" },
 ];
 
 type RingtoneId = "kitchen" | "dhol" | "arcade" | "siren";
@@ -278,7 +282,6 @@ export default function AdminOrdersPage() {
   const { theme, toggleTheme } = useAdminStore();
   const router  = useRouter();
   const [orders, setOrders]       = useState<AdminOrder[] | null>(null);
-  const [filter, setFilter]       = useState<OrderStatus | "all">("all");
   const [error, setError]         = useState("");
   const [busyId, setBusyId]       = useState<string | null>(null);
   const [soundOn, setSoundOn]     = useState(true);
@@ -483,8 +486,7 @@ export default function AdminOrdersPage() {
   /* ── Load / poll orders ── */
   const load = useCallback(async () => {
     try {
-      const url = filter === "all" ? "/api/admin/orders" : `/api/admin/orders?status=${filter}`;
-      const res = await fetch(url);
+      const res = await fetch("/api/admin/orders");
       if (res.status === 401) { router.replace("/admin/login"); return; }
       const payload = await res.json();
       if (!res.ok) throw new Error(payload?.error || "Could not load orders.");
@@ -512,7 +514,7 @@ export default function AdminOrdersPage() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load orders.");
     }
-  }, [filter, router]);
+  }, [router]);
 
   useEffect(() => {
     load();
@@ -544,6 +546,8 @@ export default function AdminOrdersPage() {
   }
 
   const displayed = orders ?? [];
+  const activeOrders = displayed.filter((order) => ORDER_BOARD_COLUMNS.some((column) => column.value === order.status));
+  const deliveredCount = displayed.filter((order) => order.status === "delivered").length;
 
   return (
     <div className={theme === "dark" ? "dark" : ""}>
@@ -646,60 +650,53 @@ export default function AdminOrdersPage() {
         </button>
       </AdminPageHeader>
 
-      <main className="mx-auto max-w-6xl px-4 py-6 md:px-6">
-        {/* Stats strip */}
+      <main className="mx-auto max-w-[1500px] px-4 py-6 md:px-6">
         {orders && (
-          <div className="mb-5 grid grid-cols-3 gap-3 sm:grid-cols-6">
-            {FILTERS.filter((f) => f.value !== "all").map((f) => {
-              const count = orders.filter((o) => o.status === f.value).length;
+          <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {ORDER_BOARD_COLUMNS.map((column) => {
+              const count = orders.filter((order) => order.status === column.value).length;
               return (
-                <button
-                  key={f.value}
-                  type="button"
-                  onClick={() => setFilter(f.value)}
-                  className={`flex flex-col items-center justify-center gap-1 rounded-2xl border py-3 text-center transition-all ${
-                    filter === f.value
-                      ? "border-brand-orange/40 bg-brand-orange/10 text-brand-orange"
-                      : "border-white/8 bg-white/5 text-gray-400 hover:border-white/15 hover:text-white"
-                  }`}
+                <div
+                  key={column.value}
+                  className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm shadow-gray-200/70 dark:border-white/10 dark:bg-white/[0.055] dark:shadow-black/20"
                 >
-                  {f.icon}
-                  <span className="text-[18px] font-extrabold">{count}</span>
-                  <span className="text-[9px] font-bold uppercase tracking-widest">{f.label}</span>
-                </button>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-2xl border ${column.accent}`}>
+                      {column.icon}
+                    </div>
+                    <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-gray-500 dark:bg-white/10 dark:text-gray-400">
+                      {column.caption}
+                    </span>
+                  </div>
+                  <p className="mt-4 text-[28px] font-black leading-none text-gray-950 dark:text-white">{count}</p>
+                  <p className="mt-2 text-[11px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">{column.label}</p>
+                </div>
               );
             })}
           </div>
         )}
 
-        {/* Filter pills */}
-        <div className="mb-4 flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
-          {FILTERS.map((f) => (
+        {orders && (
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm shadow-gray-200/60 dark:border-white/10 dark:bg-white/[0.055] dark:shadow-black/20">
+            <div>
+              <p className="text-[14px] font-black text-gray-950 dark:text-white">Live order board</p>
+              <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+                {activeOrders.length} active/cancelled orders shown · {deliveredCount} delivered kept out of this board
+              </p>
+            </div>
             <button
-              key={f.value}
               type="button"
-              onClick={() => { setFilter(f.value); setNewCount(0); }}
-              className={`flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-[12px] font-bold transition-all ${
-                filter === f.value
-                  ? "bg-brand-orange text-white shadow-md shadow-brand-orange/30"
-                  : "bg-white/8 text-gray-400 hover:bg-white/12 hover:text-white"
-              }`}
+              onClick={load}
+              className="inline-flex items-center gap-2 rounded-xl bg-gray-950 px-4 py-2 text-[12px] font-black text-white transition-colors hover:bg-gray-800 dark:bg-white dark:text-gray-950 dark:hover:bg-gray-100"
             >
-              {f.icon}
-              {f.label}
-              {f.value !== "all" && orders && (
-                <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-extrabold ${
-                  filter === f.value ? "bg-white/20 text-white" : "bg-white/10 text-gray-400"
-                }`}>
-                  {orders.filter((o) => o.status === f.value).length}
-                </span>
-              )}
+              <RefreshCw className="h-4 w-4" strokeWidth={2.5} />
+              Refresh
             </button>
-          ))}
-        </div>
+          </div>
+        )}
 
         {error && (
-          <div className="mb-4 rounded-2xl border border-red-900/40 bg-red-950/40 px-4 py-3 text-[13px] text-red-400">
+          <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] font-semibold text-red-700 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-300">
             {error}
           </div>
         )}
@@ -709,189 +706,174 @@ export default function AdminOrdersPage() {
             Loading orders…
           </div>
         )}
-        {orders && displayed.length === 0 && (
+        {orders && activeOrders.length === 0 && (
           <div className="flex flex-col items-center py-20 text-center">
             <ShoppingBag className="h-12 w-12 text-gray-700" strokeWidth={1.2} />
             <p className="mt-4 text-[14px] font-bold text-gray-500">No orders here</p>
           </div>
         )}
 
-        {/* Order cards */}
-        <div className="space-y-3">
-          <AnimatePresence initial={false}>
-            {displayed.map((o) => {
-              const meta = ORDER_STATUS_META[o.status];
-              const next = NEXT_STATUS[o.status];
-              const isNew = Date.now() - new Date(o.createdAt).getTime() < 3 * 60 * 1000;
+        {orders && activeOrders.length > 0 && (
+          <div className="grid gap-4 xl:grid-cols-4">
+            {ORDER_BOARD_COLUMNS.map((column) => {
+              const columnOrders = displayed.filter((order) => order.status === column.value);
               return (
-                <motion.div
-                  key={o.id}
-                  layout
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  transition={{ duration: 0.2 }}
-                  className={`overflow-hidden rounded-2xl border ${
-                    o.status === "placed"
-                      ? "border-brand-orange/30 bg-gradient-to-br from-brand-orange/5 to-transparent"
-                      : "border-white/8 bg-white/5"
-                  }`}
+                <section
+                  key={column.value}
+                  className="min-h-[360px] rounded-2xl border border-gray-200 bg-gray-100/70 p-3 dark:border-white/10 dark:bg-white/[0.035]"
                 >
-                  <div className="p-4">
-                    {/* Header */}
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-[13px] font-extrabold text-white">{o.orderNumber}</span>
-                        <span className={`flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${meta.pill}`}>
-                          {meta.emoji} {meta.label}
-                        </span>
-                        <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] font-semibold text-gray-400">
-                          {o.paymentMode === "cod" ? "💵 COD" : o.paymentMode}
-                        </span>
-                        {isNew && (
-                          <span className="flex items-center gap-1 rounded-full bg-green-500/20 px-2.5 py-0.5 text-[11px] font-bold text-green-400">
-                            <span className="relative flex h-1.5 w-1.5">
-                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
-                              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-green-400" />
-                            </span>
-                            NEW
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <p className="font-display text-[20px] leading-none text-brand-orange">{formatInr(o.grandTotal)}</p>
-                        <p className="mt-0.5 flex items-center justify-end gap-1 text-[10px] text-gray-500">
-                          <Clock className="h-3 w-3" strokeWidth={2} />
-                          {new Date(o.createdAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
-                        </p>
+                  <div className="mb-3 flex items-center justify-between gap-3 px-1">
+                    <div className="flex items-center gap-2">
+                      <span className={`flex h-8 w-8 items-center justify-center rounded-xl border ${column.accent}`}>{column.icon}</span>
+                      <div>
+                        <h2 className="text-[13px] font-black text-gray-950 dark:text-white">{column.label}</h2>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500">{column.caption}</p>
                       </div>
                     </div>
-
-                    {/* Items */}
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {o.items.map((item) => (
-                        <span key={item.itemId} className="flex items-center gap-2 rounded-xl bg-white/8 px-2.5 py-1.5 text-[12px] font-semibold text-gray-300">
-                          {item.emoji} 
-                          <span className="flex flex-col">
-                            <span>{item.name}</span>
-                            {item.selectedAddons && item.selectedAddons.length > 0 && (
-                              <span className="text-[10px] text-brand-orange/90 font-medium leading-none mt-0.5">
-                                +{item.selectedAddons.map(a => a.name).join(", ")}
-                              </span>
-                            )}
-                          </span>
-                          <span className="rounded-full bg-white/15 px-1.5 text-[10px] font-extrabold text-white">×{item.qty}</span>
-                        </span>
-                      ))}
-                    </div>
-
-                    {/* Special instructions */}
-                    {o.specialInstructions && (
-                      <div className="mt-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[12px]">
-                        <p className="text-[10px] font-extrabold uppercase tracking-widest text-amber-400 mb-0.5">📝 Instructions</p>
-                        <p className="text-amber-200">{o.specialInstructions}</p>
-                      </div>
-                    )}
-
-                    {/* Delivery */}
-                    <div className="mt-3 rounded-xl bg-black/20 px-3 py-2.5 text-[12px]">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-gray-200">{o.deliveryName}</span>
-                        <a href={`tel:+${o.deliveryPhone}`} className="flex items-center gap-1 rounded-full bg-brand-orange/20 px-2 py-0.5 text-[11px] font-bold text-brand-orange">
-                          <Phone className="h-3 w-3" strokeWidth={2.5} />+{o.deliveryPhone.slice(-10)}
-                        </a>
-                      </div>
-                      <p className="mt-1 text-gray-400">
-                        {o.deliveryAddress}{o.deliveryLandmark ? ` · Near: ${o.deliveryLandmark}` : ""}
-                      </p>
-                      {o.deliveryLat !== null && o.deliveryLng !== null ? (
-                        <div className="mt-2 flex flex-wrap gap-2 border-t border-white/8 pt-2">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-green-500/15 px-2.5 py-1 text-[11px] font-bold text-green-400">
-                            <MapPinned className="h-3.5 w-3.5" />
-                            GPS{typeof o.deliveryAccuracyM === "number" ? ` ~${Math.round(o.deliveryAccuracyM)}m` : ""}
-                          </span>
-                          <a href={googlePinUrl(o.deliveryLat, o.deliveryLng)} target="_blank" rel="noreferrer"
-                            className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-white/15 transition-colors">
-                            <MapPinned className="h-3.5 w-3.5" /> Open pin
-                          </a>
-                          <a href={googleRouteUrl(o.deliveryLat, o.deliveryLng)} target="_blank" rel="noreferrer"
-                            className="inline-flex items-center gap-1 rounded-full bg-brand-orange/20 px-2.5 py-1 text-[11px] font-bold text-brand-orange hover:bg-brand-orange/30 transition-colors">
-                            <Navigation className="h-3.5 w-3.5" /> Route
-                          </a>
-                        </div>
-                      ) : (
-                        <div className="mt-2 rounded-lg bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-amber-400">
-                          ⚠ GPS pin not captured
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Actions */}
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {next && (
-                        <button
-                          type="button"
-                          disabled={busyId === o.id}
-                          onClick={() => updateStatus(o.id, next)}
-                          className="flex items-center gap-1.5 rounded-xl bg-brand-orange px-4 py-2 text-[12px] font-extrabold text-white shadow-md shadow-brand-orange/30 hover:bg-brand-orange-dark disabled:opacity-50 active:scale-95 transition-all"
-                        >
-                          <CheckCircle2 className="h-3.5 w-3.5" strokeWidth={2.5} />
-                          Mark {ORDER_STATUS_META[next].label}
-                          <ChevronRight className="h-3.5 w-3.5" strokeWidth={3} />
-                        </button>
-                      )}
-                      {o.status !== "cancelled" && o.status !== "delivered" && (
-                        <button
-                          type="button"
-                          disabled={busyId === o.id}
-                          onClick={() => updateStatus(o.id, "cancelled")}
-                          className="flex items-center gap-1.5 rounded-xl border border-red-900/40 bg-red-950/40 px-4 py-2 text-[12px] font-bold text-red-400 hover:bg-red-900/40 disabled:opacity-50 transition-colors"
-                        >
-                          <XCircle className="h-3.5 w-3.5" strokeWidth={2.5} />
-                          Cancel
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Customer rating — shown for delivered orders */}
-                    {o.status === "delivered" && o.ratedAt && (
-                      <div className="mt-3 rounded-xl border border-white/8 bg-black/20 px-3 py-2.5">
-                        <p className="mb-1.5 flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-widest text-gray-500">
-                          <Star className="h-3 w-3 fill-amber-400 stroke-amber-400" strokeWidth={1.5} />
-                          Customer rating
-                        </p>
-                        <div className="flex flex-wrap gap-4">
-                          <div>
-                            <p className="text-[10px] text-gray-500">Food</p>
-                            <div className="mt-0.5 flex gap-0.5">
-                              {[1,2,3,4,5].map((s) => (
-                                <Star key={s} className={`h-4 w-4 ${s <= (o.foodRating ?? 0) ? "fill-amber-400 stroke-amber-400" : "fill-transparent stroke-gray-700"}`} strokeWidth={1.5} />
-                              ))}
-                            </div>
-                          </div>
-                          <div>
-                            <p className="text-[10px] text-gray-500">Delivery</p>
-                            <div className="mt-0.5 flex gap-0.5">
-                              {[1,2,3,4,5].map((s) => (
-                                <Star key={s} className={`h-4 w-4 ${s <= (o.deliveryRating ?? 0) ? "fill-amber-400 stroke-amber-400" : "fill-transparent stroke-gray-700"}`} strokeWidth={1.5} />
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                        {o.ratingComment && (
-                          <p className="mt-2 text-[11px] italic text-gray-400">&ldquo;{o.ratingComment}&rdquo;</p>
-                        )}
-                      </div>
-                    )}
-                    {o.status === "delivered" && !o.ratedAt && (
-                      <p className="mt-3 text-[11px] text-gray-600">Rating pending…</p>
-                    )}
+                    <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-black text-gray-700 shadow-sm dark:bg-white/10 dark:text-white">
+                      {columnOrders.length}
+                    </span>
                   </div>
-                </motion.div>
+
+                  {columnOrders.length === 0 ? (
+                    <div className="flex h-40 flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-white/70 text-center dark:border-white/10 dark:bg-black/10">
+                      <ShoppingBag className="h-8 w-8 text-gray-300 dark:text-gray-700" strokeWidth={1.5} />
+                      <p className="mt-2 text-[12px] font-black text-gray-400 dark:text-gray-600">No orders</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <AnimatePresence initial={false}>
+                        {columnOrders.map((o) => {
+                          const meta = ORDER_STATUS_META[o.status];
+                          const next = NEXT_STATUS[o.status];
+                          const isNew = Date.now() - new Date(o.createdAt).getTime() < 3 * 60 * 1000;
+                          return (
+                            <motion.div
+                              key={o.id}
+                              layout
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, x: 20 }}
+                              transition={{ duration: 0.2 }}
+                              className={`overflow-hidden rounded-2xl border bg-white shadow-sm shadow-gray-200/70 dark:bg-gray-950/80 dark:shadow-black/30 ${
+                                o.status === "placed"
+                                  ? "border-brand-orange/35 ring-1 ring-brand-orange/10 dark:bg-gradient-to-br dark:from-brand-orange/10 dark:to-gray-950"
+                                  : "border-gray-200 dark:border-white/10"
+                              }`}
+                            >
+                              <div className="p-3">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="truncate font-mono text-[12px] font-black text-gray-950 dark:text-white">{o.orderNumber}</p>
+                                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                      <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black ${meta.pill}`}>
+                                        {meta.emoji} {meta.label}
+                                      </span>
+                                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-600 dark:bg-white/10 dark:text-gray-300">
+                                        {o.paymentMode === "cod" ? "Cash" : o.paymentMode}
+                                      </span>
+                                      {isNew && (
+                                        <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-black text-green-700 dark:bg-green-500/20 dark:text-green-300">
+                                          NEW
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="shrink-0 text-right">
+                                    <p className="font-display text-[19px] leading-none text-brand-orange">{formatInr(o.grandTotal)}</p>
+                                    <p className="mt-1 flex items-center justify-end gap-1 text-[10px] font-semibold text-gray-500 dark:text-gray-500">
+                                      <Clock className="h-3 w-3" strokeWidth={2} />
+                                      {new Date(o.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="mt-3 flex flex-wrap gap-1.5">
+                                  {o.items.map((item) => (
+                                    <span key={item.itemId} className="flex items-center gap-1.5 rounded-xl bg-gray-100 px-2.5 py-1.5 text-[11px] font-bold text-gray-700 dark:bg-white/10 dark:text-gray-200">
+                                      {item.emoji}
+                                      <span className="min-w-0 truncate">{item.name}</span>
+                                      <span className="rounded-full bg-white px-1.5 text-[10px] font-black text-gray-800 dark:bg-white/15 dark:text-white">x{item.qty}</span>
+                                    </span>
+                                  ))}
+                                </div>
+
+                                {o.specialInstructions && (
+                                  <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] dark:border-amber-500/30 dark:bg-amber-500/10">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-300">Instructions</p>
+                                    <p className="mt-0.5 text-amber-800 dark:text-amber-100">{o.specialInstructions}</p>
+                                  </div>
+                                )}
+
+                                <div className="mt-3 rounded-xl bg-gray-50 px-3 py-2.5 text-[12px] dark:bg-black/25">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="font-black text-gray-900 dark:text-gray-100">{o.deliveryName}</span>
+                                    <a href={`tel:+${o.deliveryPhone}`} className="flex items-center gap-1 rounded-full bg-brand-orange/10 px-2 py-0.5 text-[11px] font-black text-brand-orange">
+                                      <Phone className="h-3 w-3" strokeWidth={2.5} />+{o.deliveryPhone.slice(-10)}
+                                    </a>
+                                  </div>
+                                  <p className="mt-1 line-clamp-2 text-gray-600 dark:text-gray-400">
+                                    {o.deliveryAddress}{o.deliveryLandmark ? ` · Near: ${o.deliveryLandmark}` : ""}
+                                  </p>
+                                  {o.deliveryLat !== null && o.deliveryLng !== null ? (
+                                    <div className="mt-2 flex flex-wrap gap-2 border-t border-gray-200 pt-2 dark:border-white/10">
+                                      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-[11px] font-black text-green-700 dark:bg-green-500/15 dark:text-green-300">
+                                        <MapPinned className="h-3.5 w-3.5" />
+                                        GPS{typeof o.deliveryAccuracyM === "number" ? ` ~${Math.round(o.deliveryAccuracyM)}m` : ""}
+                                      </span>
+                                      <a href={googlePinUrl(o.deliveryLat, o.deliveryLng)} target="_blank" rel="noreferrer"
+                                        className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[11px] font-black text-gray-700 ring-1 ring-gray-200 transition-colors hover:text-gray-950 dark:bg-white/10 dark:text-white dark:ring-transparent dark:hover:bg-white/15">
+                                        <MapPinned className="h-3.5 w-3.5" /> Pin
+                                      </a>
+                                      <a href={googleRouteUrl(o.deliveryLat, o.deliveryLng)} target="_blank" rel="noreferrer"
+                                        className="inline-flex items-center gap-1 rounded-full bg-brand-orange/10 px-2.5 py-1 text-[11px] font-black text-brand-orange transition-colors hover:bg-brand-orange/20">
+                                        <Navigation className="h-3.5 w-3.5" /> Route
+                                      </a>
+                                    </div>
+                                  ) : (
+                                    <div className="mt-2 rounded-lg bg-amber-50 px-2.5 py-1.5 text-[11px] font-bold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+                                      GPS pin not captured
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                  {next && (
+                                    <button
+                                      type="button"
+                                      disabled={busyId === o.id}
+                                      onClick={() => updateStatus(o.id, next)}
+                                      className="flex items-center gap-1.5 rounded-xl bg-brand-orange px-3 py-2 text-[11px] font-black text-white shadow-md shadow-brand-orange/25 transition-all hover:bg-brand-orange-dark active:scale-95 disabled:opacity-50"
+                                    >
+                                      <CheckCircle2 className="h-3.5 w-3.5" strokeWidth={2.5} />
+                                      Mark {ORDER_STATUS_META[next].label}
+                                      <ChevronRight className="h-3.5 w-3.5" strokeWidth={3} />
+                                    </button>
+                                  )}
+                                  {o.status !== "cancelled" && o.status !== "delivered" && (
+                                    <button
+                                      type="button"
+                                      disabled={busyId === o.id}
+                                      onClick={() => updateStatus(o.id, "cancelled")}
+                                      className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[11px] font-black text-red-600 transition-colors hover:bg-red-100 disabled:opacity-50 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-900/40"
+                                    >
+                                      <XCircle className="h-3.5 w-3.5" strokeWidth={2.5} />
+                                      Cancel
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </AnimatePresence>
+                    </div>
+                  )}
+                </section>
               );
             })}
-          </AnimatePresence>
-        </div>
+          </div>
+        )}
       </main>
     </div>
     </div>
