@@ -471,6 +471,15 @@ export function AppHomeHero() {
           {greeting()}{user?.name ? `, ${user.name.split(" ")[0]}` : ""} — bhook lagi? 👋
         </p>
 
+        <div className="mt-2">
+          <h1 className="text-[24px] font-black leading-tight text-white drop-shadow-sm md:text-[34px]">
+            Bhook Lagi Food Delivery in Deoghar
+          </h1>
+          <p className="mt-1 max-w-2xl text-[13px] font-semibold leading-relaxed text-white/85 md:text-[15px]">
+            Order fresh burgers, rolls, maggi, fries, sandwiches, drinks, and combo meals with fast local delivery.
+          </p>
+        </div>
+
         {/* ── Advanced Search ── */}
         <div
           className="relative mt-3 space-y-2"

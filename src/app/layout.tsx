@@ -41,11 +41,11 @@ const inter = Inter({
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.bhooklagi.in"),
   title: {
-    default: "Bhook Lagi? | Best Food Delivery in Deoghar",
+    default: "Bhook Lagi Food Delivery in Deoghar | Burgers, Rolls, Maggi & Fries",
     template: "%s | Bhook Lagi?",
   },
   description:
-    "Deoghar's premium cloud kitchen! Order delicious burgers, rolls, maggi, Chinese, pasta & fries online. Fast delivery near Baba Baidyanath Dham & across Deoghar.",
+    "Order burgers, rolls, maggi, fries, sandwiches, drinks, and combo meals online from Bhook Lagi in Deoghar. Fresh food, easy checkout, and fast local delivery.",
   keywords: [
     "Bhook Lagi",
     "food delivery Deoghar",
@@ -82,9 +82,9 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_IN",
     siteName: "Bhook Lagi?",
-    title: "Bhook Lagi? | Best Food Delivery in Deoghar, Jharkhand",
+    title: "Bhook Lagi Food Delivery in Deoghar | Burgers, Rolls, Maggi & Fries",
     description:
-      "Order Deoghar's best burgers, rolls, Chinese & pasta online. Fast delivery anywhere in Deoghar!",
+      "Order burgers, rolls, maggi, fries, sandwiches, drinks, and combo meals online from Bhook Lagi in Deoghar.",
     url: "https://www.bhooklagi.in",
     images: [
       {
@@ -98,8 +98,8 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     site: "@bhooklagi",
-    title: "Bhook Lagi? | Food Delivery Deoghar",
-    description: "Order food online in Deoghar — fast delivery & big flavours.",
+    title: "Bhook Lagi Food Delivery in Deoghar",
+    description: "Order burgers, rolls, maggi, fries, sandwiches, drinks, and combos online in Deoghar.",
     images: ["/og-image.png"],
   },
   icons: {
