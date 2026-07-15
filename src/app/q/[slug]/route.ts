@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
+const PUBLIC_SITE_ORIGIN = "https://www.bhooklagi.in";
+
 type RouteContext = {
   params: Promise<{ slug: string }>;
 };
@@ -35,19 +37,22 @@ function detectOs(userAgent: string) {
   return "Unknown";
 }
 
-function fallbackUrl(req: NextRequest) {
-  return new URL("/menu", req.nextUrl.origin);
+function fallbackUrl() {
+  return new URL("/menu", PUBLIC_SITE_ORIGIN);
 }
 
-function safeRedirectUrl(destination: string, req: NextRequest) {
-  if (destination.startsWith("/")) return new URL(destination, req.nextUrl.origin);
+function safeRedirectUrl(destination: string) {
+  if (destination.startsWith("/")) return new URL(destination, PUBLIC_SITE_ORIGIN);
   try {
     const url = new URL(destination);
+    if (url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname.startsWith("192.168.")) {
+      return new URL(`${url.pathname}${url.search}${url.hash}`, PUBLIC_SITE_ORIGIN);
+    }
     if (url.protocol === "http:" || url.protocol === "https:") return url;
   } catch {
-    return fallbackUrl(req);
+    return fallbackUrl();
   }
-  return fallbackUrl(req);
+  return fallbackUrl();
 }
 
 export async function GET(req: NextRequest, context: RouteContext) {
@@ -61,7 +66,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
     .maybeSingle();
 
   if (error || !campaign || campaign.is_active !== true) {
-    return NextResponse.redirect(fallbackUrl(req), { status: 302 });
+    return NextResponse.redirect(fallbackUrl(), { status: 302 });
   }
 
   const userAgent = req.headers.get("user-agent") ?? "";
@@ -83,5 +88,5 @@ export async function GET(req: NextRequest, context: RouteContext) {
     city: req.headers.get("x-vercel-ip-city"),
   });
 
-  return NextResponse.redirect(safeRedirectUrl(campaign.destination_url as string, req), { status: 302 });
+  return NextResponse.redirect(safeRedirectUrl(campaign.destination_url as string), { status: 302 });
 }

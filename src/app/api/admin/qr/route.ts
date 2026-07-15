@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdminSession } from "@/lib/auth/admin-session";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
+const PUBLIC_SITE_ORIGIN = "https://www.bhooklagi.in";
+
 type QrCampaignRow = {
   id: string;
   title: string;
@@ -47,6 +49,9 @@ function normalizeUrl(value: unknown) {
   if (trimmed.startsWith("/")) return trimmed;
   try {
     const url = new URL(trimmed);
+    if (url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname.startsWith("192.168.")) {
+      return `${url.pathname}${url.search}${url.hash}` || "/";
+    }
     if (url.protocol === "http:" || url.protocol === "https:") return url.toString();
   } catch {
     return null;
@@ -66,6 +71,7 @@ function mapCampaign(row: QrCampaignRow, scanCount: number, latestScanAt: string
     updatedAt: row.updated_at,
     scanCount,
     latestScanAt,
+    trackingUrl: `${PUBLIC_SITE_ORIGIN}/q/${row.slug}`,
   };
 }
 

@@ -35,6 +35,7 @@ type QrCampaign = {
   updatedAt: string;
   scanCount: number;
   latestScanAt: string | null;
+  trackingUrl: string;
 };
 
 type QrScan = {
@@ -376,7 +377,7 @@ export default function AdminQrPage() {
               ) : (
                 <div className="grid gap-4 xl:grid-cols-2">
                   {campaigns.map((campaign) => {
-                    const trackingUrl = `${PUBLIC_SITE_ORIGIN}/q/${campaign.slug}`;
+                    const trackingUrl = campaign.trackingUrl || `${PUBLIC_SITE_ORIGIN}/q/${campaign.slug}`;
                     const isBusy = busyId === campaign.id;
                     return (
                       <article key={campaign.id} className="grid gap-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-white/10 dark:bg-black/20 md:grid-cols-[190px_1fr]">
